@@ -5,8 +5,24 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=5.0,user-scalable=yes">
 <title>รายชิ้นในลอต · Lot Parts</title>
 <!-- =====================================================================
-  Lot Parts · รายชิ้นในลอต        ·   VERSION 1.5
+  Lot Parts · รายชิ้นในลอต        ·   VERSION 1.6
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  1.6  2026-09-08  FIX  เลือกแหล่งข้อมูลเป็นราย lot ไม่ใช่เลือกทีเดียวตอนเปิดหน้า
+                   StarSync ดึง lot_part เฉพาะลอตที่มีคนยิงอยู่ในรอบนั้น
+                   ลอตอื่นจึงยังไม่มีแถว · ของเดิมตัดสินจาก "มีตาราง lot_part ไหม"
+                   อย่างเดียว พอเปิดลอตที่ยังไม่ถูกดึง ทั้งหน้าถอยไปใช้ check_part
+                   เงียบ ๆ ทั้งที่ลอตอื่นใช้ได้ปกติ · คนเปิดดูจะสรุปว่าระบบไม่ทำงาน
+                   ทั้งที่มันทำงานอยู่ แค่ยังไม่ได้ดึงลอตนั้น
+                   · ลองที่ lot_part ก่อนทุกครั้ง ไม่มีแถวค่อยถอยไป check_part
+                   FEAT ปุ่ม "ดึงรายชิ้นลอตนี้จาก AX"
+                   หย่อนคำขอไว้ใน lot_part_request แล้ว StarSync v2.4 มาเก็บไปทำ
+                   หน้าเว็บถามสถานะทุก 5 วินาที พอเสร็จโหลดตารางใหม่ให้เอง
+                   ยอมแพ้ที่ 4 นาที · ทำแบบนี้แทนการดึงทุกลอตมาไว้ก่อน
+                   เพราะมี 1,876 ลอต ลอตละ ~400 ชิ้น = 750,000 แถว
+                   ทั้งที่คนดูจริงแค่ไม่กี่ลอตต่อวัน
+                   · แถบเหลืองเปลี่ยนจากบ่นว่าไม่มีข้อมูล เป็นมีปุ่มให้กดแก้เลย
+                     การบอกปัญหาโดยไม่มีทางแก้ให้กด คือโยนงานกลับไปให้คนอ่าน
+                   · เลือกตารางเองจาก dropdown แล้วจะไม่โดนสลับอัตโนมัติอีก
   1.5  2026-09-08  FEAT ชื่อคอลัมน์ถอดมาจากนิยามกริดในตัว AxProgress.exe แล้ว
                    ของเดิมอ้างหัวคอลัมน์จากไฟล์ export ซึ่งมี 27 ช่อง
                    ตัวโปรแกรมจริงมีมากกว่านั้น เพิ่มมาอีก 6 ตัว
@@ -288,7 +304,6 @@ select.sel{background:var(--bd);color:var(--tx);border:1px solid var(--bd2);bord
   <div class="note" id="note" style="display:none">
     <span>⚠️</span>
     <span id="noteTx"></span>
-    <button data-act="noteoff" title="ซ่อน">✕</button>
   </div>
 
   <!-- ตาราง / สถานะ -->
@@ -381,9 +396,12 @@ const S = {
   st:'all',           // ตัวกรองสถานะ: all | done | todo
   sort:{k:'', dir:0}, // dir 1 = น้อยไปมาก, -1 = มากไปน้อย
   dense:false,
-  note:true,
   busy:'',            // ข้อความตอนกำลังโหลด
   err:'',
+  needReq:false,      // ลอตนี้ยังไม่ถูกดึงรายชิ้นจาก AX
+  asking:false,       // กำลังรอ StarSync มาดึงให้
+  askMsg:'',
+  pin:false,          // ผู้ใช้เลือกตารางเองแล้ว ห้ามสลับให้อัตโนมัติ
   sugOn:false, sugIdx:-1, sugList:[]
 };
 
@@ -522,7 +540,29 @@ const db = {
   },
 
   /* ตารางที่ไม่มีคอลัมน์ lot · ดึงมาดูเฉย ๆ แบบจำกัดจำนวน */
-  peek(table){ return this.get(table + '?select=*&limit=1000'); }
+  peek(table){ return this.get(table + '?select=*&limit=1000'); },
+
+  /* v1.6 หย่อนคำขอให้ StarSync ไปดึงรายชิ้นของลอตนี้จาก AX
+     merge-duplicates เพราะขอลอตเดิมซ้ำได้ · ล้าง done_at ให้เป็นคำขอใหม่ */
+  async request(lot){
+    const r = await fetch(this.base() + 'lot_part_request?on_conflict=lot', {
+      method:'POST',
+      headers: Object.assign({}, this.head(), {
+        'Content-Type':'application/json',
+        'Prefer':'resolution=merge-duplicates,return=minimal'
+      }),
+      body: JSON.stringify([{ lot, requested_at:new Date().toISOString(),
+                              requested_by:'lot-parts.html',
+                              done_at:null, rows_synced:null, error:null }])
+    });
+    if(!r.ok) throw new Error('HTTP ' + r.status + ' · ' + (await r.text().catch(()=> '')).slice(0,200));
+  },
+
+  async requestState(lot){
+    const j = await this.get('lot_part_request?select=done_at,rows_synced,error&lot=eq.' +
+                             encodeURIComponent(lot) + '&limit=1');
+    return j[0] || null;
+  }
 };
 
 /* ══════════════════════════════════════════════════════════════
@@ -544,7 +584,7 @@ const colKey = () => 'lp_cols_' + S.table;
    หน้านี้ตั้งแต่รุ่นก่อน จะไม่มีวันเห็นคอลัมน์ที่เพิ่มมาทีหลังเลย
    ต้องไปกด "ค่าเริ่มต้น" เองซึ่งไม่มีใครรู้ว่าต้องกด
    ขึ้นเลขรุ่นแล้วล้างของเก่าทิ้งรอบเดียว จบปัญหานั้น */
-const COLS_VER = 4;
+const COLS_VER = 5;
 
 function buildCols(){
   const all = S.schema[S.table] || [];
@@ -671,13 +711,20 @@ const hasFull = () => (S.schema[S.table] || []).includes('st_part');
 
 function renderNote(){
   const el = $('note');
-  /* เตือนเฉพาะตอนที่ตารางนั้นมีแต่ชิ้นที่ยิงแล้ว · พอ lot_part มาแล้วก็เงียบไปเอง */
-  if(!S.note || hasFull() || !S.lot){ el.style.display = 'none'; return; }
-  $('noteTx').innerHTML =
-    'ตอนนี้กำลังอ่านจาก <b>' + esc(S.table) + '</b> ซึ่งเป็นบันทึกการยิง ' +
-    'จึงเห็นเฉพาะชิ้นที่ยิงไปแล้ว ชิ้นที่ยังไม่ทำไม่มีแถว ปุ่ม “ยังไม่ตัด” จึงเป็นศูนย์เสมอ · ' +
-    'ต้องสร้างตาราง <b>lot_part</b> แล้วให้ StarSync v2.1 ส่งรายชิ้นขึ้นมาก่อน ' +
-    'พอมีแล้วหน้านี้จะสลับไปใช้เองอัตโนมัติ';
+  /* v1.6 แถบนี้เปลี่ยนหน้าที่ · จากเดิมแค่บ่นว่าไม่มีข้อมูล
+     ตอนนี้มีปุ่มให้กดสั่งดึงเลย · การบอกปัญหาโดยไม่มีทางแก้ให้กด
+     คือการโยนงานกลับไปให้คนอ่าน */
+  if(!S.lot || (!S.needReq && !S.asking)){ el.style.display = 'none'; return; }
+
+  if(S.asking){
+    $('noteTx').innerHTML = '<b>' + esc(S.askMsg) + '</b> · หน้านี้จะโหลดเองเมื่อข้อมูลมาถึง';
+  } else {
+    $('noteTx').innerHTML =
+      'ลอตนี้ยังไม่ได้ดึงรายชิ้นจาก AX ตอนนี้จึงเห็นเฉพาะชิ้นที่ยิงไปแล้ว (จาก ' +
+      esc(S.table) + ') · กดปุ่มขวามือเพื่อสั่งดึง ใช้เวลาราว 1-3 นาที ' +
+      '<button class="btn sm" data-act="ask" style="margin-left:8px;background:#78350f;color:#fde68a;border-color:#b45309">' +
+      '⤓ ดึงรายชิ้นลอตนี้จาก AX</button>';
+  }
   el.style.display = 'flex';
 }
 
@@ -714,9 +761,11 @@ function renderGrid(){
   }
   if(!S.rows.length){
     wrap.style.display = 'none'; mid.style.display = 'flex';
-    mid.innerHTML = '<div class="big">🕳️</div><div class="t">ลอตนี้ยังไม่มีการยิงสักชิ้น</div>' +
-      '<div class="s">รหัส <code>' + esc(S.lot) + '</code> มีอยู่ใน lot_progress ' +
-      'แต่ยังไม่มีแถวใน ' + esc(S.table) + '</div>';
+    mid.innerHTML = '<div class="big">🕳️</div><div class="t">ลอตนี้ยังไม่มีแถวเลย</div>' +
+      '<div class="s">รหัส <code>' + esc(S.lot) + '</code> ไม่มีทั้งใน lot_part และ check_part' +
+      (S.asking ? '' :
+        '<br><br><button class="btn" data-act="ask" style="background:#78350f;color:#fde68a;border-color:#b45309">' +
+        '⤓ ดึงรายชิ้นลอตนี้จาก AX</button>') + '</div>';
     return;
   }
 
@@ -868,14 +917,11 @@ async function boot(){
   }
   /* lot_part เป็นตัวเดียวที่มีครบทุกชิ้นในลอต ถ้ามีให้ใช้ตัวนี้ก่อนเสมอ
      ไม่มีค่อยถอยไป check_part ซึ่งเห็นเฉพาะชิ้นที่ยิงแล้ว */
-  const savedTbl = localStorage.getItem('lp_table') || '';
-  if(savedTbl && S.schema[savedTbl])    S.table = savedTbl;
-  else if(S.schema['lot_part'])         S.table = 'lot_part';
-  else if(S.schema['check_part'])       S.table = 'check_part';
-  else {
-    const first = Object.keys(S.schema)[0];
-    if(first) S.table = first;
-  }
+  /* v1.6 ไม่ปักตารางตายตัวตอนเปิดหน้าแล้ว · selectLot ตัดสินให้ราย lot
+     เพราะบางลอตมีใน lot_part บางลอตยังไม่มี ขึ้นกับว่า StarSync ดึงไปหรือยัง */
+  if(S.schema['lot_part'])        S.table = 'lot_part';
+  else if(S.schema['check_part']) S.table = 'check_part';
+  else { const first = Object.keys(S.schema)[0]; if(first) S.table = first; }
   fillTables();
   buildCols();
 
@@ -913,18 +959,72 @@ async function selectLot(lot){
 
   S.prog = S.lots.find(l => l.lot === lot) || null;
   S.filters = {}; S.sort = { k:'', dir:0 }; S.st = 'all';
-  S.busy = 'กำลังดึงแถวของลอต ' + lot; S.err = ''; S.rows = [];
+  S.busy = 'กำลังดึงแถวของลอต ' + lot; S.err = ''; S.rows = []; S.needReq = false;
   render();
 
   try {
-    const hasLot = (S.schema[S.table] || []).includes('lot');
-    S.rows = hasLot
-      ? await db.rowsOfLot(S.table, lot, n => { S.busy = 'ดึงมาแล้ว ' + nf0.format(n) + ' แถว'; })
-      : await db.peek(S.table);
+    /* v1.6 เลือกแหล่งข้อมูลเป็นราย lot ไม่ใช่เลือกทีเดียวตอนเปิดหน้า
+       StarSync ดึง lot_part เฉพาะลอตที่มีคนยิงอยู่ ลอตอื่นจึงยังไม่มีแถว
+       ของเดิมตัดสินจาก "มีตาราง lot_part ไหม" อย่างเดียว พอเปิดลอตที่ยัง
+       ไม่ถูกดึง ทั้งหน้าจะถอยไปใช้ check_part เงียบ ๆ ทั้งที่ลอตอื่นใช้ได้
+       ตอนนี้ลองที่ lot_part ก่อนทุกครั้ง ไม่มีแถวค่อยถอย แล้วเสนอปุ่มให้สั่งดึง */
+    if(!S.pin && S.schema['lot_part']){
+      S.table = 'lot_part';
+      buildCols();
+      S.rows = await db.rowsOfLot('lot_part', lot);
+      if(!S.rows.length && S.schema['check_part']){
+        S.table = 'check_part';
+        buildCols();
+        S.rows = await db.rowsOfLot('check_part', lot);
+        S.needReq = true;                 /* ลอตนี้ยังไม่ถูกดึงจาก AX */
+      }
+    } else {
+      const hasLot = (S.schema[S.table] || []).includes('lot');
+      S.rows = hasLot ? await db.rowsOfLot(S.table, lot) : await db.peek(S.table);
+    }
   } catch(e){
     S.err = e.message;
   }
   S.busy = '';
+  fillTables();
+  render();
+}
+
+/* ── สั่งให้ StarSync ไปดึงรายชิ้นของลอตนี้จาก AX ────────────────
+   หย่อนคำขอไว้ในคิว แล้วนั่งดูจนกว่าแถวจะโผล่
+   ทำแบบนี้แทนการดึงทุกลอตมาไว้ก่อน เพราะมี 1,876 ลอต ลอตละ ~400 ชิ้น
+   คนดูจริงแค่ไม่กี่ลอตต่อวัน ไม่คุ้มที่จะขนมาทั้งหมด */
+async function askForLot(){
+  const lot = S.lot;
+  if(!lot || S.asking) return;
+  S.asking = true; S.askMsg = 'ส่งคำขอแล้ว รอ StarSync มาเก็บไปทำ'; render();
+  try {
+    await db.request(lot);
+  } catch(e){
+    S.asking = false; S.askMsg = ''; S.err = 'ส่งคำขอไม่สำเร็จ · ' + e.message; render(); return;
+  }
+
+  /* StarSync วิ่งทุก 1-3 นาที · ให้เวลา 4 นาทีแล้วยอมแพ้
+     ถามทุก 5 วินาที ไม่ถี่กว่านี้เพราะไม่มีอะไรเปลี่ยนเร็วกว่านั้นอยู่แล้ว */
+  const t0 = Date.now();
+  while(Date.now() - t0 < 240000){
+    await new Promise(r => setTimeout(r, 5000));
+    if(S.lot !== lot){ S.asking = false; return; }   /* เปลี่ยนลอตระหว่างรอ ก็เลิกรอ */
+    const sec = Math.round((Date.now() - t0) / 1000);
+    S.askMsg = 'กำลังรอ StarSync ดึงข้อมูล · ' + sec + ' วินาที';
+    render();
+    try {
+      const q = await db.requestState(lot);
+      if(q && q.done_at){
+        S.asking = false; S.askMsg = '';
+        if(q.rows_synced > 0){ await selectLot(lot); }
+        else { S.err = 'AX ไม่มีชิ้นของลอตนี้ · ' + (q.error || ''); render(); }
+        return;
+      }
+    } catch(e){ /* อ่านไม่ได้ก็รอรอบหน้า ไม่ต้องล้มทั้งกระบวนการ */ }
+  }
+  S.asking = false;
+  S.askMsg = 'รอเกิน 4 นาทีแล้วยังไม่มา · StarSync อาจไม่ได้รันอยู่ ลองใหม่ได้';
   render();
 }
 
@@ -1014,6 +1114,7 @@ document.addEventListener('click', ev => {
   }
 
   if(act === 'st'){ S.st = t.dataset.v; render(); return; }
+  if(act === 'ask'){ askForLot(); return; }
 
   if(act === 'sort'){
     const k = t.dataset.k;
@@ -1053,9 +1154,6 @@ document.addEventListener('click', ev => {
   if(act === 'csv'){ toCsv(); return; }
   if(act === 'reload'){ if(S.lot) selectLot(S.lot); else boot(); return; }
   if(act === 'fltclear'){ S.filters = {}; render(); return; }
-  if(act === 'noteoff'){ S.note = false;
-    try { localStorage.setItem('lp_note', '0'); } catch(e){}
-    render(); return; }
 
   if(act === 'cfg'){
     $('cfgUrl').value = S.url; $('cfgKey').value = S.key;
@@ -1076,6 +1174,7 @@ document.addEventListener('click', ev => {
 /* เปลี่ยนตาราง */
 $('tbl').addEventListener('change', () => {
   S.table = $('tbl').value;
+  S.pin = true;   /* เลือกเองแล้ว อย่าไปสลับให้อัตโนมัติอีก */
   try { localStorage.setItem('lp_table', S.table); } catch(e){}
   buildCols();
   S.rows = []; S.filters = {}; S.sort = { k:'', dir:0 }; S.st = 'all';
@@ -1188,7 +1287,6 @@ $('cl').addEventListener('dragend', () => {
    ══════════════════════════════════════════════════════════════ */
 (function init(){
   S.dense = localStorage.getItem('lp_dense') === '1';
-  S.note  = localStorage.getItem('lp_note') !== '0';
   boot();
 })();
 </script>
