@@ -5,8 +5,23 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=5.0,user-scalable=yes">
 <title>รายชิ้นในลอต · Lot Parts</title>
 <!-- =====================================================================
-  Lot Parts · รายชิ้นในลอต        ·   VERSION 1.3
+  Lot Parts · รายชิ้นในลอต        ·   VERSION 1.4
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  1.4  2026-09-08  FIX  คอลัมน์ที่เพิ่มใน 1.1 ไม่เคยโผล่ให้คนที่เคยเปิดหน้านี้มาก่อน
+                   buildCols ตั้งคอลัมน์ใหม่เป็นปิดไว้เสมอถ้าเคยจัดเองแล้ว
+                   ตั้งใจไม่ให้ตารางกว้างขึ้นเองโดยไม่ได้สั่ง แต่ผลคือคนที่ใช้
+                   ตั้งแต่ 1.0 ค้างอยู่ที่ 6 คอลัมน์เดิมตลอด ไม่มีทางเห็นของใหม่
+                   นอกจากไปกด "ค่าเริ่มต้น" เองซึ่งไม่มีใครรู้ว่าต้องกด
+                   · เพิ่ม COLS_VER · ของที่บันทึกไว้คนละรุ่นถูกล้างทิ้งรอบเดียว
+                     แล้วเริ่มจากค่าเริ่มต้นใหม่ · บวกเลขนี้ทุกครั้งที่แก้ DEF_ON
+                   FIX  ชุด "เหมือน Ax Progress" ไม่มีช่องสถานะเลยตอนอ่าน check_part
+                   ชุดนั้นระบุแต่ st_part..st_site ซึ่งเป็นคอลัมน์ของ lot_part
+                   ตาราง check_part ไม่มีสักตัว กดชุดนี้แล้วช่องติ๊กหายหมด
+                   ใส่ check_part ต่อท้ายกลุ่มสถานะในทุกชุดแล้ว
+                   CHANGE ปุ่ม "ยังไม่ตัด" กดไม่ได้ตอนอ่านจาก check_part
+                   ตัวเลขบอกได้เพราะยืมจาก AX แต่แถวไม่มีอยู่จริง
+                   กดแล้วได้ตารางเปล่าเฉย ๆ ซึ่งดูเหมือนแอปพัง
+                   ปิดปุ่มพร้อมบอกเหตุผลตรง ๆ ดีกว่า
   1.3  2026-09-08  CHANGE เปิดเป็นแท็บของตัวเอง ไม่ใช่ iframe ในหน้าหลักแล้ว
                    · ถอดตัวรับ postMessage (lp-init / lp-ready) ออกทั้งหมด
                      ไม่มีใครส่งมาแล้ว เก็บไว้ก็เป็นโค้ดตายให้สับสนทีหลัง
@@ -142,6 +157,8 @@ body{font-family:var(--sans);background:var(--dk);color:var(--tx);font-size:13px
 .stb:hover{background:var(--hov);color:#fff}
 .stb.on{background:#1d4ed8;color:#fff}
 .stb.on b{color:#fff}
+.stb.dead{opacity:.4;cursor:not-allowed;text-decoration:line-through}
+.stb.dead:hover{background:var(--card);color:var(--mu2)}
 
 /* แถบเตือนที่มาของข้อมูล */
 .note{background:#3a2a08;border-bottom:1px solid #78350f;color:#fde68a;
@@ -400,24 +417,27 @@ const isDone = r => { const k = stKey(); if(!k) return false;
                       const v = r[k]; return v === true || Number(v) === 1; };
 
 /* ชุดคอลัมน์สำเร็จรูป · จับเฉพาะตัวที่มีจริงในตารางนั้น
-   ชุดแรกเรียงตามลำดับคอลัมน์ในหน้าโปรแกรมเป๊ะ ๆ ตามไฟล์ export */
+   ชุดแรกเรียงตามลำดับคอลัมน์ในหน้าโปรแกรมเป๊ะ ๆ ตามไฟล์ export
+   ทุกชุดใส่ check_part ต่อท้ายกลุ่มสถานะไว้ด้วย เพราะตอนที่ยังอ่านจาก
+   ตาราง check_part อยู่ st_* ทั้งหกตัวไม่มีจริง ถ้าไม่ใส่ตัวนี้ไว้
+   จะไม่เหลือช่องสถานะสักช่อง ตารางกลายเป็นแค่รายการชิ้นเปล่า ๆ */
 const PRESETS = {
   'เหมือน Ax Progress':[
-    'st_part','st_pack','st_pick','st_wh','st_delivery','st_site',
+    'st_part','st_pack','st_pick','st_wh','st_delivery','st_site','check_part',
     'shelf_no','product_article','product_name','item_fg','part_name','code_pack',
     'material_code','finish_length','finish_width','product_seq_total','pack_seq_total',
     'item_id','delay_no'],
   'ครบทุกช่องใน export':[
-    'st_part','st_pack','st_pick','st_wh','st_delivery','st_site',
+    'st_part','st_pack','st_pick','st_wh','st_delivery','st_site','check_part',
     'rec_id','lot','proj_id','proj_name','order_number','build','floor','room',
     'shelf_no','product_article','product_name','item_fg','part_name','code_pack',
     'material_code','finish_length','finish_width','product_seq_total','pack_seq_total',
     'item_id','delay_no'],
-  'ที่ตั้ง':['st_part','build','floor','room','shelf_no','part_name',
+  'ที่ตั้ง':['st_part','check_part','build','floor','room','shelf_no','part_name',
             'finish_length','finish_width'],
   'สายการผลิต':['part_date','computer','app_user','part_name','code_part',
                 'finish_length','finish_width','check_part'],
-  'ย่อสั้น':['st_part','shelf_no','part_name','finish_length','finish_width','check_part']
+  'ย่อสั้น':['st_part','check_part','shelf_no','part_name','finish_length','finish_width']
 };
 /* ค่าเริ่มต้นตอนยังไม่เคยจัดเอง · ให้ตรงกับที่เห็นบนหน้าโปรแกรมเลย */
 const DEF_ON = new Set([
@@ -426,7 +446,7 @@ const DEF_ON = new Set([
   'material_code','finish_length','finish_width','product_seq_total','pack_seq_total',
   'item_id','delay_no',
   /* เผื่อกรณีที่ยังไม่มี lot_part แล้วต้องถอยไปใช้ check_part */
-  'part_date','computer','code_part','check_part']);
+  'check_part','part_date','computer','code_part']);
 
 /* ══════════════════════════════════════════════════════════════
    ชั้นคุยกับฐานข้อมูล · ที่อื่นห้ามเรียก fetch ตรง
@@ -502,18 +522,27 @@ function loadCfg(){
    ══════════════════════════════════════════════════════════════ */
 const colKey = () => 'lp_cols_' + S.table;
 
+/* รุ่นของ "ชุดคอลัมน์เริ่มต้น" · บวกเลขทุกครั้งที่แก้ DEF_ON หรือ PRESETS
+   ที่ต้องมีเพราะ buildCols เคยตั้งคอลัมน์ใหม่เป็นปิดไว้เสมอถ้าเคยจัดเองแล้ว
+   ตั้งใจให้ตารางไม่กว้างขึ้นเองโดยไม่ได้สั่ง แต่ผลข้างเคียงคือคนที่เคยเปิด
+   หน้านี้ตั้งแต่รุ่นก่อน จะไม่มีวันเห็นคอลัมน์ที่เพิ่มมาทีหลังเลย
+   ต้องไปกด "ค่าเริ่มต้น" เองซึ่งไม่มีใครรู้ว่าต้องกด
+   ขึ้นเลขรุ่นแล้วล้างของเก่าทิ้งรอบเดียว จบปัญหานั้น */
+const COLS_VER = 3;
+
 function buildCols(){
   const all = S.schema[S.table] || [];
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem(colKey()) || 'null'); } catch(e){}
 
-  const bySaved = new Map();
-  if(Array.isArray(saved)) saved.forEach(c => c && c.k && bySaved.set(c.k, c));
+  /* ของที่บันทึกไว้คนละรุ่น = ทิ้ง แล้วเริ่มจากค่าเริ่มต้นใหม่ */
+  if(saved && saved.v !== COLS_VER) saved = null;
+  const list = (saved && Array.isArray(saved.c)) ? saved.c : null;
 
   const seen = new Set(), out = [];
   /* ของที่เคยจัดไว้มาก่อน แต่ต้องยังมีอยู่จริงในตาราง */
-  if(Array.isArray(saved)){
-    saved.forEach(c => {
+  if(list){
+    list.forEach(c => {
       if(c && c.k && all.includes(c.k) && !seen.has(c.k)){
         seen.add(c.k);
         out.push({ k:c.k, on:!!c.on, w:c.w || 0 });
@@ -524,12 +553,12 @@ function buildCols(){
      ไม่งั้นวันไหน StarSync เพิ่มคอลัมน์ ตารางจะกว้างขึ้นเองโดยไม่ได้สั่ง */
   all.forEach(k => {
     if(seen.has(k)) return;
-    out.push({ k, on: saved ? false : DEF_ON.has(k), w:0 });
+    out.push({ k, on: list ? false : DEF_ON.has(k), w:0 });
   });
   S.cols = out;
 }
 function saveCols(){
-  try { localStorage.setItem(colKey(), JSON.stringify(S.cols)); } catch(e){}
+  try { localStorage.setItem(colKey(), JSON.stringify({ v:COLS_VER, c:S.cols })); } catch(e){}
 }
 const onCols = () => S.cols.filter(c => c.on);
 
@@ -609,10 +638,15 @@ function renderSum(){
   el.style.display = 'flex';
 }
 
-/* ปุ่มกรองสถานะหนึ่งปุ่ม */
+/* ปุ่มกรองสถานะหนึ่งปุ่ม
+   ตอนอ่านจาก check_part แถวของชิ้นที่ยังไม่ตัดไม่มีอยู่จริง
+   ตัวเลขบอกได้ (เอามาจาก AX) แต่กดแล้วจะได้ตารางเปล่า
+   จึงปิดปุ่มไว้พร้อมบอกเหตุผล ดีกว่าปล่อยให้กดแล้วงงว่าทำไมไม่มีอะไร */
 function btnSt(v, txt, n){
-  const on = S.st === v ? ' on' : '';
-  return '<button class="stb' + on + '" data-act="st" data-v="' + v + '">' +
+  const dead = (v === 'todo' && !hasFull());
+  return '<button class="stb' + (S.st === v ? ' on' : '') + (dead ? ' dead' : '') + '"' +
+         (dead ? ' disabled title="ตารางนี้ไม่มีแถวของชิ้นที่ยังไม่ตัด · ต้องรอ lot_part มีข้อมูลก่อน"'
+               : ' data-act="st" data-v="' + v + '"') + '>' +
          esc(txt) + ' <b>' + nf0.format(n) + '</b></button>';
 }
 
