@@ -5,8 +5,19 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=5.0,user-scalable=yes">
 <title>รายชิ้นในลอต · Lot Parts</title>
 <!-- =====================================================================
-  Lot Parts · รายชิ้นในลอต        ·   VERSION 1.4
+  Lot Parts · รายชิ้นในลอต        ·   VERSION 1.5
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  1.5  2026-09-08  FEAT ชื่อคอลัมน์ถอดมาจากนิยามกริดในตัว AxProgress.exe แล้ว
+                   ของเดิมอ้างหัวคอลัมน์จากไฟล์ export ซึ่งมี 27 ช่อง
+                   ตัวโปรแกรมจริงมีมากกว่านั้น เพิ่มมาอีก 6 ตัว
+                   Part Seq Total · Item Part · Barcode · หมวดงาน · Wh Rec · Wh Issue
+                   (สองตัวท้ายเป็นช่องติ๊กในแถบ State ที่โปรแกรมซ่อนไว้)
+                   · ชุด "ครบทุกช่องใน export" เปลี่ยนเป็น "กริดเต็มทุกช่อง"
+                     ซึ่งครบกว่าเดิม · ชุด "เหมือน Ax Progress" ยังคงเป็น
+                     คอลัมน์ที่โปรแกรมโชว์จริงบนจอ เรียงลำดับเดียวกันเป๊ะ
+                   · TICKS เพิ่ม st_wh_rec / st_wh_issue
+                   · บวก COLS_VER เป็น 4 · ล้างการจัดคอลัมน์เก่าทิ้งรอบเดียว
+                     ไม่งั้นคอลัมน์ที่เพิ่งเพิ่มจะไม่โผล่ให้เห็นอีกเหมือนคราวที่แล้ว
   1.4  2026-09-08  FIX  คอลัมน์ที่เพิ่มใน 1.1 ไม่เคยโผล่ให้คนที่เคยเปิดหน้านี้มาก่อน
                    buildCols ตั้งคอลัมน์ใหม่เป็นปิดไว้เสมอถ้าเคยจัดเองแล้ว
                    ตั้งใจไม่ให้ตารางกว้างขึ้นเองโดยไม่ได้สั่ง แต่ผลคือคนที่ใช้
@@ -377,19 +388,23 @@ const S = {
 };
 
 /* ชื่อที่จะขึ้นบนหัวตาราง · ที่ไม่รู้จักโชว์ชื่อดิบไปเลย
-   ชื่ออังกฤษล้อตามหัวคอลัมน์ในไฟล์ export ของโปรแกรม Ax Progress ทุกตัว
-   เพื่อให้คนที่ชินกับหน้าโปรแกรมอ่านแล้วรู้ทันทีว่าตัวไหนคือตัวไหน */
+   v1.5 ชื่อทั้งหมดถอดมาจากนิยามกริดในตัว AxProgress.exe แล้ว
+   ตรงกับที่คนหน้างานเห็นบนหน้าโปรแกรมทุกตัว ไม่ใช่เดาจากไฟล์ export อีก */
 const LBL = {
-  /* ── ตาราง lot_part · รายชิ้นทั้งลอต ─────────────────────────── */
-  rec_id:'Rec Id', lot:'Lot Id', proj_id:'Proj Id', proj_name:'Proj Name',
-  order_number:'OrderNumber', build:'Build', floor:'Floor', room:'Room',
-  shelf_no:'Shelf No', product_article:'Product Article', product_name:'Product Name',
-  item_fg:'Item Fg', part_name:'Part Name', code_part:'Code Part', code_pack:'Code Pack',
-  material_code:'Material Code', finish_length:'Finish Length', finish_width:'Finish Width',
-  product_seq_total:'Product Seq Total', pack_seq_total:'Pack Seq Total',
-  item_id:'Item Id', delay_no:'Delay No',
+  /* ── lot_part · รายชิ้นทั้งลอต · แถบ State ในโปรแกรม ────────── */
   st_part:'Part', st_pack:'Pack', st_pick:'Pick',
   st_wh:'Wh', st_delivery:'Delivery', st_site:'Site',
+  st_wh_rec:'Wh Rec', st_wh_issue:'Wh Issue',
+  /* ── lot_part · ข้อมูลชิ้น ───────────────────────────────────── */
+  rec_id:'Rec Id', lot:'Lot Id', proj_id:'Proj Id', proj_name:'Proj Name',
+  order_number:'OrderNumber', build:'Build', floor:'Floor', room:'Room',
+  room_category:'หมวดงาน', shelf_no:'Shelf No',
+  product_article:'Product Article', product_name:'Product Name',
+  item_fg:'Item Fg', item_part:'Item Part', part_name:'Part Name',
+  code_part:'Code Part', code_pack:'Code Pack', material_code:'Material Code',
+  finish_length:'Finish Length', finish_width:'Finish Width',
+  part_seq_total:'Part Seq Total', product_seq_total:'Product Seq Total',
+  pack_seq_total:'Pack Seq Total', item_id:'Item Id', delay_no:'Delay No',
   synced_at:'ดึงจาก AX เมื่อ',
   /* ── ตาราง check_part · บันทึกการยิง ────────────────────────── */
   id:'ID', part_date:'เวลาที่ยิง', duration_sec:'เวลาสะสม', computer:'เครื่อง',
@@ -406,9 +421,10 @@ const DATES = new Set(['part_date','imported_at','synced_at','updated_at']);
 /* คอลัมน์ที่แสดงเป็นตัวเลขชิดขวา */
 const NUMS = new Set(['finish_length','finish_width','duration_sec','id','rec_id',
   'total_parts','checked_parts','total_all','checked_all','delay_no']);
-/* คอลัมน์ที่แสดงเป็นช่องติ๊ก · ครบทั้ง 6 ช่องเหมือนแถบ State ในโปรแกรม */
+/* คอลัมน์ที่แสดงเป็นช่องติ๊ก · แถบ State ในโปรแกรมมี 8 ช่อง
+   หน้าจอโชว์ 6 ช่องแรก ส่วน Wh Rec / Wh Issue ซ่อนไว้ */
 const TICKS = new Set(['st_part','st_pack','st_pick','st_wh','st_delivery','st_site',
-                       'check_part']);
+                       'st_wh_rec','st_wh_issue','check_part']);
 /* คอลัมน์สถานะหลัก = "ชิ้นนี้ตัดแล้วหรือยัง" ใช้เป็นตัวกรองและตัวนับ
    lot_part ใช้ st_part · check_part ใช้ check_part */
 const stKey = () => (S.schema[S.table] || []).includes('st_part') ? 'st_part'
@@ -417,24 +433,24 @@ const isDone = r => { const k = stKey(); if(!k) return false;
                       const v = r[k]; return v === true || Number(v) === 1; };
 
 /* ชุดคอลัมน์สำเร็จรูป · จับเฉพาะตัวที่มีจริงในตารางนั้น
-   ชุดแรกเรียงตามลำดับคอลัมน์ในหน้าโปรแกรมเป๊ะ ๆ ตามไฟล์ export
+   ชุดแรกคือคอลัมน์ที่โปรแกรมโชว์จริงบนจอ เรียงลำดับเดียวกันเป๊ะ
    ทุกชุดใส่ check_part ต่อท้ายกลุ่มสถานะไว้ด้วย เพราะตอนที่ยังอ่านจาก
-   ตาราง check_part อยู่ st_* ทั้งหกตัวไม่มีจริง ถ้าไม่ใส่ตัวนี้ไว้
-   จะไม่เหลือช่องสถานะสักช่อง ตารางกลายเป็นแค่รายการชิ้นเปล่า ๆ */
+   ตาราง check_part อยู่ st_* ไม่มีจริงสักตัว ถ้าไม่ใส่จะไม่เหลือช่องสถานะเลย */
 const PRESETS = {
   'เหมือน Ax Progress':[
     'st_part','st_pack','st_pick','st_wh','st_delivery','st_site','check_part',
     'shelf_no','product_article','product_name','item_fg','part_name','code_pack',
     'material_code','finish_length','finish_width','product_seq_total','pack_seq_total',
     'item_id','delay_no'],
-  'ครบทุกช่องใน export':[
-    'st_part','st_pack','st_pick','st_wh','st_delivery','st_site','check_part',
+  'กริดเต็มทุกช่อง':[
+    'st_part','st_pack','st_pick','st_wh','st_delivery','st_site',
+    'st_wh_rec','st_wh_issue','check_part',
     'rec_id','lot','proj_id','proj_name','order_number','build','floor','room',
-    'shelf_no','product_article','product_name','item_fg','part_name','code_pack',
-    'material_code','finish_length','finish_width','product_seq_total','pack_seq_total',
-    'item_id','delay_no'],
-  'ที่ตั้ง':['st_part','check_part','build','floor','room','shelf_no','part_name',
-            'finish_length','finish_width'],
+    'room_category','shelf_no','product_article','product_name','item_fg','item_part',
+    'part_name','code_pack','code_part','material_code','finish_length','finish_width',
+    'part_seq_total','product_seq_total','pack_seq_total','item_id','barcode','delay_no'],
+  'ที่ตั้ง':['st_part','check_part','build','floor','room','room_category','shelf_no',
+            'part_name','finish_length','finish_width'],
   'สายการผลิต':['part_date','computer','app_user','part_name','code_part',
                 'finish_length','finish_width','check_part'],
   'ย่อสั้น':['st_part','check_part','shelf_no','part_name','finish_length','finish_width']
@@ -528,7 +544,7 @@ const colKey = () => 'lp_cols_' + S.table;
    หน้านี้ตั้งแต่รุ่นก่อน จะไม่มีวันเห็นคอลัมน์ที่เพิ่มมาทีหลังเลย
    ต้องไปกด "ค่าเริ่มต้น" เองซึ่งไม่มีใครรู้ว่าต้องกด
    ขึ้นเลขรุ่นแล้วล้างของเก่าทิ้งรอบเดียว จบปัญหานั้น */
-const COLS_VER = 3;
+const COLS_VER = 4;
 
 function buildCols(){
   const all = S.schema[S.table] || [];
