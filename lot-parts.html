@@ -5,8 +5,27 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=5.0,user-scalable=yes">
 <title>รายชิ้นในลอต · Lot Parts</title>
 <!-- =====================================================================
-  Lot Parts · รายชิ้นในลอต        ·   VERSION 1.1
+  Lot Parts · รายชิ้นในลอต        ·   VERSION 1.3
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  1.3  2026-09-08  CHANGE เปิดเป็นแท็บของตัวเอง ไม่ใช่ iframe ในหน้าหลักแล้ว
+                   · ถอดตัวรับ postMessage (lp-init / lp-ready) ออกทั้งหมด
+                     ไม่มีใครส่งมาแล้ว เก็บไว้ก็เป็นโค้ดตายให้สับสนทีหลัง
+                     ค่าเชื่อมต่ออ่านจาก localStorage ได้เองเพราะ origin เดียวกัน
+                   · ตั้งชื่อแท็บตามลอต · เปิดหลายลอตพร้อมกันแล้วยังแยกออกว่า
+                     แท็บไหนคือลอตไหน
+                   · แก้ URL เป็น ?lot=... ตอนเลือกลอต · รีเฟรช บุ๊กมาร์ก
+                     หรือส่งลิงก์ให้คนอื่นแล้วเปิดมาที่ลอตเดิม
+                     ใช้ replaceState ไม่ใช่ pushState เพราะไม่อยากให้ทุกครั้ง
+                     ที่เปลี่ยนลอตไปกองในประวัติ จนกดปุ่ม back ออกไม่ได้
+  1.2  2026-09-08  FIX  ตรวจกับโครงจริงบน Supabase แล้ว แก้ชื่อคอลัมน์เวลาที่เดาผิด
+                   check_part ใช้ imported_at ไม่ใช่ created_at ที่เดาไว้
+                   ของเดิมช่องนั้นจะโชว์ค่าดิบ "2026-09-08T01:22:33.456+00:00"
+                   ยาวเลยช่องและอ่านไม่รู้เรื่อง
+                   · รวมรายชื่อคอลัมน์เวลาไว้ที่ DATES ชุดเดียว ทั้งตารางและ CSV
+                     ใช้ร่วมกัน ของเดิมเขียนเงื่อนไขแยกสองที่แล้วไม่ตรงกัน
+                     (ตารางไม่รู้จัก synced_at แต่ CSV รู้จัก)
+                   · ยืนยันแล้วว่า check_part.check_part เป็น smallint
+                     ส่วน lot_part.st_* เป็น boolean · ตัวอ่านรับทั้งสองแบบอยู่แล้ว
   1.1  2026-09-08  FEAT คอลัมน์ครบ 27 ตัวตามไฟล์ export จริง + สถานะครบ 6 ช่อง
                    ของเดิมมีแค่ 16 คอลัมน์ที่ check_part มี และช่องติ๊กช่องเดียว
                    ตอนนี้รู้ชื่อคอลัมน์จริงทั้งหมดแล้วจากไฟล์ export ที่ส่งมา
@@ -357,13 +376,16 @@ const LBL = {
   synced_at:'ดึงจาก AX เมื่อ',
   /* ── ตาราง check_part · บันทึกการยิง ────────────────────────── */
   id:'ID', part_date:'เวลาที่ยิง', duration_sec:'เวลาสะสม', computer:'เครื่อง',
-  app_user:'ผู้ใช้', barcode:'Barcode', check_part:'Part', created_at:'บันทึกเมื่อ',
+  app_user:'ผู้ใช้', barcode:'Barcode', check_part:'Part', imported_at:'นำเข้าเมื่อ',
   /* ── ตาราง lot_progress · ยอดรวมรายลอต ─────────────────────── */
   total_parts:'ชิ้นที่ต้องตัด', checked_parts:'ตัดแล้ว',
   total_all:'ทุกแถว', checked_all:'ยิงแล้วทุกแถว', updated_at:'อัปเดตเมื่อ'
 };
 const lbl = k => LBL[k] || k;
 
+/* คอลัมน์ที่เป็นเวลา · รวมไว้ที่เดียวเพราะทั้งตาราง ทั้ง CSV ต้องใช้ชุดเดียวกัน
+   ยืนยันชื่อจากโครงจริงแล้ว: check_part ใช้ imported_at ไม่ใช่ created_at */
+const DATES = new Set(['part_date','imported_at','synced_at','updated_at']);
 /* คอลัมน์ที่แสดงเป็นตัวเลขชิดขวา */
 const NUMS = new Set(['finish_length','finish_width','duration_sec','id','rec_id',
   'total_parts','checked_parts','total_all','checked_all','delay_no']);
@@ -698,7 +720,7 @@ function cell(r, k){
     return '<td style="text-align:center"><span class="tick ' + (y ? 'y' : 'n') + '" ' +
            'title="' + (y ? 'ติ๊กแล้ว' : 'ยังไม่ติ๊ก') + '">' + (y ? '✓' : '✗') + '</span></td>';
   }
-  if(k === 'part_date' || k === 'created_at')
+  if(DATES.has(k))
     return '<td class="mono">' + esc(fmtTime(v)) + '</td>';
   if(k === 'duration_sec')
     return '<td class="num" title="' + esc(v == null ? '' : v) + ' วินาที">' + esc(hms(v)) + '</td>';
@@ -814,9 +836,8 @@ async function boot(){
   S.busy = ''; render();
 
   /* หน้าหลักอาจส่งลอตมาแล้วตั้งแต่ก่อนโหลดเสร็จ */
-  const want = pendingLot || new URLSearchParams(location.search).get('lot') ||
+  const want = new URLSearchParams(location.search).get('lot') ||
                localStorage.getItem('lp_last_lot') || '';
-  pendingLot = '';
   if(want) selectLot(want);
 }
 
@@ -832,6 +853,13 @@ async function selectLot(lot){
   $('q').value = lot;
   hideSug();
   try { localStorage.setItem('lp_last_lot', lot); } catch(e){}
+
+  /* เปิดหลายแท็บพร้อมกันได้ ชื่อแท็บต้องบอกได้ว่าอันไหนลอตอะไร
+     และแก้ URL ด้วย เพื่อให้รีเฟรช บุ๊กมาร์ก หรือส่งลิงก์ให้คนอื่น
+     แล้วยังเปิดมาที่ลอตเดิม · replaceState ไม่เพิ่มประวัติย้อนกลับ
+     ไม่งั้นกดปุ่ม back จะต้องกดหลายทีกว่าจะออกจากหน้านี้ */
+  document.title = lot + ' · รายชิ้นในลอต';
+  try { history.replaceState(null, '', location.pathname + '?lot=' + encodeURIComponent(lot)); } catch(e){}
 
   S.prog = S.lots.find(l => l.lot === lot) || null;
   S.filters = {}; S.sort = { k:'', dir:0 }; S.st = 'all';
@@ -900,7 +928,7 @@ function toCsv(){
   const lines = [cols.map(c => q(lbl(c.k))).join(',')];
   viewRows().forEach(r => lines.push(cols.map(c => {
     const v = r[c.k];
-    if(c.k === 'part_date' || c.k === 'created_at' || c.k === 'synced_at') return q(fmtTime(v));
+    if(DATES.has(c.k)) return q(fmtTime(v));
     /* ช่องติ๊กเขียนเป็น True/False ให้เหมือนไฟล์ export ของโปรแกรม
        จะได้เอาสองไฟล์มาวางเทียบกันได้ตรง ๆ */
     if(TICKS.has(c.k)) return q(v === true || Number(v) === 1 ? 'True' : 'False');
@@ -1103,48 +1131,15 @@ $('cl').addEventListener('dragend', () => {
 });
 
 /* ══════════════════════════════════════════════════════════════
-   คุยกับหน้าหลัก (ตอนฝังเป็น iframe)
-   ══════════════════════════════════════════════════════════════ */
-let pendingLot = '';
-let booted = false;
-window.addEventListener('message', ev => {
-  const d = ev.data;
-  if(!d || d.type !== 'lp-init') return;
-  /* หน้าหลักอาจส่งค่าเชื่อมต่อมาด้วย เผื่อวันไหนเลิกเก็บใน localStorage */
-  const had = !!(S.url && S.key);
-  if(d.url && d.key){
-    try {
-      localStorage.setItem('cc_supa_url', String(d.url).replace(/\/+$/,''));
-      localStorage.setItem('cc_supa_key', String(d.key));
-    } catch(e){}
-    loadCfg();
-  }
-  const lot = d.lot ? String(d.lot) : '';
-  if(!booted){ pendingLot = lot; return; }
-
-  /* boot รอบแรกจบไปตอนที่ยังไม่มีค่าเชื่อมต่อ (ค้างหน้า "ยังไม่ได้ตั้งค่า")
-     พอค่ามาถึงทีหลังต้องสั่งเริ่มใหม่เอง ไม่งั้นหน้าจะค้างอยู่อย่างนั้น */
-  if(!had && S.url && S.key){
-    pendingLot = lot; booted = false;
-    boot().then(() => { booted = true; });
-    return;
-  }
-  if(lot && lot !== S.lot) selectLot(lot);
-});
-
-/* ══════════════════════════════════════════════════════════════
    เริ่มทำงาน
+   หน้านี้เปิดเป็นแท็บของตัวเอง อยู่ origin เดียวกับหน้าหลัก
+   จึงอ่านค่าเชื่อมต่อจาก localStorage ได้ตรง ๆ ไม่ต้องรอใครส่งมา
+   lot ที่หน้าหลักเลือกไว้มาทาง ?lot= ใน URL
    ══════════════════════════════════════════════════════════════ */
 (function init(){
   S.dense = localStorage.getItem('lp_dense') === '1';
   S.note  = localStorage.getItem('lp_note') !== '0';
-  boot().then(() => {
-    booted = true;
-    /* เผื่อ lot มาถึงหลัง boot อ่าน pendingLot ไปแล้ว */
-    if(pendingLot && pendingLot !== S.lot){ const l = pendingLot; pendingLot = ''; selectLot(l); }
-  });
-  /* บอกหน้าหลักว่าพร้อมรับ postMessage แล้ว */
-  try { if(window.parent !== window) window.parent.postMessage({ type:'lp-ready' }, '*'); } catch(e){}
+  boot();
 })();
 </script>
 </body>
