@@ -5,8 +5,24 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Ax Progress · รายชิ้นในลอต</title>
 <!-- =====================================================================
-  Lot Parts · รายชิ้นในลอต        ·   VERSION 2.9
+  Lot Parts · รายชิ้นในลอต        ·   VERSION 3.0
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  3.0  2026-09-08  CHANGE เลิกถอยไปอ่าน check_part · อ่าน lot_part อย่างเดียว
+                   check_part เป็นบันทึกการยิง มีแต่ชิ้นที่ยิงแล้ว
+                   จำนวนแถวจึงไม่มีวันครบ · ลอต 30 ชิ้นที่ยิงไป 19
+                   จะเห็นแค่ 19 แถว อีก 11 ชิ้นหายไปเฉย ๆ
+                   ทั้งที่ 11 ชิ้นนั้นคือสิ่งที่เปิดหน้านี้มาดู
+                   ผมแก้ด้วยการเขียนคำอธิบายชดเชยมาสามรอบ (2.4 2.7 2.9)
+                   ซึ่งไม่ได้แก้ปัญหา แค่ย้ายภาระไปให้คนอ่าน
+                   · ลอตไหนยังไม่มีใน lot_part = สั่งดึงแล้วขึ้นจอรอ
+                     ไม่เอาของครึ่ง ๆ มาโชว์ · ได้มาแล้วแสดงครบทุกชิ้น
+                     ทั้งที่ติ๊กแล้วและยังไม่ติ๊ก ตามที่ควรจะเป็นตั้งแต่แรก
+                   · ยังมีปุ่ม "ดูเฉพาะชิ้นที่ยิงแล้วไปก่อน" ไว้เป็นทางออกฉุกเฉิน
+                     แต่ต้องกดเอง ไม่ใช่ค่าเริ่มต้น และมีแถบคาดบอกว่าแถวไม่ครบ
+                     พร้อมปุ่มกลับไปแบบครบ
+                   · ตอนรอ เช็คที่ lot_part ตรง ๆ ด้วย ไม่ได้ดูแต่ done_at ของคำขอ
+                     ลอตอาจมาจากรอบเติมอัตโนมัติ ไม่ใช่จากคำขอที่เราส่ง
+                     ถ้าดูแต่คำขอจะนั่งรอครบห้านาททั้งที่ข้อมูลมาถึงแล้ว
   2.9  2026-09-08  FIX  อ่านจาก check_part แล้วขึ้น 100% ทั้งที่ของจริง 29%
                    ตั้งแต่ 2.1 ผมเอาจำนวนแถวที่โหลดมาเป็นตัวหาร
                    ซึ่งใช้ได้กับ lot_part ที่มีครบทุกชิ้น แต่ใช้กับ check_part ไม่ได้
@@ -854,14 +870,10 @@ function renderNote(){
      ที่หายไม่ใช่แค่ชิ้นที่ยังไม่ตัด แต่รวมห่อทั้งหมดด้วย
      เพราะห่อไม่เคยถูกยิงบาร์โค้ด check_part จึงไม่มีแถวของมันเลย */
   /* สั้น ๆ พอ · หน้าสั่งดึงให้เองอยู่แล้ว คนอ่านไม่ต้องรู้ว่าเบื้องหลังมีสองตาราง */
-  if(S.asking){
-    $('noteTx').innerHTML = '<span class="spin sm"></span> <b>กำลังดึงรายชิ้นของลอตนี้จาก AX</b> · ' +
-      esc(S.askMsg) + ' · ระหว่างนี้แสดงเท่าที่มีไปก่อน หน้าจะโหลดเองเมื่อข้อมูลมาถึง';
-  } else {
-    $('noteTx').innerHTML =
-      'ลอตนี้ยังไม่มีรายชิ้นครบ · ที่เห็นคือเฉพาะชิ้นที่ยิงบาร์โค้ดแล้ว ' +
-      '<button class="btn pri" data-act="ask" style="margin-left:8px">⤓ ดึงจาก AX เดี๋ยวนี้</button>';
-  }
+  $('noteTx').innerHTML =
+    '<b>แถวไม่ครบ</b> · กำลังดูตาราง ' + esc(S.table) + ' ซึ่งมีเฉพาะชิ้นที่ยิงบาร์โค้ดแล้ว ' +
+    nf0.format(S.rows.length) + ' แถว ชิ้นที่ยังไม่ตัดไม่มีแถวอยู่ในนี้ ' +
+    '<button class="btn pri" data-act="backfull" style="margin-left:8px">กลับไปดูแบบครบทุกชิ้น</button>';
   el.style.display = 'flex';
 }
 
@@ -895,9 +907,20 @@ function renderGrid(){
     return show('<div class="big">▦</div><div class="t">เลือกลอตก่อน</div>' +
       '<div class="s">พิมพ์รหัส lot หรือชื่อโครงการในช่อง Lot Id ด้านบน · มีทั้งหมด <b>' +
       nf0.format(S.lots.length) + '</b> ลอต</div>');
-  if(!S.rows.length)
-    return show('<div class="big">▢</div><div class="t">ลอตนี้ยังไม่มีแถว</div>' +
-      '<div class="s">รหัส <code>' + esc(S.lot) + '</code> ไม่มีทั้งใน lot_part และ check_part</div>');
+  if(!S.rows.length){
+    /* ยังไม่มีรายชิ้น = กำลังสั่งดึงอยู่ · บอกให้รู้ว่ากำลังทำอะไรและรออีกนาน
+       มีทางออกให้ดูของเท่าที่ยิงแล้วไปก่อน แต่ไม่ทำให้เป็นค่าเริ่มต้น
+       เพราะของชุดนั้นแถวไม่ครบ แล้วเลขเปอร์เซ็นต์จะหลอกตา */
+    if(S.asking)
+      return show('<div class="spin"></div><div class="t">กำลังดึงรายชิ้นของลอตนี้จาก AX</div>' +
+        '<div class="s">' + esc(S.askMsg) + '<br>ได้มาแล้วจะแสดงครบทุกชิ้น ' +
+        'ทั้งที่ตัดแล้วและยังไม่ตัด</div>' +
+        '<div class="s"><button class="btn" data-act="onlyshot">ดูเฉพาะชิ้นที่ยิงแล้วไปก่อน</button></div>');
+    return show('<div class="big">▢</div><div class="t">ลอตนี้ยังไม่มีรายชิ้นใน lot_part</div>' +
+      '<div class="s">รหัส <code>' + esc(S.lot) + '</code></div>' +
+      '<div class="s"><button class="btn pri" data-act="ask">⤓ ดึงจาก AX เดี๋ยวนี้</button> ' +
+      '<button class="btn" data-act="onlyshot">ดูเฉพาะชิ้นที่ยิงแล้ว</button></div>');
+  }
 
   const cols = onCols();
   if(!cols.length)
@@ -1251,7 +1274,6 @@ function fillTables(){
 }
 
 async function selectLot(lot){
-  let autoAsk = false;
   S.lot = lot;
   closePicker();
   try { localStorage.setItem('lp_last_lot', lot); } catch(e){}
@@ -1269,22 +1291,16 @@ async function selectLot(lot){
   render();
 
   try {
-    /* เลือกแหล่งข้อมูลเป็นราย lot ไม่ใช่เลือกทีเดียวตอนเปิดหน้า
-       StarSync ทยอยเติม lot_part ทีละลอต บางลอตจึงยังไม่มี
-       ถ้าตัดสินทีเดียวตอนเปิด ทั้งหน้าจะถอยไปใช้ check_part ทั้งที่ลอตอื่นใช้ได้ */
-    if(!S.pin && S.schema['lot_part']){
+    /* v3.0 อ่าน lot_part อย่างเดียว · ไม่ถอยไป check_part อีกแล้ว
+       check_part เป็นบันทึกการยิง มีแต่ชิ้นที่ยิงแล้ว จำนวนแถวจึงไม่มีวันครบ
+       ลอต 30 ชิ้นที่ยิงไป 19 จะเห็นแค่ 19 แถว อีก 11 ชิ้นหายไปเฉย ๆ
+       ทั้งที่สิ่งที่อยากดูคือ 11 ชิ้นนั้น · แสดงไม่ครบแล้วมาเขียนคำอธิบายชดเชย
+       ไม่ได้แก้ปัญหา แค่ย้ายภาระไปให้คนอ่าน
+       ลอตไหนยังไม่มีใน lot_part = สั่งดึงแล้วรอ ไม่ใช่เอาของครึ่ง ๆ มาโชว์ */
+    if(!S.pin){
       S.table = 'lot_part'; buildCols();
-      S.rows = await db.rowsOfLot('lot_part', lot);
-      if(!S.rows.length && S.schema['check_part']){
-        S.table = 'check_part'; buildCols();
-        S.rows = await db.rowsOfLot('check_part', lot);
-        S.needReq = true;
-        /* v2.6 สั่งดึงให้เองเลย ไม่ต้องรอคนกดปุ่ม
-           ของเดิมขึ้นกล่องอธิบายว่าทำไมคอลัมน์ไม่ครบ แล้วให้ไปกดปุ่มเอง
-           ซึ่งเป็นการเอาปัญหาที่แก้ได้เองไปวางไว้ตรงหน้าคนใช้
-           เปิดลอตไหนก็ควรได้ข้อมูลเต็ม ไม่ต้องรู้ว่าเบื้องหลังมีสองตาราง */
-        autoAsk = true;
-      }
+      S.rows = S.schema['lot_part'] ? await db.rowsOfLot('lot_part', lot) : [];
+      if(!S.rows.length) S.needReq = true;
     } else {
       const hasLot = (S.schema[S.table] || []).includes('lot');
       S.rows = hasLot ? await db.rowsOfLot(S.table, lot) : await db.peek(S.table);
@@ -1295,7 +1311,7 @@ async function selectLot(lot){
   scanMissing();
   fillTables();
   render();
-  if(autoAsk) askForLot();
+  if(S.needReq && !S.pin) askForLot();
 }
 
 /* ── สั่งให้ StarSync ดึงรายชิ้นของลอตนี้ก่อนคิวปกติ ────────────
@@ -1320,6 +1336,12 @@ async function askForLot(){
     S.askMsg = 'กำลังรอ StarSync ดึงข้อมูล · ' + Math.round((Date.now()-t0)/1000) + ' วินาที';
     render();
     try {
+      /* ดูที่ lot_part ก่อน · ลอตนี้อาจมาจากรอบเติมอัตโนมัติ ไม่ใช่จากคำขอเรา
+         ถ้าดูแต่ done_at ของคำขอ จะนั่งรอครบห้านาทีทั้งที่ข้อมูลมาถึงแล้ว */
+      const got = await db.get('lot_part?select=rec_id&lot=eq.' +
+                               encodeURIComponent(lot) + '&limit=1');
+      if(got.length){ S.asking = false; S.askMsg = ''; await selectLot(lot); return; }
+
       const q = await db.requestState(lot);
       if(q && q.done_at){
         S.asking = false; S.askMsg = '';
@@ -1423,6 +1445,12 @@ document.addEventListener('click', ev => {
 
   if(act === 'view'){ S.view = t.dataset.v; render(); return; }
   if(act === 'ask'){ askForLot(); return; }
+  /* ทางออกฉุกเฉิน · ยอมดูของที่แถวไม่ครบ ต้องกดเอง ไม่ใช่ค่าเริ่มต้น */
+  if(act === 'backfull'){ S.pin = false; selectLot(S.lot); return; }
+  if(act === 'onlyshot'){
+    S.pin = true; S.table = 'check_part'; S.asking = false;
+    selectLot(S.lot); return;
+  }
 
   if(act === 'sort'){
     const k = t.dataset.k;
