@@ -5,8 +5,21 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Ax Progress · รายชิ้นในลอต</title>
 <!-- =====================================================================
-  Lot Parts · รายชิ้นในลอต        ·   VERSION 3.1
+  Lot Parts · รายชิ้นในลอต        ·   VERSION 3.2
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  3.2  2026-09-08  FIX  หน้าไม่รู้ว่ามีตาราง lot_part แล้วไปอ่าน check_part แทน
+                   ทั้งที่ lot_part มีลอตนั้นครบอยู่แล้ว แถมสั่งดึงซ้ำอีก
+                   ต้นเหตุ: อ่านโครงตารางจาก OpenAPI ที่ราก /rest/v1/ อย่างเดียว
+                   รอบไหนล้มเหลว (เน็ตสะดุด สิทธิ์ แคชของ PostgREST)
+                   S.schema จะไม่มี lot_part หน้าจึงถอยไป check_part
+                   อาการที่เห็นคือ dropdown เหลือ check_part ตัวเดียว
+                   ตัวอย่างจริง BO69-0704_HG มีใน lot_part 217 แถว
+                   แต่หน้าอ่าน check_part 214 แถว แล้วขึ้นว่ากำลังดึงอยู่
+                   · ยิงถาม lot_part / check_part / lot_progress ตรง ๆ ยืนยันอีกชั้น
+                     หลังอ่าน OpenAPI · ตัวไหนขาดก็เติมให้
+                   · ตารางที่มีอยู่จริงแต่ยังไม่มีข้อมูลสักแถว อ่านชื่อคอลัมน์จาก
+                     แถวตัวอย่างไม่ได้ จึงมีรายชื่อคอลัมน์สำรองไว้ให้
+                   · อ่านไม่ได้เลยสักตารางถึงจะขึ้น error · ไม่ถอยไปครึ่ง ๆ เงียบ ๆ
   3.1  2026-09-08  FIX  v3.0 บล็อกจอรอจนกว่า lot_part จะมา ซึ่งผิด
                    ถ้า StarSync ไม่ได้รันอยู่ หน้าจะหมุนไปเรื่อย ๆ ไม่มีอะไรให้ดู
                    แย่กว่าเห็นของไม่ครบเสียอีก · การรอโดยไม่มีของให้ดู
@@ -612,6 +625,12 @@ const AXCOLS = [
 /* ชื่อคอลัมน์สำรอง · ตอนอ่านจาก check_part ช่อง Part เก็บอยู่ในชื่อ check_part */
 const ALIAS = { st_part:['st_part','check_part'] };
 
+/* ตารางที่หน้านี้ต้องใช้ · ต้องยืนยันให้ได้ว่ามีจริงหรือไม่ ไม่ใช่เดาจาก OpenAPI อย่างเดียว */
+const NEED_TABLES = ['lot_part','check_part','lot_progress'];
+/* คอลัมน์สำรอง · ใช้ตอนตารางมีอยู่จริงแต่ยังไม่มีข้อมูลสักแถว
+   จึงอ่านชื่อคอลัมน์จากแถวตัวอย่างไม่ได้ */
+const FALLBACK_COLS = { lot_part: AXCOLS.concat(['synced_at']) };
+
 /* คอลัมน์นี้อ่านค่าจากชื่อไหนในตารางที่กำลังดูอยู่ · ไม่มีเลยคืนค่าว่าง */
 function srcKey(k){
   const cols = S.schema[S.table] || [];
@@ -708,15 +727,33 @@ const db = {
     return r.json();
   },
 
-  /* ถามโครงจาก PostgREST · รองรับทั้ง swagger 2 และ openapi 3
-     ทำแบบนี้แทน hardcode เพราะเพิ่มคอลัมน์ทีหลังแล้วมันจะโผล่เอง */
+  /* ถามโครงตาราง · สามชั้น กันพลาด
+     v3.2 ของเดิมพึ่ง OpenAPI ที่ราก /rest/v1/ อย่างเดียว
+     ถ้ารอบนั้นล้มเหลว (เน็ตสะดุด สิทธิ์ ตัวแคชของ PostgREST)
+     หน้าจะไม่รู้ว่ามีตาราง lot_part อยู่ แล้วถอยไปอ่าน check_part
+     ทั้งที่ข้อมูลครบอยู่แล้ว · แล้วยังไปสั่งดึงซ้ำอีก
+     อาการที่เห็นคือ dropdown เหลือ check_part ตัวเดียว
+     ตอนนี้ยิงถามแต่ละตารางตรง ๆ ยืนยันอีกชั้น ไม่ปล่อยให้พลาดเงียบ ๆ */
   async schema(){
-    const r = await fetch(this.base(), { headers:this.head() });
-    if(!r.ok) throw new Error('อ่านโครงตารางไม่ได้ · HTTP ' + r.status);
-    const j = await r.json();
-    const defs = j.definitions || (j.components && j.components.schemas) || {};
     const out = {};
-    for(const t in defs){ const p = defs[t] && defs[t].properties; if(p) out[t] = Object.keys(p); }
+    try {
+      const r = await fetch(this.base(), { headers:this.head() });
+      if(r.ok){
+        const j = await r.json();
+        const defs = j.definitions || (j.components && j.components.schemas) || {};
+        for(const t in defs){ const p = defs[t] && defs[t].properties; if(p) out[t] = Object.keys(p); }
+      }
+    } catch(e){ /* ไปต่อด้วยการยิงถามทีละตาราง */ }
+
+    for(const t of NEED_TABLES){
+      if(out[t] && out[t].length) continue;
+      try {
+        const one = await this.get(t + '?select=*&limit=1');
+        if(one.length) out[t] = Object.keys(one[0]);
+        else if(FALLBACK_COLS[t]) out[t] = FALLBACK_COLS[t].slice();   /* ตารางมีอยู่แต่ยังว่าง */
+      } catch(e){ /* ตารางนี้ไม่มีจริง ๆ ก็ข้ามไป */ }
+    }
+    if(!Object.keys(out).length) throw new Error('อ่านโครงตารางไม่ได้เลยสักตาราง');
     return out;
   },
 
@@ -1243,14 +1280,8 @@ async function boot(){
 
   S.busy = 'กำลังอ่านโครงตาราง'; S.err = ''; render();
   try { S.schema = await db.schema(); }
-  catch(e){
-    S.schema = {};
-    try {
-      const one = await db.get('check_part?select=*&limit=1');
-      if(one[0]) S.schema['check_part'] = Object.keys(one[0]);
-      else throw new Error('check_part ยังไม่มีข้อมูลสักแถว จึงเดาคอลัมน์ไม่ได้');
-    } catch(e2){ S.err = e2.message; render(); return; }
-  }
+  catch(e){ S.err = e.message; render(); return; }
+
   if(S.schema['lot_part'])        S.table = 'lot_part';
   else if(S.schema['check_part']) S.table = 'check_part';
   else { const f = Object.keys(S.schema)[0]; if(f) S.table = f; }
