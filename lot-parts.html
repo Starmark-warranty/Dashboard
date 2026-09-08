@@ -5,8 +5,20 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Ax Progress · รายชิ้นในลอต</title>
 <!-- =====================================================================
-  Lot Parts · รายชิ้นในลอต        ·   VERSION 2.8
+  Lot Parts · รายชิ้นในลอต        ·   VERSION 2.9
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  2.9  2026-09-08  FIX  อ่านจาก check_part แล้วขึ้น 100% ทั้งที่ของจริง 29%
+                   ตั้งแต่ 2.1 ผมเอาจำนวนแถวที่โหลดมาเป็นตัวหาร
+                   ซึ่งใช้ได้กับ lot_part ที่มีครบทุกชิ้น แต่ใช้กับ check_part ไม่ได้
+                   เพราะตารางนั้นมีแต่ชิ้นที่ยิงแล้ว ทุกแถวจึงติ๊กหมดโดยนิยาม
+                   ลอต INNOPD_L_FL3_BF320_320M_320M2 ขึ้น 243/243 = 100%
+                   ทั้งที่ AX บอก 243/831 = 29% เหลืออีก 588 ชิ้น
+                   ผิดทางที่อันตรายที่สุดคือบอกว่างานเสร็จแล้ว
+                   · รวมการนับไว้ที่ partStats ที่เดียว ทั้งแถบล่างและเกจ
+                     lot_part นับจากแถวตรง ๆ · check_part ยืมตัวหารจาก lot_progress
+                   · ไม่มียอดจาก AX เลย ขึ้นขีดว่าไม่รู้ ดีกว่าเดาแล้วขึ้น 100%
+                   · บอกไว้ข้างตัวเลขว่ายอดนี้ยืมมาจาก AX ไม่ได้นับจากตารางนี้
+                   · ปุ่ม "ยังไม่ตัด" ปิดไว้ตอนอ่านจาก check_part กดแล้วได้จอเปล่า
   2.8  2026-09-08  CHANGE เลือกลอตผ่านหน้าต่างแยก แบ่งเป็น 4 คอลัมน์
                    ของเดิมเป็นรายการเดียวยาว ๆ ใต้ช่องพิมพ์ ตอบไม่ได้ว่า
                    "ตอนนี้มีลอตไหนกำลังตัดอยู่บ้าง" ต้องรู้ชื่อมาก่อนถึงจะหาเจอ
@@ -615,6 +627,22 @@ const hasFull = () => (S.schema[S.table] || []).includes('st_part');
    ลอตที่ตัดครบแล้วจะค้างอยู่ที่ 98% ตลอดกาล ซึ่งอ่านแล้วเข้าใจผิด
    StarSync กับหน้า Cutting Center แยกสองอย่างนี้อยู่แล้ว (total_parts กับ total_all)
    หน้านี้ต้องนับให้ตรงกัน ไม่งั้นสองหน้าจะขึ้นตัวเลขไม่เท่ากัน */
+/* ยอดตัดของลอตนี้ · ใช้ที่เดียวกันทั้งแถบล่างและเกจ
+   ตารางที่มีครบทุกชิ้น (lot_part) ใช้จำนวนแถวเป็นตัวหารได้ตรง ๆ
+   ตารางบันทึกการยิง (check_part) มีแต่ชิ้นที่ยิงแล้ว ตัวหารต้องยืมจาก lot_progress
+   ไม่งั้นจะได้ 243/243 = 100% ทั้งที่ของจริง 243/831 = 29%
+   ซึ่งผิดทางที่อันตรายที่สุด คือบอกว่างานเสร็จแล้วทั้งที่เหลืออีก 588 ชิ้น */
+function partStats(){
+  const piece = S.rows.filter(isPiece);
+  const done  = piece.filter(isDone).length;
+  if(hasFull()) return { done, total:piece.length, borrowed:false, unknown:false };
+  const t = (S.prog && S.prog.total_parts)   || 0;
+  const d = (S.prog && S.prog.checked_parts) || done;
+  if(t) return { done:d, total:t, borrowed:true, unknown:false };
+  /* ไม่มียอดจาก AX เลย · บอกว่าไม่รู้ ดีกว่าเดาแล้วขึ้น 100% */
+  return { done, total:0, borrowed:true, unknown:true };
+}
+
 function isPiece(r){
   const L = valOf(r, 'finish_length'), W = valOf(r, 'finish_width');
   if(L === undefined && W === undefined) return true;
@@ -1001,13 +1029,29 @@ function renderSide(){
            '<div class="gn">ไม่มีในตารางนี้</div></div></div>';
       return;
     }
-    const base = g.piece ? piece : S.rows;
-    const yes  = base.filter(r => { const v = r[key]; return v === true || Number(v) === 1; }).length;
-    const no   = base.length - yes;
-    const pct  = base.length ? Math.round(yes / base.length * 100) : 0;
-    h += '<div class="g">' + arcSvg(pct, false) +
+    /* Part ใช้ยอดกลางจาก partStats เพราะตัวหารอาจต้องยืมจาก AX
+       ช่องอื่นมีเฉพาะใน lot_part ซึ่งมีครบทุกแถวอยู่แล้ว นับตรง ๆ ได้ */
+    let yes, tot, warn = '';
+    if(g.k === 'st_part'){
+      const st = partStats();
+      if(st.unknown){
+        h += '<div class="g na">' + arcSvg(0, true) +
+             '<div class="gi"><div class="gl">' + esc(g.label) + '</div>' +
+             '<div class="gn">AX ยังไม่มียอด</div></div></div>';
+        return;
+      }
+      yes = st.done; tot = st.total;
+      if(st.borrowed) warn = ' title="ตัวหารมาจาก AX · ตารางนี้มีแถวเฉพาะชิ้นที่ยิงแล้ว"';
+    } else {
+      const base = g.piece ? piece : S.rows;
+      yes = base.filter(r => { const v = r[key]; return v === true || Number(v) === 1; }).length;
+      tot = base.length;
+    }
+    const no  = Math.max(0, tot - yes);
+    const pct = tot ? Math.round(yes / tot * 100) : 0;
+    h += '<div class="g"' + warn + '>' + arcSvg(pct, false) +
          '<div class="gi"><div class="gl">' + esc(g.label) + '</div>' +
-         '<div class="gn"><b>' + nf0.format(yes) + '</b> / ' + nf0.format(base.length) +
+         '<div class="gn"><b>' + nf0.format(yes) + '</b> / ' + nf0.format(tot) +
          (no ? ' · เหลือ <i>' + nf0.format(no) + '</i>' : '') + '</div></div></div>';
   });
 
@@ -1032,31 +1076,37 @@ function renderSide(){
 function renderStatus(){
   if(!S.lot){ $('status').innerHTML = ''; return; }
   const rs    = viewRows();
-  const full  = hasFull();
-  const piece = S.rows.filter(isPiece);
-  const pack  = S.rows.length - piece.length;
-  const done  = stKey() ? piece.filter(isDone).length : piece.length;
-  const todo  = piece.length - done;
-  const pct   = piece.length ? Math.round(done / piece.length * 100) : 0;
+  const st    = partStats();
+  const pack  = S.rows.length - S.rows.filter(isPiece).length;
+  const todo  = Math.max(0, st.total - st.done);
+  const pct   = st.total ? Math.round(st.done / st.total * 100) : 0;
   const nf    = Object.keys(S.filters).filter(k => S.filters[k]).length;
 
-  const vb = (v, txt, n, cls) =>
-    '<button class="btn' + (S.view === v ? ' on' : '') + '" data-act="view" data-v="' + v + '">' +
-    esc(txt) + ' <span class="n' + (cls ? ' ' + cls : '') + '">' + nf0.format(n) + '</span></button>';
+  /* กรอง "ยังไม่ตัด" ได้เฉพาะตารางที่มีแถวของชิ้นที่ยังไม่ตัดจริง
+     ตารางบันทึกการยิงไม่มีแถวพวกนั้น กดแล้วจะได้จอเปล่า */
+  const vb = (v, txt, n, cls, dead) =>
+    '<button class="btn' + (S.view === v ? ' on' : '') + '"' +
+    (dead ? ' disabled title="ตารางนี้ไม่มีแถวของชิ้นที่ยังไม่ตัด"'
+          : ' data-act="view" data-v="' + v + '"') + '>' +
+    esc(txt) + ' <span class="n' + (cls ? ' ' + cls : '') + '">' +
+    (n === null ? '—' : nf0.format(n)) + '</span></button>';
 
-  let h = vb('all',  'ทั้งหมด',   S.rows.length, '') +
-          vb('todo', 'ยังไม่ตัด', todo, 'bad') +
-          (pack ? vb('pack', 'ห่ออุปกรณ์', pack, 'mu') : '');
+  let h = vb('all', 'ทั้งหมด', S.rows.length, '', false) +
+          vb('todo', 'ยังไม่ตัด', st.unknown ? null : todo, 'bad', !hasFull()) +
+          (pack ? vb('pack', 'ห่ออุปกรณ์', pack, 'mu', false) : '');
 
-  h += '<span style="margin-left:6px">ต้องตัด <span class="n">' + nf0.format(piece.length) +
-       '</span> · ตัดแล้ว <span class="n">' + nf0.format(done) + '</span></span>' +
-       '<div class="pbar"><i style="width:' + pct + '%"></i></div>' +
-       '<span class="n">' + pct + '%</span>';
+  h += '<span style="margin-left:6px">ต้องตัด <span class="n">' +
+       (st.unknown ? '—' : nf0.format(st.total)) + '</span> · ตัดแล้ว <span class="n">' +
+       nf0.format(st.done) + '</span></span>' +
+       '<div class="pbar"><i style="width:' + (st.unknown ? 0 : pct) + '%"></i></div>' +
+       '<span class="n">' + (st.unknown ? '—' : pct + '%') + '</span>';
 
-  if(pack) h += '<span style="color:var(--mu2)">ห่อ ' + nf0.format(pack) +
-                ' แถวไม่นับ · ไม่มีขนาดจึงไม่ต้องตัด</span>';
-  if(!full) h += '<span style="color:var(--warn)">ตารางนี้ไม่มีชิ้นที่ยังไม่ตัด</span>';
-  if(nf)    h += '<span>กรอง ' + nf + ' คอลัมน์ <button class="btn" data-act="fltclear">ล้าง</button></span>';
+  if(st.borrowed)
+    h += '<span style="color:var(--warn)">' +
+         (st.unknown ? 'AX ยังไม่มียอดของลอตนี้ จึงบอก % ไม่ได้'
+                     : 'ยอดนี้มาจาก AX · ตารางนี้มีแถวเฉพาะ ' +
+                       nf0.format(S.rows.length) + ' ชิ้นที่ยิงแล้ว') + '</span>';
+  if(nf) h += '<span>กรอง ' + nf + ' คอลัมน์ <button class="btn" data-act="fltclear">ล้าง</button></span>';
 
   h += '<span class="tot">' + (rs.length !== S.rows.length
         ? '<span>แสดง <span class="n">' + nf0.format(rs.length) + '</span></span>' : '') +
