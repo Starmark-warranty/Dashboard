@@ -5,8 +5,76 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=5.0,user-scalable=yes">
 <title>Cutting Center Dashboard</title>
 <!-- =====================================================================
-  Cutting Center Dashboard   ·   VERSION 13.16
+  Cutting Center Dashboard   ·   VERSION 13.19
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  13.19 2026-09-08  FEAT ค้นหา lot — พิมพ์คีย์เวิร์ดแล้วเด้งรายการให้เลือก
+                    ของเดิมดู lot ได้ทางเดียวคือกดชื่องานบนการ์ด = ต้องรู้ก่อนว่า
+                    เครื่องไหนทำ · แต่คำถามหน้างานมาจากอีกทางเสมอ
+                    "lot นี้ตัดจบยัง ใครทำ เมื่อไหร่" ตรงนี้เลยเริ่มจาก lot
+                    แล้วไล่ย้อนไปหาเครื่อง
+                    · พิมพ์ทีละตัว รายการแนะนำเด้งใต้ช่อง (สูงสุด 8) ค้นได้ทั้ง
+                      รหัส lot และชื่อโครงการ · ↑↓ เลือก Enter ยืนยัน Esc ปิด
+                      คำที่ตรงถูกไฮไลต์ให้เห็นว่าแมตช์ตรงไหน
+                    · เลือกช่วงวันที่ก่อนค้นได้ · มีปุ่มลัด ทั้งหมด/วันนี้/7/30/90 วัน
+                      และ "ตามหน้าจอ" ใช้ช่วงเดียวกับที่กรองอยู่หน้าหลัก
+                      ค่าเริ่มต้นคือ "ทั้งหมด" ไม่ใช่ช่วงบนจอ เพราะคนเปิดหน้านี้
+                      เพราะหา lot ไม่เจอ การล็อกช่วงแคบไว้ก่อนจะยิ่งหาไม่เจอ
+                    · แต่ละ lot บอก: เริ่มตัด -> ตัดจบ (วันที่+เวลา) · กี่ชิ้น
+                      แยก OT · กี่วัน · กี่เครื่อง แล้วแจกแจงรายเครื่องว่าใครทำ
+                      ช่วงไหน กี่โมงถึงกี่โมง กี่ชิ้น
+                    · buildLotRows เก็บ t0/t1 (เวลาชิ้นแรก-สุดท้ายของวันนั้น)
+                      และแยกยอด OT (ยิงหลัง 17:00) เพิ่ม · ของเดิมมีแค่จำนวนชิ้น
+                      ตอบได้แค่ "ตัดกี่ชิ้น" ตอบไม่ได้ว่า "ตัดตอนกี่โมง"
+                      เก็บเป็น HH:MM ไม่ใช่ timestamp เต็ม เพราะก้อนนี้ลง localStorage
+                    · เทียบเวลาเริ่ม/จบ ด้วย "วันที่+เวลา" ไม่ใช่เวลาอย่างเดียว
+                      ไม่งั้น 08:12 ของเมื่อวานจะดูใหม่กว่า 16:40 ของวันนี้
+                    · แยกฐานเวลาให้ชัดตามที่ v13.8 วางไว้
+                        ในช่วงที่เลือก = supaLotRows (เท่าที่โหลดไว้)
+                        ทั้ง lot สะสมทุกวัน = lotProg จาก AX
+                      ตัวหลังบอกว่า "จบยัง" ตัวแรกบอกว่า "จบเมื่อไหร่ ใครทำ"
+                    · ถ้าวันแรกที่เจอชนขอบซ้ายของช่วงพอดี ขึ้นเตือนว่าอาจเริ่มตัด
+                      ก่อนหน้านั้นแต่มองไม่เห็น · ไม่งั้นคนจะอ่าน "เริ่มตัด" เป็น
+                      วันเริ่มจริง ทั้งที่เป็นแค่ขอบของช่วงที่กรอง
+  13.18 2026-09-08  FEAT กล่องผลลัพธ์การดึงข้อมูล แทน alert() ของเบราว์เซอร์
+                    alert() ใช้ธีมของ OS ตัดกับจอมืดทั้งหน้า และจัดข้อความไม่ได้
+                    ตัวเลขสำคัญเลยจมอยู่ในบรรทัดยาว ๆ ทั้งที่เป็นสิ่งที่คนอยากเห็นก่อน
+                    · แถวบนเป็นการ์ดตัวเลข (แถวดิบ / สร้าง record / เครื่อง)
+                      รายละเอียดรองอยู่ในตารางข้างล่าง สิ่งที่ต้องทำต่ออยู่ในกล่องสี
+                    · แทน 5 จุด: ยังไม่ได้ตั้งค่า / ไม่พบข้อมูล / สำเร็จ / ผิดพลาด
+                      / ปุ่มทดสอบเชื่อมต่อ
+                    · z-index 10000 สูงกว่าหน้าตั้งค่า Supabase (9999) เพราะ
+                      ปุ่มทดสอบเชื่อมต่ออยู่ในหน้านั้น ถ้าต่ำกว่าจะโดนบังจนไม่เห็นผล
+                    · โฟกัสปุ่มตกลงให้ + รับ Esc ด้วย · alert เดิมกด Enter/Esc
+                      ปิดได้ ถ้าหายไปคนจะรู้สึกว่ากล่องใหม่ปิดยากกว่าเดิม
+                    · ส่วนไหนไม่มีข้อมูลก็ซ่อนทั้งบล็อก ไม่เหลือกรอบเปล่า
+                    · error โชว์ข้อความดิบใน monospace ไม่ตัดทิ้ง เพราะเป็นตัวเดียว
+                      ที่บอกได้ว่าพลาดเพราะ Key ผิดหรือยังไม่มีตาราง
+  13.17 2026-09-08  FIX  เปิดจอตอนเช้าไม่ต้องรอโหลด 150 วันซ้ำอีก
+                    13.16 บังคับโหลดประวัติใหม่ทุกครั้งที่เปิดหน้า เพราะ
+                    supaLotRows/supaJobByMc อยู่ในหน่วยความจำอย่างเดียว
+                    ทั้งที่ยอดบนการ์ดโหลดจาก localStorage มาครบตั้งแต่แรกแล้ว
+                    · เก็บ lot + งานล่าสุดลงเครื่องด้วย (cc_supa_lots/_jobs)
+                      แล้วจำเป็นช่วงว่า "มีข้อมูลครบตั้งแต่วันไหนถึงวันไหน"
+                      (cc_supa_hist = {days,from,to,at})
+                    · supaPlan() ตัดสินจุดเริ่มดึงทุกรอบ จากช่วงที่มีครบแล้ว
+                        เปิดจอตอนเช้า   to=เมื่อวาน  -> ดึง 2 วัน
+                        ปิดจอไป 3 วัน   to=3 วันก่อน -> ดึง 5 วัน
+                        ระหว่างวัน                    -> ดึง 1 วัน
+                        ขยายช่วงย้อนหลัง from ไม่พอ  -> กวาดใหม่ทั้งช่วง
+                        ลดช่วงย้อนหลัง                -> ไม่ต้องดึงซ้ำเลย
+                      ต้องถอยไปเริ่มที่ to เสมอ ไม่ใช่แค่ช่วงร้อน เพราะปิดจอ
+                      ข้ามวันแล้วดึงแค่วันนี้จะเกิดวันโหว่ตรงกลางที่ไม่มีวันเติมเอง
+                      ทดสอบ 7 สถานการณ์แล้ว วันโหว่ = 0 ทุกกรณี
+                    · needFull เช็คจาก from ไม่ใช่ days · ลดช่วงย้อนหลังแปลว่า
+                      ของที่มีครอบคลุมอยู่แล้ว ไม่มีเหตุให้ดึงใหม่
+                    · ตัด lot ที่หลุดนอกช่วงทิ้งตอนบันทึก แล้วขยับ from ตาม
+                      ถ้าไม่ขยับ พอขยายช่วงกลับมาระบบจะเชื่อว่ามีครบทั้งที่
+                      โดนตัดไปแล้ว กล่อง lot จะโหว่แบบเงียบ ๆ
+                    · เก็บลงเครื่องไม่สำเร็จ (โควตาเต็ม) ก็ไม่พัง รอบนี้ใช้ของใน
+                      หน่วยความจำต่อได้ แต่ลบธงในเครื่องทิ้ง เปิดหน้าใหม่จะโหลด
+                      เต็มเหมือน 13.16 · ถ้าไม่ลบธง รอบหน้าจะเชื่อว่ามี lot ครบ
+                      ทั้งที่ไม่มี
+                    · มีธงแต่ไม่มี lot = เคยเก็บไม่สำเร็จ ถือว่าไม่มี ต้องโหลดใหม่
   13.16 2026-09-08  FIX  ดึงข้อมูลวนไม่จบทั้งวัน · แยกเป็น 2 ชั้น
                     StarSync ยิงเข้า check_part ทีละแถวตลอดเวลาที่มีการผลิต
                     ทุกแถวที่เข้ามาจุดชนวนให้ดึงใหม่ "ทั้งช่วง" · ตั้งย้อนหลัง
@@ -497,6 +565,83 @@ tr:hover td{background:rgba(255,255,255,.02)}
 .sp-step.done{background:#1d4ed8}
 .sp-step.now{background:#38bdf8}
 #supaProg.ok .sp-step.done,#supaProg.ok .sp-step.now{background:#22c55e}
+/* ═══ v13.18 กล่องผลลัพธ์การดึงข้อมูล แทน alert() ของเบราว์เซอร์ ═══
+   alert() ใช้ธีมของ OS ตัดกับจอมืดทั้งหน้า อ่านแล้วสะดุด และจัดข้อความไม่ได้เลย
+   ตัวเลขสำคัญเลยจมอยู่ในบรรทัดข้อความยาว ๆ ทั้งที่เป็นสิ่งที่คนอยากเห็นก่อน
+   z-index สูงกว่าหน้าตั้งค่า Supabase (9999) เพราะปุ่มทดสอบเชื่อมต่ออยู่ในนั้น */
+#ov-supares{z-index:10000}
+.sr-hd{display:flex;align-items:flex-start;gap:12px;margin-bottom:15px;padding-bottom:13px;border-bottom:1px solid #334155}
+.sr-ic{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:900;flex-shrink:0}
+.sr-ic.ok{background:#052e16;color:#4ade80;border:1px solid #166534}
+.sr-ic.warn{background:#3b2506;color:#fbbf24;border:1px solid #92400e}
+.sr-ic.err{background:#450a0a;color:#f87171;border:1px solid #7f1d1d}
+.sr-ttl{font-size:16px;font-weight:800;color:#fff;line-height:1.3}
+.sr-sub{font-size:12px;color:#64748b;margin-top:3px;line-height:1.5}
+.sr-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:8px;margin-bottom:12px}
+.sr-stat{background:#0f172a;border:1px solid #1e293b;border-radius:9px;padding:9px 11px;min-width:0}
+.sr-stat-l{font-size:9px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sr-stat-v{font-size:20px;font-weight:900;line-height:1;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sr-rows{background:#0f172a;border:1px solid #1e293b;border-radius:9px;padding:2px 12px;margin-bottom:12px}
+.sr-row{display:flex;justify-content:space-between;align-items:baseline;gap:14px;padding:7px 0;font-size:12px;border-bottom:1px solid #172033}
+.sr-row:last-child{border-bottom:none}
+.sr-row .sr-k{color:#64748b;flex-shrink:0}
+.sr-row .sr-v{color:#e2e8f0;font-weight:700;text-align:right;min-width:0;word-break:break-word}
+.sr-note{font-size:11.5px;line-height:1.7;border-radius:9px;padding:9px 12px;margin-bottom:12px}
+.sr-note.ok{background:#052e16;border:1px solid #14532d;color:#86efac}
+.sr-note.warn{background:#3b2506;border:1px solid #78350f;color:#fcd34d}
+.sr-note.err{background:#2a0a0a;border:1px solid #7f1d1d;color:#fca5a5;font-family:monospace;font-size:11px;word-break:break-word}
+.sr-hint{font-size:11px;color:#475569;line-height:1.7;margin-bottom:12px}
+/* ═══ v13.19 ค้นหา lot ═══════════════════════════════════════════════════
+   ของเดิมดู lot ได้ทางเดียวคือกดชื่องานบนการ์ด = ต้องรู้ก่อนว่าเครื่องไหนทำ
+   แต่คำถามหน้างานมาจากอีกทางเสมอ "lot นี้ตัดจบยัง ใครทำ เมื่อไหร่"
+   ตรงนี้เลยเริ่มจาก lot แล้วไล่ย้อนไปหาเครื่อง ไม่ใช่เริ่มจากเครื่อง */
+.lf-bar{background:#0f172a;border:1px solid #1e293b;border-radius:10px;padding:11px 13px;margin-bottom:12px}
+.lf-inpw{position:relative}
+.lf-inp{width:100%;background:#1e293b;color:#e2e8f0;border:1px solid #475569;border-radius:8px;
+  padding:10px 34px 10px 34px;font-size:14px;font-family:inherit}
+.lf-inp:focus{outline:none;border-color:#3b82f6}
+.lf-ico{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#64748b;font-size:13px;pointer-events:none}
+.lf-clr{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:#334155;border:none;color:#94a3b8;
+  border-radius:50%;width:20px;height:20px;line-height:1;font-size:11px;cursor:pointer;padding:0}
+.lf-clr:hover{background:#dc2626;color:#fff}
+/* รายการแนะนำ · ลอยทับผลลัพธ์ ไม่ดันของข้างล่างให้กระโดดทุกตัวอักษรที่พิมพ์ */
+.lf-sug{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:20;background:#0b1220;
+  border:1px solid #334155;border-radius:9px;box-shadow:0 14px 34px rgba(0,0,0,.6);
+  max-height:250px;overflow-y:auto;display:none}
+.lf-sug.on{display:block}
+.lf-sitem{padding:7px 12px;cursor:pointer;border-bottom:1px solid #172033;display:flex;gap:10px;align-items:baseline}
+.lf-sitem:last-child{border-bottom:none}
+.lf-sitem:hover,.lf-sitem.sel{background:#1e293b}
+.lf-slot{font-family:monospace;font-size:12px;color:#7dd3fc;font-weight:700;flex-shrink:0}
+.lf-sproj{font-size:11px;color:#64748b;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lf-sn{font-size:10px;color:#475569;flex-shrink:0}
+.lf-sug mark{background:#164e63;color:#a5f3fc;border-radius:2px;padding:0 1px}
+.lf-chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+.lf-chip{background:#1e293b;border:1px solid #334155;color:#94a3b8;border-radius:20px;padding:3px 11px;
+  font-size:11px;cursor:pointer;font-family:inherit}
+.lf-chip:hover{background:#334155;color:#fff}
+.lf-chip.on{background:#1d4ed8;border-color:#3b82f6;color:#fff;font-weight:700}
+/* การ์ดผลลัพธ์ */
+.lf-card{background:#0f172a;border:1px solid #1e293b;border-radius:11px;padding:12px 14px;margin-bottom:9px}
+.lf-card.done{border-color:#166534}
+.lf-hd{display:flex;align-items:flex-start;gap:9px;margin-bottom:3px}
+.lf-lot{font-family:monospace;font-size:13px;font-weight:700;color:#e2e8f0;flex:1;min-width:0;word-break:break-all}
+.lf-badge{flex-shrink:0;font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;white-space:nowrap}
+.lf-badge.done{background:#052e16;border:1px solid #166534;color:#4ade80}
+.lf-badge.wip{background:#3b2506;border:1px solid #92400e;color:#fbbf24}
+.lf-badge.unk{background:#1e293b;border:1px solid #334155;color:#64748b}
+.lf-proj{font-size:12px;color:#7dd3fc;margin-bottom:9px;word-break:break-word}
+.lf-when{background:#0b1220;border:1px solid #1e293b;border-radius:8px;padding:7px 10px;margin-bottom:8px;font-size:11.5px;line-height:1.8}
+.lf-when b{color:#fff}
+.lf-warn{color:#fbbf24;font-size:10.5px;display:block;margin-top:3px}
+.lf-mcs{border:1px solid #1e293b;border-radius:8px;overflow:hidden}
+.lf-mc{display:flex;align-items:center;gap:8px;padding:6px 10px;font-size:11.5px;border-bottom:1px solid #172033;flex-wrap:wrap}
+.lf-mc:last-child{border-bottom:none}
+.lf-mc-n{font-weight:700;color:#fff;min-width:88px;flex-shrink:0}
+.lf-mc-d{color:#64748b;flex:1;min-width:140px}
+.lf-mc-q{color:#93c5fd;font-weight:700;flex-shrink:0;font-variant-numeric:tabular-nums}
+.lf-mc-ot{color:#fca5a5;font-size:10px;flex-shrink:0}
+.lf-empty{text-align:center;padding:30px 16px;color:#475569;font-size:13px;line-height:2}
 ::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:#0f172a}
 ::-webkit-scrollbar-thumb{background:#334155;border-radius:3px}
 
@@ -555,6 +700,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <button class="btn btn-blue" onclick="saveDataFile()" title="บันทึก .json เลย (กดครั้งเดียว)" style="background:#1e40af">💾 Save</button>
       <button class="btn btn-green" onclick="openModal('ov-exp')" title="Export Excel หรือดูตัวเลือกอื่น">⬇️ Export</button>
     <button class="btn" style="background:#1e3a5f;color:#93c5fd;border:1px solid #3b82f6" onclick="openReport()">📋 Report</button>
+<button class="btn" onclick="openLotFind()" title="ค้นหา lot — ตัดจบยัง ใครทำ เมื่อไหร่" style="background:#0b2b3d;color:#67e8f9;border:1px solid #155e75">🔍 ค้นหา lot</button>
 <button class="btn" id="supaBtn" onclick="openSupaSettings()" title="ดึงข้อมูลจาก Supabase แบบเรียลไทม์" style="background:transparent;border:1px solid #334155;color:#38bdf8;padding:6px 10px">⚡ Supabase</button>
     <button class="btn" onclick="openModal('ov-share')" title="แชร์/QR Code" style="background:transparent;border:1px solid #334155;color:#a78bfa">📱 แชร์</button>
     <button class="btn" onclick="openModal('ov-help')" title="คู่มือการใช้งาน" style="background:transparent;border:1px solid #334155;color:#5eead4">❓ คู่มือ</button>
@@ -3439,6 +3585,214 @@ function opsSave(){
   closeModal('ov-ops');
 }
 
+/* ═══ v13.19 ค้นหา lot ════════════════════════════════════════════════════
+   ของเดิมดู lot ได้ทางเดียวคือกดชื่องานบนการ์ด = ต้องรู้ก่อนว่าเครื่องไหนทำ
+   แต่คำถามหน้างานมาจากอีกทางเสมอ: "lot นี้ตัดจบยัง ใครทำ เมื่อไหร่"
+   ตรงนี้เลยเริ่มจาก lot แล้วไล่ย้อนไปหาเครื่อง
+
+   ฐานข้อมูลสองชุด ต้องแยกให้ชัดเหมือนที่ v13.8 วางไว้ ไม่งั้นเลขจะขัดกันเอง
+     supaLotRows  = เครื่องไหนยิงกี่ชิ้น วันไหน กี่โมง — เฉพาะช่วงที่โหลดไว้
+     lotProg      = ทั้ง lot มีกี่ชิ้น ตัดไปแล้วกี่ชิ้น — สะสมทุกวันจาก AX
+   ตัวหลังบอกได้ว่า "จบแล้วหรือยัง" ตัวแรกบอกได้ว่า "จบเมื่อไหร่ ใครทำ" ── */
+let lfSugIdx = -1, lfSugList = [];
+
+function openLotFind(){
+  const c = supaCover;
+  const cv = $('lfCover');
+  if(cv) cv.textContent = c ? ('ข้อมูลในเครื่อง ' + fmtDate(c.from) + ' – ' + fmtDate(c.to)) : 'ยังไม่มีข้อมูลในเครื่อง';
+  // ค่าเริ่มต้น: ทั้งหมดเท่าที่มี ไม่ใช่ช่วงที่กรองอยู่บนจอ
+  // คนเปิดหน้านี้เพราะ "หา lot ไม่เจอ" การล็อกช่วงแคบไว้ก่อนจะยิ่งหาไม่เจอ
+  if($('lfFrom') && !$('lfFrom').value) $('lfFrom').value = '';
+  if($('lfTo')   && !$('lfTo').value)   $('lfTo').value   = '';
+  lfPresets();
+  openModal('ov-lotfind');
+  setTimeout(()=>{ const i=$('lfQ'); if(i) i.focus(); }, 80);
+  lfRun();
+}
+
+function lfPresets(){
+  const box = $('lfPresets'); if(!box) return;
+  const today = supaToday();
+  const mk = (label, from, to) => `<button class="lf-chip" onclick="lfSetRange('${from}','${to}')">${label}</button>`;
+  box.innerHTML =
+      mk('ทั้งหมด','','')
+    + mk('วันนี้', today, today)
+    + mk('7 วัน',  supaDateShift(today,-6),  today)
+    + mk('30 วัน', supaDateShift(today,-29), today)
+    + mk('90 วัน', supaDateShift(today,-89), today)
+    + `<button class="lf-chip" onclick="lfUseScreenRange()" title="ใช้ช่วงเดียวกับที่กรองอยู่บนหน้าจอหลัก">ตามหน้าจอ</button>`;
+}
+function lfSetRange(f,t){ if($('lfFrom')) $('lfFrom').value=f; if($('lfTo')) $('lfTo').value=t; lfRun(); }
+function lfUseScreenRange(){ lfSetRange($('dateFrom').value||'', $('dateTo').value||''); }
+function lfClear(){ const i=$('lfQ'); if(i){ i.value=''; i.focus(); } lfHideSug(); lfRun(); }
+function lfHideSug(){ const s=$('lfSug'); if(s){ s.classList.remove('on'); } lfSugIdx=-1; }
+
+/* รวม supaLotRows เป็นรายการต่อ lot ภายในช่วงวันที่ที่เลือก */
+function lfIndex(){
+  const from = $('lfFrom') ? $('lfFrom').value : '';
+  const to   = $('lfTo')   ? $('lfTo').value   : '';
+  const by = {};
+  supaLotRows.forEach(r=>{
+    if(!r || !r.lot) return;
+    if(from && r.date < from) return;
+    if(to   && r.date > to)   return;
+    const e = by[r.lot] || (by[r.lot] = { lot:r.lot, n:0, ot:0, days:new Set(), mcs:{}, first:'', last:'' });
+    e.n  += r.n || 0;
+    e.ot += r.ot || 0;
+    e.days.add(r.date);
+    const m = e.mcs[r.mc] || (e.mcs[r.mc] = { mc:r.mc, n:0, ot:0, days:new Set(), first:'', last:'' });
+    m.n += r.n || 0; m.ot += r.ot || 0; m.days.add(r.date);
+    // เวลาเริ่ม/จบ ต้องเทียบเป็น "วันที่+เวลา" ไม่ใช่เวลาอย่างเดียว
+    // ไม่งั้น 08:12 ของเมื่อวานจะดูใหม่กว่า 16:40 ของวันนี้
+    const s0 = r.date + ' ' + (r.t0 || '00:00');
+    const s1 = r.date + ' ' + (r.t1 || '23:59');
+    if(!e.first || s0 < e.first) e.first = s0;
+    if(!e.last  || s1 > e.last)  e.last  = s1;
+    if(!m.first || s0 < m.first) m.first = s0;
+    if(!m.last  || s1 > m.last)  m.last  = s1;
+  });
+  return Object.values(by);
+}
+
+function lfMatch(list, q){
+  const s = String(q||'').trim().toLowerCase();
+  if(!s) return list;
+  return list.filter(e=>{
+    const proj = (lotProg[e.lot] && lotProg[e.lot].proj_name) || '';
+    return e.lot.toLowerCase().includes(s) || proj.toLowerCase().includes(s);
+  });
+}
+function lfHi(txt, q){
+  const s = String(q||'').trim();
+  if(!s) return esc13(txt);
+  const i = String(txt).toLowerCase().indexOf(s.toLowerCase());
+  if(i < 0) return esc13(txt);
+  return esc13(String(txt).slice(0,i)) + '<mark>' + esc13(String(txt).slice(i,i+s.length)) + '</mark>' + esc13(String(txt).slice(i+s.length));
+}
+function lfWhen(str){   // "2026-09-04 16:40" -> "04/09/2569 16:40"
+  if(!str) return '—';
+  const p = String(str).split(' ');
+  return fmtDate(p[0]) + (p[1] ? ' ' + p[1] : '');
+}
+
+/* รายการแนะนำใต้ช่องพิมพ์ · พิมพ์ L ก็ขึ้นทุก lot ที่มี L */
+function lfSuggest(){
+  const q = ($('lfQ') ? $('lfQ').value : '').trim();
+  const sug = $('lfSug'); if(!sug) return;
+  if(!q){ lfHideSug(); return; }
+  const list = lfMatch(lfIndex(), q)
+    .sort((a,b)=> (b.last > a.last ? 1 : b.last < a.last ? -1 : 0))
+    .slice(0,8);
+  lfSugList = list;
+  if(!list.length){ lfHideSug(); return; }
+  sug.innerHTML = list.map((e,i)=>{
+    const proj = (lotProg[e.lot] && lotProg[e.lot].proj_name) || '';
+    return `<div class="lf-sitem${i===lfSugIdx?' sel':''}" onmousedown="lfPick(${i})">`
+         + `<span class="lf-slot">${lfHi(e.lot,q)}</span>`
+         + `<span class="lf-sproj">${proj ? lfHi(proj,q) : ''}</span>`
+         + `<span class="lf-sn">${n(e.n)} ชิ้น</span></div>`;
+  }).join('');
+  sug.classList.add('on');
+}
+function lfPick(i){
+  const e = lfSugList[i]; if(!e) return;
+  const inp = $('lfQ'); if(inp) inp.value = e.lot;
+  lfHideSug(); lfRun();
+}
+function lfKey(ev){
+  const sug = $('lfSug');
+  const open = sug && sug.classList.contains('on');
+  if(ev.key === 'ArrowDown' || ev.key === 'ArrowUp'){
+    if(!open) return;
+    ev.preventDefault();
+    lfSugIdx += (ev.key === 'ArrowDown' ? 1 : -1);
+    if(lfSugIdx < 0) lfSugIdx = lfSugList.length - 1;
+    if(lfSugIdx >= lfSugList.length) lfSugIdx = 0;
+    lfSuggest();
+  } else if(ev.key === 'Enter'){
+    if(open && lfSugIdx >= 0) lfPick(lfSugIdx);
+    else { lfHideSug(); lfRun(); }
+  } else if(ev.key === 'Escape'){
+    if(open){ ev.stopPropagation(); lfHideSug(); }
+  }
+}
+function lfType(){ lfSugIdx = -1; lfSuggest(); lfRun(); }
+
+function lfRun(){
+  const body = $('lfBody'); if(!body) return;
+  const q = ($('lfQ') ? $('lfQ').value : '').trim();
+  const from = $('lfFrom') ? $('lfFrom').value : '';
+  const to   = $('lfTo')   ? $('lfTo').value   : '';
+
+  // ปุ่มช่วงวันที่ตัวไหนตรงกับค่าปัจจุบันก็ติดไฟไว้
+  const today = supaToday();
+  const marks = [['',''],[today,today],[supaDateShift(today,-6),today],[supaDateShift(today,-29),today],[supaDateShift(today,-89),today]];
+  document.querySelectorAll('#lfPresets .lf-chip').forEach((b,i)=>{
+    const m = marks[i];
+    b.classList.toggle('on', !!m && m[0]===from && m[1]===to);
+  });
+
+  const all = lfIndex();
+  const list = lfMatch(all, q)
+    .sort((a,b)=> (b.last > a.last ? 1 : b.last < a.last ? -1 : 0));   // ยิงล่าสุดขึ้นก่อน
+
+  const cnt = $('lfCount');
+  if(cnt){
+    const nDone = list.filter(e=>{ const p=lotProg[e.lot]; return p && p.total_parts>0 && p.checked_parts>=p.total_parts; }).length;
+    cnt.innerHTML = q
+      ? `พบ <b style="color:#fff">${list.length}</b> lot จากทั้งหมด ${all.length} · ตัดจบแล้ว <b style="color:#4ade80">${nDone}</b>`
+      : `ทั้งหมด <b style="color:#fff">${all.length}</b> lot · ตัดจบแล้ว <b style="color:#4ade80">${nDone}</b>`;
+  }
+  const so = $('lfSort'); if(so) so.textContent = list.length ? 'เรียงตามที่ยิงล่าสุด' : '';
+
+  if(!list.length){
+    body.innerHTML = `<div class="lf-empty">${q ? 'ไม่พบ lot ที่ตรงกับ “' + esc13(q) + '”' : 'ไม่มี lot ในช่วงวันที่ที่เลือก'}<br>
+      <span style="font-size:11px">${from||to ? 'ลองกด “ทั้งหมด” เพื่อค้นทุกวันที่มีข้อมูล' : 'ลองดึงข้อมูลจาก Supabase ก่อน'}</span></div>`;
+    return;
+  }
+
+  body.innerHTML = list.slice(0,200).map(e=>{
+    const p    = lotProg[e.lot] || null;
+    const tot  = p ? (p.total_parts   || 0) : 0;
+    const done = p ? (p.checked_parts || 0) : 0;
+    const pct  = tot ? Math.min(100, Math.round(done/tot*100)) : null;
+    const fin  = tot > 0 && done >= tot;
+    const proj = (p && p.proj_name) || '';
+    const badge = fin ? '<span class="lf-badge done">✓ ตัดจบแล้ว</span>'
+                : tot ? '<span class="lf-badge wip">กำลังทำ ' + pct + '%</span>'
+                      : '<span class="lf-badge unk">ไม่รู้ยอดรวม</span>';
+    // ถ้าวันแรกที่เจอชนขอบซ้ายของช่วงพอดี แปลว่าอาจเริ่มตัดก่อนหน้านั้นแต่เรามองไม่เห็น
+    const edge = from && String(e.first).slice(0,10) === from;
+    const mcs = Object.values(e.mcs).sort((a,b)=> b.n - a.n);
+    return `
+    <div class="lf-card${fin?' done':''}">
+      <div class="lf-hd"><div class="lf-lot">${lfHi(e.lot,q)}</div>${badge}</div>
+      ${proj ? `<div class="lf-proj">${lfHi(proj,q)}</div>` : ''}
+      <div class="lf-when">
+        <div><span style="color:#64748b">เริ่มตัด</span> <b>${lfWhen(e.first)}</b>
+             <span style="color:#334155">→</span>
+             <span style="color:#64748b">${fin?'ตัดจบ':'ล่าสุด'}</span> <b style="color:${fin?'#4ade80':'#fbbf24'}">${lfWhen(e.last)}</b></div>
+        <div><span style="color:#64748b">ในช่วงที่เลือก</span> <b>${n(e.n)}</b> ชิ้น
+             ${e.ot>0?`<span style="color:#fca5a5">(OT ${n(e.ot)})</span>`:''}
+             <span style="color:#334155">·</span> <b>${e.days.size}</b> วัน
+             <span style="color:#334155">·</span> <b>${mcs.length}</b> เครื่อง</div>
+        ${tot ? `<div><span style="color:#64748b">ทั้ง lot สะสมทุกวัน (AX)</span> <b>${n(done)}</b> / <b>${n(tot)}</b> ชิ้น
+             <b style="color:${fin?'#4ade80':'#fbbf24'}">${pct}%</b>
+             ${fin?'':`<span style="color:#64748b">เหลืออีก ${n(tot-done)}</span>`}</div>` : ''}
+        ${edge ? `<span class="lf-warn">⚠️ อาจเริ่มตัดก่อน ${fmtDate(from)} — ข้อมูลที่มีเริ่มตรงขอบช่วงพอดี ลองขยายช่วงวันที่ดู</span>` : ''}
+      </div>
+      <div class="lf-mcs">
+        ${mcs.map(m=>`<div class="lf-mc">
+          <span class="lf-mc-n">${esc13(m.mc)}</span>
+          <span class="lf-mc-d">${lfWhen(m.first)} → ${lfWhen(m.last)} · ${m.days.size} วัน</span>
+          <span class="lf-mc-q">${n(m.n)} ชิ้น</span>
+          ${m.ot>0?`<span class="lf-mc-ot">OT ${n(m.ot)}</span>`:''}
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }).join('') + (list.length>200 ? `<div class="lf-empty" style="padding:14px">แสดง 200 lot แรกจาก ${list.length} · พิมพ์คำค้นเพิ่มเพื่อกรองให้แคบลง</div>` : '');
+}
+
 function openLotBox(name, ev){
   if(ev){ ev.stopPropagation(); }   // ไม่ให้ไปโดน toggleMc ของการ์ด
   lotBoxMc = name;
@@ -6055,32 +6409,99 @@ const SUPA = {
    ที่ทำได้เพราะ check_part เป็นตารางเขียนอย่างเดียว แถวเก่าไม่ถูกแก้
    และ applySupaRows(rows, fromDate) ลบเฉพาะ record ที่ date >= fromDate อยู่แล้ว
    ส่งช่วงร้อนเข้าไป ประวัติจึงไม่ถูกแตะเลย ── */
+/* ═══ v13.17 จำว่าเครื่องนี้มีข้อมูลครบถึงวันไหนแล้ว ═════════════════════════
+   13.16 บังคับโหลดประวัติใหม่ทุกครั้งที่เปิดหน้า เพราะ supaLotRows กับ
+   supaJobByMc อยู่ในหน่วยความจำอย่างเดียว · เปิดจอตอนเช้าทีก็รอ 50 วินาทีที
+   ทั้งที่ยอดบนการ์ดโหลดจาก localStorage มาครบตั้งแต่แรกแล้ว
+
+   ของใหม่: เก็บ lot กับงานล่าสุดลง localStorage ด้วย แล้วจำว่า "มีข้อมูลครบ
+   ตั้งแต่วันไหนถึงวันไหน" · รอบต่อไปดึงแค่ช่วงที่ยังไม่มี
+     เปิดจอตอนเช้า      to=เมื่อวาน  -> ดึงเมื่อวาน+วันนี้  ~2 วิ
+     ปิดจอไป 3 วัน      to=3 วันก่อน -> ดึง 4 วัน          ~3 วิ
+     ขยายช่วงย้อนหลัง   from ไม่พอ   -> ดึงใหม่ทั้งช่วง
+   ที่ต้องถอยไปเริ่มที่ to เสมอ ไม่ใช่แค่ช่วงร้อน เพราะปิดจอข้ามวันแล้ว
+   ดึงแค่วันนี้จะเกิดวันโหว่ตรงกลางที่ไม่มีวันเติมเอง ── */
 const SUPA_HIST_KEY = 'cc_supa_hist';
-// supaLotRows / supaJobByMc อยู่ในหน่วยความจำอย่างเดียว ไม่ได้เก็บลง localStorage
-// (ก้อนใหญ่หลายร้อย KB จะไปเบียดโควตาที่ cc_data ใช้อยู่)
-// เปิดหน้าใหม่ทีไรจึงต้องโหลดประวัติหนึ่งรอบเสมอ ไม่งั้นกล่อง lot จะเหลือแค่ 3 วัน
-// ทั้งที่ยอดบนการ์ดครบ เพราะ daily ถูกเก็บลง localStorage ไว้แล้ว
-let supaHistLoadedThisSession = false;
+const SUPA_LOTS_KEY = 'cc_supa_lots';
+const SUPA_JOBS_KEY = 'cc_supa_jobs';
+let supaCover = null;          // {days, from, to, at} ช่วงที่เครื่องนี้มีข้อมูลครบแล้ว
+
 function supaToday(){
   const t = new Date();
   return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
 }
-function supaHistState(){
-  try{ return JSON.parse(localStorage.getItem(SUPA_HIST_KEY)||'null'); }catch(e){ return null; }
+function supaDateShift(iso, n){
+  const d = new Date(iso + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
-function supaHistNeeded(){
-  if(!supaHistLoadedThisSession) return true;   // เพิ่งเปิดหน้า ยังไม่มี lot ในหน่วยความจำ
-  const s = supaHistState();
-  if(!s) return true;                    // ยังไม่เคยโหลดประวัติเลย
-  if(s.days !== SUPA.days) return true;  // ผู้ใช้เปลี่ยนช่วงย้อนหลัง ต้องโหลดใหม่
-  if(s.day  !== supaToday()) return true;// ข้ามวันแล้ว หน้าต่างประวัติต้องเลื่อนตาม
-  return false;
+
+/* วางแผนว่ารอบนี้ต้องดึงตั้งแต่วันไหน
+   full = ต้องกวาดใหม่ทั้งช่วง (ยังไม่เคยมี / ขยายช่วงย้อนหลัง / สั่งเอง) */
+function supaPlan(mode){
+  const today    = supaToday();
+  const histFrom = supaDateShift(today, -SUPA.days);
+  const hotFrom  = supaDateShift(today, -(Math.max(1, SUPA.hot) - 1));
+  const c = supaCover;
+  // เช็คจาก from พอ ไม่ต้องเทียบ days · ลดช่วงย้อนหลัง = ของที่มีครอบคลุมอยู่แล้ว
+  // ไม่ต้องดึงใหม่ · ขยายช่วง = from ที่มีใหม่กว่าที่ต้องการ ถึงจะต้องกวาดใหม่
+  const needFull = (mode === 'full') || !c || !c.to || c.from > histFrom;
+  if(needFull) return { from: histFrom, full: true, histFrom };
+  // ถอยไปเริ่มที่วันสุดท้ายที่มีครบ ถ้ามันเก่ากว่าช่วงร้อน จะได้ไม่เหลือวันโหว่
+  return { from: (c.to < hotFrom ? c.to : hotFrom), full: false, histFrom };
 }
-function supaHistMark(){
-  supaHistLoadedThisSession = true;
-  try{ localStorage.setItem(SUPA_HIST_KEY, JSON.stringify({ days:SUPA.days, day:supaToday(), at:new Date().toISOString() })); }catch(e){}
+function supaHistState(){ return supaCover; }
+function supaHistNeeded(){ return supaPlan().full; }
+
+// เก็บ lot + งานล่าสุด + ช่วงที่ครบ ลงเครื่อง · โควตาเต็มก็ไม่พัง แค่รอบหน้าโหลดใหม่
+function supaCoverSave(plan){
+  const today = supaToday();
+  const prevFrom = (supaCover && supaCover.from) || plan.from;
+  supaCover = {
+    days: SUPA.days,
+    // ตัด lot เก่าทิ้งแล้วก็ต้องไม่โม้ว่ายังครอบคลุมถึงวันนั้น ไม่งั้นขยายช่วงกลับมา
+    // ระบบจะเชื่อว่ามีครบทั้งที่โดนตัดไปแล้ว แล้วกล่อง lot จะโหว่แบบเงียบ ๆ
+    from: plan.full ? plan.histFrom : (prevFrom > plan.histFrom ? prevFrom : plan.histFrom),
+    to:   today,
+    at:   new Date().toISOString()
+  };
+  // ตัด lot ที่หลุดออกนอกช่วงย้อนหลังทิ้ง ไม่งั้นก้อนโตขึ้นเรื่อย ๆ ไม่มีที่สิ้นสุด
+  supaLotRows = supaLotRows.filter(r => r.date >= plan.histFrom);
+  try{
+    localStorage.setItem(SUPA_LOTS_KEY, JSON.stringify(supaLotRows));
+    localStorage.setItem(SUPA_JOBS_KEY, JSON.stringify(supaJobByMc));
+    localStorage.setItem(SUPA_HIST_KEY, JSON.stringify(supaCover));
+    supaCover.saved = true;
+  }catch(e){
+    // เก็บไม่ได้ = รอบนี้ยังใช้ของในหน่วยความจำได้ตามปกติ แต่เปิดหน้าใหม่ต้องโหลดเต็ม
+    // ต้องลบธงในเครื่องออกด้วย ไม่งั้นรอบหน้าจะเชื่อว่ามี lot ครบทั้งที่ไม่มี
+    console.warn('[supa] เก็บ lot ลงเครื่องไม่ได้ (โควตาเต็ม?) — เปิดหน้าใหม่จะโหลดประวัติซ้ำ:', e.message);
+    try{ localStorage.removeItem(SUPA_HIST_KEY); localStorage.removeItem(SUPA_LOTS_KEY); }catch(e2){}
+    supaCover.saved = false;
+  }
 }
-function supaHistClear(){ supaHistLoadedThisSession = false; try{ localStorage.removeItem(SUPA_HIST_KEY); }catch(e){} }
+
+// เรียกตอนเปิดหน้า ก่อนดึงรอบแรก
+function supaRestoreCache(){
+  let lots = null, jobs = null, cov = null;
+  try{ lots = JSON.parse(localStorage.getItem(SUPA_LOTS_KEY) || 'null'); }catch(e){}
+  try{ jobs = JSON.parse(localStorage.getItem(SUPA_JOBS_KEY) || 'null'); }catch(e){}
+  try{ cov  = JSON.parse(localStorage.getItem(SUPA_HIST_KEY) || 'null'); }catch(e){}
+  // ต้องมีครบทั้งคู่ถึงจะเชื่อได้ · มีธงแต่ไม่มี lot = เคยเก็บไม่สำเร็จ ต้องโหลดใหม่
+  if(Array.isArray(lots) && cov && cov.from && cov.to){
+    supaLotRows = lots;
+    if(jobs && typeof jobs === 'object') supaJobByMc = jobs;
+    supaCover = cov;
+    console.log('[supa] ใช้ข้อมูลในเครื่อง: ครบ ' + cov.from + ' ถึง ' + cov.to +
+                ' · lot ' + lots.length.toLocaleString('th-TH') + ' รายการ');
+  } else {
+    supaCover = null;
+  }
+}
+function supaHistClear(){
+  supaCover = null;
+  try{ localStorage.removeItem(SUPA_HIST_KEY); localStorage.removeItem(SUPA_LOTS_KEY); localStorage.removeItem(SUPA_JOBS_KEY); }catch(e){}
+}
 
 // กันดึงถี่เกินจำเป็น · ต่อให้มีแถวเข้ามารัว ๆ ก็ดึงห่างกันอย่างน้อยเท่านี้
 const SUPA_MIN_GAP = 15000;
@@ -6263,6 +6684,57 @@ const supaProg = {
 // ถ้าไม่ปล่อยตรงนี้ ข้อความ "กำลังรวมยอด" จะไม่มีทางขึ้นจอเลย เพราะโดนบล็อกยาวจนจบ
 const spYield = ()=>new Promise(r=>requestAnimationFrame(()=>setTimeout(r,0)));
 
+/* ═══ v13.18 กล่องผลลัพธ์ แทน alert() ของเบราว์เซอร์ ═══════════════════════
+   opt = { kind:'ok'|'warn'|'err', title, subtitle,
+           stats:[{label,value,color}],   ตัวเลขที่อยากให้เห็นก่อน วางเป็นการ์ดแถวบน
+           rows:[[ป้าย, ค่า], ...],        รายละเอียดรอง
+           note:{kind,text},              กล่องสีบอกสิ่งที่ต้องทำต่อ / ข้อความ error ดิบ
+           hint:'...' }                   คำอธิบายจาง ๆ ท้ายสุด
+   ส่วนไหนไม่ส่งมาก็ซ่อนไปเลย ไม่เหลือกล่องเปล่า ── */
+function supaResult(opt){
+  const o = opt || {};
+  const kind = o.kind || 'ok';
+  const ic = $('sr-ic');
+  if(ic){ ic.className = 'sr-ic ' + kind; ic.textContent = kind==='err' ? '✕' : kind==='warn' ? '!' : '✓'; }
+  const t = $('sr-ttl'); if(t) t.textContent = o.title || '';
+  const sb= $('sr-sub'); if(sb){ sb.textContent = o.subtitle || ''; sb.style.display = o.subtitle ? '' : 'none'; }
+
+  const st = $('sr-stats');
+  if(st){
+    const arr = o.stats || [];
+    st.style.display = arr.length ? '' : 'none';
+    st.innerHTML = arr.map(x=>`<div class="sr-stat"><div class="sr-stat-l">${esc13(x.label)}</div>`
+      + `<div class="sr-stat-v" style="color:${x.color||'#fff'}">${esc13(x.value)}</div></div>`).join('');
+  }
+  const rw = $('sr-rows');
+  if(rw){
+    const arr = (o.rows || []).filter(r=>r && r[1] != null && r[1] !== '');
+    rw.style.display = arr.length ? '' : 'none';
+    rw.innerHTML = arr.map(r=>`<div class="sr-row"><span class="sr-k">${esc13(r[0])}</span><span class="sr-v">${esc13(r[1])}</span></div>`).join('');
+  }
+  const nt = $('sr-note');
+  if(nt){
+    if(o.note && o.note.text){ nt.className = 'sr-note ' + (o.note.kind || kind); nt.textContent = o.note.text; nt.style.display=''; }
+    else { nt.style.display = 'none'; }
+  }
+  const hn = $('sr-hint');
+  if(hn){ hn.textContent = o.hint || ''; hn.style.display = o.hint ? '' : 'none'; }
+
+  openModal('ov-supares');
+  // โฟกัสปุ่มตกลง กด Enter หรือ Space ปิดได้เลยเหมือน alert เดิม
+  setTimeout(()=>{ const b=$('sr-ok'); if(b) b.focus(); }, 60);
+}
+// Esc ปิดได้ด้วย · alert เดิมปิดด้วย Esc ได้ ถ้าหายไปคนจะรู้สึกว่ากล่องนี้ปิดยากกว่าเดิม
+document.addEventListener('keydown', e=>{
+  if(e.key !== 'Escape') return;
+  // v13.19 ปิดทีละชั้นจากบนลงล่าง · กล่องผลลัพธ์ลอยอยู่เหนือหน้าค้นหา
+  // ถ้าปิดพร้อมกันทั้งคู่ คนกด Esc ครั้งเดียวจะเสียหน้าค้นหาที่พิมพ์ไว้ไปด้วย
+  for(const id of ['ov-supares','ov-lotfind']){
+    const ov = document.getElementById(id);
+    if(ov && ov.classList.contains('open')){ ov.classList.remove('open'); return; }
+  }
+});
+
 /* ── ดึงข้อมูลทีละหน้า (PostgREST คืนสูงสุด 1000 แถวต่อครั้ง) ── */
 async function supaFetchRows(fromISO, onProg){
   // v13.5 ขอ lot กับ proj_name มาด้วย เพื่อบอกว่าเครื่องนั้นกำลังทำงานอะไรอยู่
@@ -6318,18 +6790,31 @@ let supaLotRows = [];
 let lotProg = {};
 
 function buildLotRows(recs, fromDate){
-  const seen = {};              // mc|lot|date -> Set ของ code_part
+  // v13.19 เก็บเวลาแรก-สุดท้าย และแยกยอด OT ไว้ด้วย
+  // ของเดิมมีแค่จำนวนชิ้น ตอบได้แค่ "ตัดกี่ชิ้น" ตอบไม่ได้ว่า "ตัดตอนกี่โมง"
+  // ซึ่งเป็นสิ่งที่หน้างานถามบ่อยกว่าตอนตามงานว่า lot นี้เดินถึงไหนแล้ว
+  const seen = {};              // mc|lot|date -> {codes:Set, t0, t1, ot:Set}
   recs.forEach(r => {
     const name = mcByPcName(r.computer);
     if(!name || !r.lot) return;
-    const d = String(r.part_date||'').slice(0,10);
+    const raw = String(r.part_date||'');
+    const d = raw.slice(0,10);
     if(!d) return;
     const k = name + '|' + r.lot + '|' + d;
-    (seen[k] = seen[k] || new Set()).add(r.code_part || Math.random());
+    const b = seen[k] = seen[k] || { codes:new Set(), ot:new Set(), t0:'', t1:'' };
+    const code = r.code_part || ('~' + Math.random());
+    const had = b.codes.has(code);
+    b.codes.add(code);
+    const hhmm = raw.length >= 16 ? raw.slice(11,16) : '';
+    if(hhmm){
+      if(!b.t0 || hhmm < b.t0) b.t0 = hhmm;
+      if(!b.t1 || hhmm > b.t1) b.t1 = hhmm;
+      if(!had && +hhmm.slice(0,2) >= 17) b.ot.add(code);   // ชิ้นที่ยิงหลัง 17:00 นับเป็น OT
+    }
   });
   const fresh = Object.keys(seen).map(k => {
-    const p = k.split('|');
-    return { mc: p[0], lot: p[1], date: p[2], n: seen[k].size };
+    const p = k.split('|'), b = seen[k];
+    return { mc:p[0], lot:p[1], date:p[2], n:b.codes.size, t0:b.t0, t1:b.t1, ot:b.ot.size };
   });
   // v13.16 เก็บของเดิมที่อยู่ก่อนช่วงที่เพิ่งดึงไว้ แล้วทับเฉพาะช่วงนี้
   // ของเดิมเขียนทับทั้งก้อน พอเปลี่ยนมาดึงแค่ช่วงร้อน กล่อง lot จะเหลือแค่ 3 วัน
@@ -6407,20 +6892,25 @@ async function fetchSupabaseData(silent, mode){
   // v13.16 mode: 'hot' = 3 วันล่าสุด (รอบอัตโนมัติ) · 'full' = ทั้งช่วงย้อนหลัง (กดปุ่ม)
   //              ไม่ระบุ = ตัดสินเอง ยังไม่เคยโหลดประวัติ/ข้ามวันแล้ว → full
   if(supaBusy) return;
-  if(!SUPA.url || !SUPA.key){ if(!silent) alert('ยังไม่ได้ตั้งค่า Supabase'); return; }
-  const isFull = (mode === 'full') || (mode !== 'hot' && supaHistNeeded());
-  const spanDays = isFull ? SUPA.days : Math.max(1, SUPA.hot);
+  if(!SUPA.url || !SUPA.key){
+    if(!silent) supaResult({ kind:'warn', title:'ยังไม่ได้ตั้งค่า Supabase', subtitle:'ต้องมี URL และ Key ก่อนถึงจะดึงข้อมูลได้',
+      note:{ text:'กดปุ่ม ⚡ Supabase บนแถบด้านบน แล้วกรอก URL กับ Key ให้ครบ' } });
+    return; }
+  // v13.17 ให้ supaPlan ตัดสินว่าต้องดึงตั้งแต่วันไหน โดยดูจากช่วงที่เครื่องนี้มีครบแล้ว
+  const plan = supaPlan(mode === 'hot' ? undefined : mode);
+  const isFull = plan.full;
   supaBusy = true;
+  const _fetchT0 = Date.now();   // v13.18 เอาไว้บอกว่ารอบนี้ใช้เวลาเท่าไหร่
   supaLastFetchAt = Date.now();
   supaProg.start(silent ? 900 : 0);   // v13.14 รอบอัตโนมัติ: แผงโผล่เฉพาะตอนที่ช้าเกิน 0.9 วิ
   supaStatus('กำลังดึง...', '#fbbf24');
   try{
-    const d0 = new Date(); d0.setHours(0,0,0,0); d0.setDate(d0.getDate() - spanDays);
-    const fromDate = d0.getFullYear() + '-' + String(d0.getMonth()+1).padStart(2,'0') + '-' + String(d0.getDate()).padStart(2,'0');
+    const fromDate = plan.from;
+    const spanDays = Math.max(1, Math.round((new Date(supaToday()+'T00:00:00') - new Date(fromDate+'T00:00:00'))/86400000) + 1);
 
     // ── ขั้น 1: ดึงแถวดิบ (กินเวลาเกือบทั้งหมด → ให้น้ำหนัก 0-70%) ──
     supaProg.steps(1);
-    supaProg.stage(isFull ? ('โหลดประวัติ ' + spanDays + ' วัน (ครั้งเดียว)') : ('ดึงช่วงร้อน ' + spanDays + ' วันล่าสุด'),
+    supaProg.stage(isFull ? ('โหลดประวัติ ' + SUPA.days + ' วัน (ครั้งแรกครั้งเดียว)') : ('เติมข้อมูลใหม่ ' + spanDays + ' วัน'),
                    'ตาราง check_part · ตั้งแต่ <b>' + fmtDate(fromDate) + '</b>');
     const recs = await supaFetchRows(fromDate + 'T00:00:00', (loaded, total, lastDate)=>{
       const day = String(lastDate||'').slice(0,10);
@@ -6438,11 +6928,13 @@ async function fetchSupabaseData(silent, mode){
     });
 
     if(recs.length === 0){
-      if(isFull) supaHistMark();   // ช่วงนี้ไม่มีข้อมูลจริง ๆ ไม่ใช่ดึงพลาด ไม่ต้องวนดึงซ้ำ
+      supaCoverSave(plan);   // ช่วงนี้ไม่มีข้อมูลจริง ๆ ไม่ใช่ดึงพลาด ไม่ต้องวนดึงซ้ำ
       supaStatus('ไม่มีข้อมูล', '#94a3b8');
       supaProg.finish('ไม่พบข้อมูลในช่วงนี้', 'ย้อนหลัง ' + spanDays + ' วัน · ตรวจว่า StarSync ส่งขึ้นแล้วหรือยัง');
-      if(!silent) alert('ไม่พบข้อมูลใน Supabase ช่วง ' + spanDays + ' วันล่าสุด\n\n' +
-        'ตรวจว่า StarSync ส่งข้อมูลขึ้นแล้วหรือยัง');
+      if(!silent) supaResult({ kind:'warn', title:'ไม่พบข้อมูลในช่วงนี้',
+        subtitle:'ค้นตั้งแต่ ' + fmtDate(fromDate) + ' ถึงวันนี้',
+        rows:[ ['ตาราง','check_part'], ['ช่วงที่ค้น', spanDays.toLocaleString('th-TH') + ' วัน'] ],
+        note:{ text:'ตรวจว่า StarSync ส่งข้อมูลขึ้น Supabase แล้วหรือยัง' } });
       return;
     }
     const nMc = new Set(recs.map(r=>r.computer).filter(Boolean)).size;
@@ -6474,28 +6966,45 @@ async function fetchSupabaseData(silent, mode){
     const res = applySupaRows(supaToRows(recs), fromDate);
     mcBumpArm = false;   // เผื่อรอบนั้นไม่ได้วาดการ์ด ธงจะได้ไม่ค้างไปกะพริบผิดรอบ
 
-    if(isFull) supaHistMark();   // v13.16 ประวัติครบแล้ว รอบต่อไปเอาแค่ช่วงร้อนพอ
+    supaCoverSave(plan);   // v13.17 เก็บ lot + ช่วงที่ครบลงเครื่อง รอบหน้าจะได้ดึงแค่ส่วนที่ขาด
     localStorage.setItem('cc_supa_last', new Date().toISOString());
     const tNow = new Date().toLocaleTimeString('th-TH', {hour:'2-digit',minute:'2-digit'});
     supaStatus('อัปเดต ' + tNow, '#4ade80');
     supaProg.finish(isFull ? 'โหลดประวัติครบแล้ว' : 'อัปเดตเรียบร้อย',
       '<b>' + recs.length.toLocaleString('th-TH') + '</b> แถว · <b>' + nMc + '</b> เครื่อง · ' +
       'สร้าง <b>' + res.added + '</b> record (แทนของเดิม ' + res.removed + ')' +
-      (isFull ? '<br>รอบต่อไปดึงแค่ ' + Math.max(1,SUPA.hot) + ' วันล่าสุด' : ''));
+      (isFull ? '<br>เก็บลงเครื่องแล้ว รอบต่อไปดึงแค่ส่วนที่ขาด' : ''));
     if(!silent){
-      alert('ดึงจาก Supabase สำเร็จ\n\n' +
-        (isFull ? 'โหมด: โหลดประวัติทั้งช่วง (' + spanDays + ' วัน)\n'
-                : 'โหมด: ช่วงร้อน (' + spanDays + ' วันล่าสุด)\n') +
-        'แถวดิบ: ' + recs.length.toLocaleString('th-TH') + '\n' +
-        'สร้าง record: ' + res.added + '  (แทนของเดิม ' + res.removed + ')\n' +
-        'ช่วง: ' + fromDate + ' ถึงวันนี้');
+      const secs = ((Date.now() - _fetchT0)/1000).toFixed(1);
+      supaResult({
+        kind:'ok',
+        title:'ดึงข้อมูลสำเร็จ',
+        subtitle: isFull ? ('โหลดประวัติทั้งช่วง ' + SUPA.days + ' วัน')
+                         : ('เติมเฉพาะส่วนที่ขาด ' + spanDays.toLocaleString('th-TH') + ' วัน'),
+        stats:[
+          { label:'แถวดิบ',      value: recs.length.toLocaleString('th-TH'), color:'#93c5fd' },
+          { label:'สร้าง record', value: res.added.toLocaleString('th-TH'),   color:'#4ade80' },
+          { label:'เครื่อง',      value: String(nMc),                        color:'#fff'    }
+        ],
+        rows:[
+          ['ช่วงข้อมูล',  fmtDate(fromDate) + ' – ' + fmtDate(supaToday())],
+          ['แทนของเดิม', res.removed.toLocaleString('th-TH') + ' record'],
+          ['lot ที่เก็บไว้', supaLotRows.length.toLocaleString('th-TH') + ' รายการ'],
+          ['ใช้เวลา',    secs + ' วินาที']
+        ],
+        note: isFull
+          ? { kind:'ok', text:'เก็บลงเครื่องแล้ว เปิดหน้าใหม่ไม่ต้องโหลด ' + SUPA.days + ' วันซ้ำ รอบต่อไปดึงแค่วันที่ยังขาด' }
+          : { kind:'ok', text:'รอบต่อไปยังดึงแค่ส่วนที่ขาดเหมือนเดิม' }
+      });
     }
   }catch(e){
     console.error('Supabase fetch failed:', e);
     supaStatus('ผิดพลาด', '#f87171');
     supaProg.fail(e.message);
-    if(!silent) alert('ดึงจาก Supabase ไม่สำเร็จ\n\n' + e.message +
-      '\n\nถ้าขึ้น relation does not exist แปลว่ายังไม่ได้รัน checkpart_supabase.sql');
+    if(!silent) supaResult({ kind:'err', title:'ดึงข้อมูลไม่สำเร็จ', subtitle:'ตาราง check_part บน Supabase',
+      rows:[ ['ใช้เวลาก่อนพลาด', ((Date.now()-_fetchT0)/1000).toFixed(1) + ' วินาที'] ],
+      note:{ kind:'err', text: String(e.message||e) },
+      hint:'ถ้าขึ้น relation does not exist แปลว่ายังไม่ได้รัน checkpart_supabase.sql · ถ้าขึ้น 401 ให้ตรวจ Key ในหน้าตั้งค่า' });
   }finally{ supaBusy = false; supaLastFetchAt = Date.now(); }
 }
 
@@ -6559,9 +7068,9 @@ async function supaDebug(){
   console.log('เปิดใช้ Supabase :', SUPA.on, '| เรียลไทม์ตั้งไว้:', SUPA.rt, '| subscribe สำเร็จ:', supaRtOk);
   console.log('รอบดึงสำรอง     :', syncIntervalSec, 'วินาที | ตัวจับเวลาเดินอยู่:', !!syncTimerId);
   console.log('ดึงล่าสุดเมื่อ    :', localStorage.getItem('cc_supa_last') || 'ยังไม่เคย');
-  const _h = supaHistState();   // v13.16
-  console.log('ประวัติ         :', _h ? (_h.days + ' วัน โหลดเมื่อ ' + _h.at) : 'ยังไม่เคยโหลด',
-              '| ต้องโหลดใหม่:', supaHistNeeded(), '| ช่วงร้อน:', SUPA.hot, 'วัน');
+  const _h = supaCover, _p = supaPlan();   // v13.17
+  console.log('ข้อมูลในเครื่อง   :', _h ? ('ครบ ' + _h.from + ' ถึง ' + _h.to + ' · lot ' + supaLotRows.length + ' รายการ' + (_h.saved===false?' (เก็บลงเครื่องไม่สำเร็จ)':'')) : 'ไม่มี');
+  console.log('รอบหน้าจะดึง     :', 'ตั้งแต่ ' + _p.from, _p.full ? '(กวาดใหม่ทั้งช่วง)' : '(เฉพาะส่วนที่ขาด)', '| ช่วงร้อน ' + SUPA.hot + ' วัน');
   try{
     const u = SUPA.url.replace(/\/+$/,'') + '/rest/v1/check_part?select=part_date&order=part_date.desc&limit=1';
     const r = await fetch(u, { headers:{ apikey:SUPA.key, Authorization:'Bearer '+SUPA.key } });
@@ -6614,9 +7123,10 @@ function openSupaSettings(){
         (function(){ var h = supaHistState();
           return '<div style="background:#0b1a2b;border:1px solid #1e3a5f;border-radius:9px;padding:10px 12px;font-size:11.5px;line-height:1.75">' +
             '<div style="color:#7dd3fc;font-weight:700;margin-bottom:3px">📚 สถานะประวัติ</div>' +
-            (h ? '<div style="color:#94a3b8">โหลดครบแล้ว <b style="color:#4ade80">' + h.days + ' วัน</b> เมื่อ ' + new Date(h.at).toLocaleString('th-TH') + '</div>' +
-                 '<div style="color:#64748b">รอบอัตโนมัติดึงแค่ <b style="color:#fbbf24">' + SUPA.hot + ' วันล่าสุด</b> ประวัติจะโหลดใหม่เองตอนข้ามวัน</div>'
-               : '<div style="color:#fbbf24">ยังไม่เคยโหลดประวัติ รอบดึงถัดไปจะโหลดทั้ง ' + SUPA.days + ' วันหนึ่งครั้ง</div>') +
+            (h ? '<div style="color:#94a3b8">มีข้อมูลครบ <b style="color:#4ade80">' + fmtDate(h.from) + '</b> ถึง <b style="color:#4ade80">' + fmtDate(h.to) + '</b></div>' +
+                 '<div style="color:#64748b">lot ' + supaLotRows.length.toLocaleString('th-TH') + ' รายการ เก็บไว้ในเครื่องแล้ว อัปเดต ' + new Date(h.at).toLocaleString('th-TH') + '</div>' +
+                 '<div style="color:#4ade80">เปิดหน้าใหม่ไม่ต้องโหลด ' + SUPA.days + ' วันซ้ำ ดึงแค่วันที่ยังขาด</div>'
+               : '<div style="color:#fbbf24">ยังไม่มีข้อมูลในเครื่อง รอบดึงถัดไปจะโหลดทั้ง ' + SUPA.days + ' วันหนึ่งครั้ง แล้วเก็บไว้ให้</div>') +
             '</div>';
         })() +
         '<div><div style="color:#94a3b8;margin-bottom:4px">Supabase URL</div>' +
@@ -6651,12 +7161,11 @@ function openSupaSettings(){
   document.getElementById('supaCancel').onclick = () => wrap.remove();
   wrap.onclick = e => { if(e.target === wrap) wrap.remove(); };
   document.getElementById('supaOk').onclick = () => {
-    const oldDays = SUPA.days;
     readForm(); supaSave(); supaStatus(); startSupaRealtime(); startSyncTimer();
-    // v13.16 เปลี่ยนช่วงประวัติ = ของที่โหลดไว้ไม่ตรงกับที่ตั้งใหม่ ต้องโหลดใหม่ทั้งช่วง
-    if(SUPA.days !== oldDays) supaHistClear();
+    // v13.17 ไม่ต้องล้างธงเอง · supaPlan เทียบ from กับช่วงที่ตั้งใหม่แล้วตัดสินให้
+    // ขยายช่วง -> กวาดใหม่ / ลดช่วง -> ของที่มีครอบคลุมอยู่แล้ว ไม่ต้องดึงซ้ำ
     wrap.remove();
-    if(SUPA.on) fetchSupabaseData(false, supaHistNeeded() ? 'full' : 'hot');
+    if(SUPA.on) fetchSupabaseData(false);
   };
   // กดปุ่มเอง = อยากได้ของสด ๆ ทั้งช่วง ไม่ใช่แค่ช่วงร้อน
   document.getElementById('supaNow').onclick = () => { readForm(); supaSave(); supaHistClear(); wrap.remove(); fetchSupabaseData(false, 'full'); };
@@ -6670,9 +7179,14 @@ function openSupaSettings(){
       const c = await fetch(SUPA.url.replace(/\/+$/,'') + '/rest/v1/check_part?select=id&limit=1',
         { headers: { apikey: SUPA.key, Authorization: 'Bearer ' + SUPA.key, Prefer: 'count=exact', Range: '0-0' } });
       const cr = c.headers.get('content-range') || '';
-      alert('เชื่อมต่อได้\n\nตาราง check_part มีทั้งหมด ' + (cr.split('/')[1] || '?') + ' แถว');
+      const nAll = cr.split('/')[1];
+      supaResult({ kind:'ok', title:'เชื่อมต่อได้', subtitle:'อ่านตาราง check_part สำเร็จ',
+        stats:[ { label:'แถวทั้งหมด', value: nAll ? (+nAll).toLocaleString('th-TH') : '?', color:'#93c5fd' } ],
+        rows:[ ['Supabase URL', SUPA.url.replace(/^https?:\/\//,'')] ] });
     }catch(e){
-      alert('เชื่อมต่อไม่ได้\n\n' + e.message);
+      supaResult({ kind:'err', title:'เชื่อมต่อไม่ได้', subtitle:'อ่านตาราง check_part ไม่สำเร็จ',
+        note:{ kind:'err', text: String(e.message||e) },
+        hint:'ตรวจ URL กับ Key ในช่องด้านบน · 401 = Key ผิด, 404 = ยังไม่มีตาราง' });
     }
     b.textContent = 'ทดสอบเชื่อมต่อ';
   };
@@ -6760,7 +7274,8 @@ function openSyncSettings(){
 window.onload=()=>{
   populateYearDropdown();
   // v13.1: ไม่มีปุ่ม Sync แล้ว ข้อมูลไหลเองตามที่ StarSync ส่งขึ้น Supabase
-  fetchSupabaseData(true);   // ดึงรอบแรกทันทีที่เปิดหน้า
+  supaRestoreCache();        // v13.17 กู้ lot + ช่วงที่ครบจากเครื่องก่อน จะได้ไม่ดึงซ้ำของที่มีแล้ว
+  fetchSupabaseData(true);   // ดึงรอบแรกทันทีที่เปิดหน้า (เอาเฉพาะส่วนที่ขาด)
   startSupaRealtime();       // มีแถวใหม่บน check_part ก็ดึงซ้ำเองภายใน 4 วิ
   startSyncTimer();          // รอบสำรอง เผื่อเรียลไทม์หลุด
   loadPrefs(); // โหลด zoom, rank, order, colors จาก localStorage
@@ -6899,6 +7414,59 @@ window.onload=()=>{
   <div style="text-align:right;margin-top:14px">
     <button class="btn btn-gray" onclick="closeModal('ov-lot')">ปิด</button>
   </div>
+</div>
+</div>
+
+<!-- ── v13.19 ค้นหา lot ── -->
+<div class="ov" id="ov-lotfind">
+<div class="modal" style="width:min(720px,96vw)">
+  <h3 style="display:flex;align-items:center;gap:8px">🔍 ค้นหา lot
+    <span id="lfCover" style="margin-left:auto;font-size:10px;font-weight:400;color:#475569"></span></h3>
+
+  <div class="lf-bar">
+    <div class="lf-inpw">
+      <span class="lf-ico">🔎</span>
+      <input type="text" id="lfQ" class="lf-inp" autocomplete="off" spellcheck="false"
+             oninput="lfType()" onkeydown="lfKey(event)" onblur="setTimeout(lfHideSug,150)"
+             onfocus="lfSuggest()"
+             placeholder="พิมพ์รหัส lot หรือชื่อโครงการ — พิมพ์ L ก็ขึ้นทุก lot ที่มี L">
+      <button class="lf-clr" id="lfClr" onclick="lfClear()" title="ล้าง">✕</button>
+      <div class="lf-sug" id="lfSug"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:9px">
+      <span style="font-size:11px;color:#64748b;font-weight:700">ช่วงวันที่</span>
+      <input type="date" id="lfFrom" class="date-inp" style="width:145px" onchange="lfRun()">
+      <span style="font-size:11px;color:#475569">ถึง</span>
+      <input type="date" id="lfTo" class="date-inp" style="width:145px" onchange="lfRun()">
+    </div>
+    <div class="lf-chips" id="lfPresets"></div>
+  </div>
+
+  <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;gap:10px;flex-wrap:wrap">
+    <span id="lfCount" style="font-size:11px;color:#64748b;font-weight:700"></span>
+    <span id="lfSort" style="font-size:11px;color:#475569"></span>
+  </div>
+  <div id="lfBody" style="max-height:52vh;overflow-y:auto"></div>
+
+  <div class="br"><button class="btn btn-gray" onclick="closeModal('ov-lotfind')">ปิด</button></div>
+</div>
+</div>
+
+<!-- ── v13.18 กล่องผลลัพธ์การดึงข้อมูล (แทน alert) ── -->
+<div class="ov" id="ov-supares">
+<div class="modal modal-sm">
+  <div class="sr-hd">
+    <div class="sr-ic ok" id="sr-ic">✓</div>
+    <div style="min-width:0;flex:1">
+      <div class="sr-ttl" id="sr-ttl"></div>
+      <div class="sr-sub" id="sr-sub"></div>
+    </div>
+  </div>
+  <div class="sr-stats" id="sr-stats"></div>
+  <div class="sr-rows" id="sr-rows"></div>
+  <div id="sr-note"></div>
+  <div class="sr-hint" id="sr-hint"></div>
+  <div class="br"><button class="btn btn-blue" id="sr-ok" onclick="closeModal('ov-supares')">ตกลง</button></div>
 </div>
 </div>
 
