@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=5.0,user-scalable=yes">
+<title>รายชิ้นในลอต · Lot Parts</title>
+<!-- =====================================================================
+  Lot Parts · รายชิ้นในลอต        ·   VERSION 1.0
+  CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  1.0  2026-09-08  FEAT หน้าแรก · ตารางรายชิ้นในลอต หน้าตาอิงโปรแกรม Ax Progress
+                   แยกเป็นไฟล์ต่างหากจาก index.html เพราะไฟล์นั้นโต 549 KB แล้ว
+                   การยัดของใหม่เข้าไปแปลว่าต้องส่งไฟล์ทั้งก้อนกลับทุกครั้งที่แก้
+                   ซึ่งส่งไม่ไหว · แยกออกมาแล้วแก้หน้านี้ได้โดยไม่แตะของเดิม
+                   · เข้าผ่าน iframe ในหน้าหลัก จึงอยู่ origin เดียวกัน
+                     อ่าน cc_supa_url / cc_supa_key จาก localStorage ได้ตรง ๆ
+                     ไม่ต้องตั้งค่าซ้ำ · ยังรับ postMessage เผื่อหน้าหลักส่ง lot มาด้วย
+                   · คอลัมน์ไม่ได้ hardcode ไว้ · ถามโครงจาก PostgREST เอง
+                     (GET /rest/v1/ = OpenAPI) แล้วเอามาให้เลือกเปิดปิด/สลับลำดับ
+                     เหตุผล: ตอนนี้ check_part มี 16 คอลัมน์ แต่ระยะถัดไปจะเพิ่ม
+                     ตาราง lot_part รายชิ้นจาก AX ถ้า hardcode ไว้ต้องกลับมาแก้อีก
+                     แบบนี้พอมีตาราง/คอลัมน์ใหม่ มันจะโผล่ในรายการให้เลือกเอง
+                   · จำสิ่งที่จัดไว้ลงเครื่อง แยกตามตาราง (lp_cols_<ตาราง>)
+                     รวมความกว้างคอลัมน์ที่ลากปรับเอง
+                   · ขึ้นแถบเตือนไว้ตลอดว่าตารางนี้เห็นเฉพาะ "ชิ้นที่ยิงแล้ว"
+                     เพราะ check_part มาจาก LogAxCheckPart ซึ่งเป็นบันทึกการยิง
+                     ไม่ใช่ BOM ทั้งลอต · คนเปิดดูจะเข้าใจผิดทันทีถ้าไม่บอก
+                     ยอดจริงทั้งลอตดึงจาก lot_progress มาโชว์คู่กันให้เทียบได้
+                   · เวลาใช้วิธีตัดสตริงเหมือนหน้าหลัก ไม่ผ่าน new Date()
+                     เพราะ StarSync เขียนเวลาท้องถิ่นลงไปตรง ๆ ถ้าเอาไปแปลง
+                     timezone อีกทีเวลาจะเลื่อนไปจากที่หน้าหลักแสดง
+                   ยังไม่ได้ทดสอบกับของจริง เขียนจากโครงที่อ่านจาก StarSync-CheckPart.ps1
+                   และ index.html เท่านั้น (MCP เข้าโปรเจกต์ Supabase ตัวนี้ไม่ได้)
+===================================================================== -->
+<style>
+:root{
+  --dk:#0f172a; --dk2:#172033; --card:#1e293b; --bd:#334155; --bd2:#475569;
+  --tx:#e2e8f0; --mu:#64748b; --mu2:#94a3b8;
+  --red:#dc2626; --blue:#2563eb; --green:#16a34a; --amber:#d97706;
+  --cyan:#22d3ee; --ok:#4ade80; --warn:#fbbf24;
+  --row:#111c2e; --row2:#152238; --hov:#1e3a5f;
+  --mono:'Consolas','IBM Plex Mono',monospace;
+  --sans:'Segoe UI',Tahoma,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{font-family:var(--sans);background:var(--dk);color:var(--tx);font-size:13px;overflow:hidden}
+#app{height:100%;display:flex;flex-direction:column}
+
+/* ── แถบเครื่องมือด้านบน ─────────────────────────────────────── */
+.hd{background:var(--card);border-bottom:1px solid var(--bd);padding:8px 12px;
+    display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex:0 0 auto}
+.btn{padding:7px 12px;min-height:34px;border-radius:6px;border:1px solid var(--bd);
+     background:var(--dk2);color:var(--mu2);cursor:pointer;font-size:12px;font-weight:700;
+     font-family:inherit;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;
+     transition:all .15s}
+.btn:hover{background:var(--bd);color:#fff}
+.btn.pri{background:var(--blue);color:#fff;border-color:#3b82f6}
+.btn.pri:hover{background:#1d4ed8}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.sm{padding:4px 9px;min-height:28px;font-size:11px}
+
+/* กล่องค้นหา lot */
+.lotw{position:relative;flex:1 1 300px;min-width:220px;max-width:460px}
+.lotw input{width:100%;min-height:34px;background:var(--bd);color:var(--tx);
+  border:1px solid var(--bd2);border-radius:6px;padding:6px 30px 6px 30px;
+  font-size:13px;font-family:inherit}
+.lotw input:focus{outline:none;border-color:#3b82f6}
+.lotw .ico{position:absolute;left:9px;top:50%;transform:translateY(-50%);
+  font-size:12px;color:var(--mu);pointer-events:none}
+.lotw .clr{position:absolute;right:5px;top:50%;transform:translateY(-50%);
+  background:transparent;border:0;color:var(--mu);cursor:pointer;font-size:14px;
+  padding:4px 6px;line-height:1}
+.lotw .clr:hover{color:#fff}
+.sug{position:absolute;left:0;right:0;top:calc(100% + 4px);background:var(--card);
+  border:1px solid var(--bd2);border-radius:8px;max-height:320px;overflow-y:auto;
+  z-index:60;display:none;box-shadow:0 18px 44px rgba(0,0,0,.6)}
+.sug.on{display:block}
+.sug-i{padding:8px 11px;cursor:pointer;border-bottom:1px solid var(--bd);min-height:44px;
+  display:flex;flex-direction:column;justify-content:center;gap:2px}
+.sug-i:last-child{border-bottom:0}
+.sug-i:hover,.sug-i.a{background:var(--hov)}
+.sug-l{font-family:var(--mono);font-size:12px;color:var(--cyan);font-weight:700}
+.sug-p{font-size:11px;color:var(--mu2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sug-n{font-family:var(--mono);font-size:10px;color:var(--mu)}
+.hi{background:#78350f;color:var(--warn);border-radius:2px;padding:0 1px}
+
+/* ── แถบสรุปหัวลอต ───────────────────────────────────────────── */
+.sum{background:var(--dk2);border-bottom:1px solid var(--bd);padding:7px 12px;
+     display:flex;gap:14px;align-items:center;flex-wrap:wrap;flex:0 0 auto;font-size:12px}
+.sum b{color:#fff}
+.chip{display:inline-flex;align-items:center;gap:5px;background:var(--card);
+  border:1px solid var(--bd);border-radius:999px;padding:3px 11px;font-size:11px;color:var(--mu2)}
+.chip .n{font-family:var(--mono);font-weight:700;color:var(--tx)}
+.chip.ok .n{color:var(--ok)} .chip.warn .n{color:var(--warn)} .chip.cy .n{color:var(--cyan)}
+.bar{flex:1 1 130px;max-width:220px;height:8px;background:var(--dk);border-radius:99px;overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--green);border-radius:99px;transition:width .3s}
+
+/* แถบเตือนที่มาของข้อมูล */
+.note{background:#3a2a08;border-bottom:1px solid #78350f;color:#fde68a;
+  padding:6px 12px;font-size:11.5px;line-height:1.55;flex:0 0 auto;
+  display:flex;gap:8px;align-items:flex-start}
+.note button{margin-left:auto;background:transparent;border:0;color:#fde68a;
+  cursor:pointer;font-size:14px;padding:0 4px;line-height:1}
+
+/* ── ตาราง ───────────────────────────────────────────────────── */
+.wrap{flex:1 1 auto;overflow:auto;background:var(--dk)}
+table{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%}
+thead th{position:sticky;top:0;z-index:20;background:var(--card);color:var(--mu2);
+  font-size:11px;font-weight:700;text-align:left;padding:0;border-bottom:1px solid var(--bd2);
+  border-right:1px solid var(--bd);white-space:nowrap;user-select:none}
+thead tr.flt th{top:30px;z-index:19;background:var(--dk2);padding:3px 4px;border-bottom:1px solid var(--bd2)}
+.th-in{display:flex;align-items:center;gap:4px;padding:7px 8px;cursor:pointer;position:relative}
+.th-in:hover{color:#fff;background:var(--hov)}
+.th-s{font-size:9px;color:var(--cyan)}
+.rz{position:absolute;right:-3px;top:0;width:7px;height:100%;cursor:col-resize;z-index:5}
+.rz:hover{background:#3b82f6}
+.flt input{width:100%;min-width:50px;background:var(--dk);color:var(--tx);border:1px solid var(--bd);
+  border-radius:4px;padding:3px 6px;font-size:11px;font-family:var(--mono)}
+.flt input:focus{outline:none;border-color:#3b82f6}
+tbody td{padding:5px 8px;border-bottom:1px solid #16233a;border-right:1px solid #16233a;
+  font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:340px}
+tbody tr:nth-child(odd){background:var(--row)}
+tbody tr:nth-child(even){background:var(--row2)}
+tbody tr:hover{background:var(--hov)}
+td.mono{font-family:var(--mono)}
+td.num{font-family:var(--mono);text-align:right}
+td.idx{font-family:var(--mono);color:var(--mu);text-align:right;
+  position:sticky;left:0;z-index:10;background:var(--card)}
+thead th.idx{position:sticky;left:0;z-index:25}
+.dense tbody td{padding:2px 8px;font-size:11px}
+.tick{display:inline-block;width:15px;height:15px;border-radius:3px;text-align:center;
+  line-height:15px;font-size:10px;font-weight:700}
+.tick.y{background:#14532d;color:var(--ok)}
+.tick.n{background:#3b0a0a;color:#fca5a5}
+
+/* ── ท้ายหน้า ─────────────────────────────────────────────────── */
+.ft{flex:0 0 auto;background:var(--card);border-top:1px solid var(--bd);padding:5px 12px;
+    display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:11px;color:var(--mu)}
+.ft .n{font-family:var(--mono);color:var(--tx);font-weight:700}
+
+/* ── สถานะกลางจอ ─────────────────────────────────────────────── */
+.mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+     gap:12px;color:var(--mu);text-align:center;padding:24px}
+.mid .big{font-size:38px;opacity:.35}
+.mid .t{font-size:14px;color:var(--mu2);font-weight:700}
+.mid .s{font-size:12px;max-width:460px;line-height:1.7}
+.mid code{font-family:var(--mono);background:var(--card);padding:1px 5px;border-radius:4px;color:var(--warn)}
+.spin{width:26px;height:26px;border:3px solid var(--bd);border-top-color:#3b82f6;
+  border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* ── กล่องซ้อน (จัดคอลัมน์ / ตั้งค่า) ──────────────────────────── */
+.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:400;
+    justify-content:center;align-items:flex-start;padding:18px 12px;overflow-y:auto}
+.ov.open{display:flex}
+.modal{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px;
+  width:min(620px,96vw);margin:auto;box-shadow:0 24px 60px rgba(0,0,0,.6)}
+.modal h3{font-size:15px;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.modal .sub{font-size:11.5px;color:var(--mu);line-height:1.6;margin-bottom:12px}
+.pre{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.cl{max-height:52vh;overflow-y:auto;border:1px solid var(--bd);border-radius:9px;background:var(--dk)}
+.cl-i{display:flex;align-items:center;gap:9px;padding:6px 9px;min-height:44px;
+  border-bottom:1px solid #16233a;cursor:grab}
+.cl-i:last-child{border-bottom:0}
+.cl-i.drag{opacity:.35}
+.cl-i.over{border-top:2px solid #3b82f6}
+.cl-i .gp{color:var(--mu);font-size:13px;cursor:grab}
+.cl-i input[type=checkbox]{width:17px;height:17px;accent-color:var(--blue);cursor:pointer;flex:0 0 auto}
+.cl-nm{flex:1;min-width:0}
+.cl-nm .a{font-size:12.5px;color:var(--tx);font-weight:600}
+.cl-nm .b{font-family:var(--mono);font-size:10px;color:var(--mu)}
+.cl-i .mv{display:flex;gap:3px}
+.cl-i .mv button{background:var(--dk2);border:1px solid var(--bd);color:var(--mu2);
+  width:30px;height:30px;border-radius:5px;cursor:pointer;font-size:11px}
+.cl-i .mv button:hover{background:var(--bd);color:#fff}
+.cl-i.off .cl-nm .a{color:var(--mu)}
+.br{display:flex;gap:8px;justify-content:flex-end;margin-top:13px;flex-wrap:wrap}
+.fld{margin-bottom:9px}
+.fld label{display:block;font-size:11px;color:var(--mu);font-weight:700;margin-bottom:3px}
+.fld input{width:100%;min-height:38px;background:var(--dk);border:1px solid var(--bd2);
+  color:var(--tx);border-radius:6px;padding:7px 10px;font-size:12px;font-family:var(--mono)}
+.fld input:focus{outline:none;border-color:#3b82f6}
+select.sel{background:var(--bd);color:var(--tx);border:1px solid var(--bd2);border-radius:6px;
+  padding:6px 9px;min-height:34px;font-size:12px;font-family:inherit;cursor:pointer}
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- แถบเครื่องมือ -->
+  <div class="hd">
+    <div class="lotw">
+      <span class="ico">🔎</span>
+      <input type="text" id="q" autocomplete="off" spellcheck="false"
+             placeholder="พิมพ์รหัส lot หรือชื่อโครงการ">
+      <button class="clr" data-act="clear" title="ล้าง">✕</button>
+      <div class="sug" id="sug"></div>
+    </div>
+    <select class="sel" id="tbl" data-act="tbl" title="แหล่งข้อมูล"></select>
+    <button class="btn" data-act="cols">🧮 จัดคอลัมน์</button>
+    <button class="btn" data-act="dense" id="btnDense" title="สลับความสูงแถว">↕ ย่อแถว</button>
+    <button class="btn" data-act="csv">⬇️ CSV</button>
+    <button class="btn" data-act="reload" title="ดึงใหม่">🔄</button>
+    <button class="btn sm" data-act="cfg" title="ตั้งค่าการเชื่อมต่อ">⚙️</button>
+  </div>
+
+  <!-- สรุปหัวลอต -->
+  <div class="sum" id="sum" style="display:none"></div>
+
+  <!-- เตือนที่มาของข้อมูล -->
+  <div class="note" id="note" style="display:none">
+    <span>⚠️</span>
+    <span id="noteTx"></span>
+    <button data-act="noteoff" title="ซ่อน">✕</button>
+  </div>
+
+  <!-- ตาราง / สถานะ -->
+  <div class="wrap" id="wrap" style="display:none"><table id="grid"></table></div>
+  <div class="mid" id="mid"></div>
+
+  <!-- ท้ายหน้า -->
+  <div class="ft" id="ft"></div>
+</div>
+
+<!-- ── กล่องจัดคอลัมน์ ─────────────────────────────────────────── -->
+<div class="ov" id="ovCols">
+  <div class="modal">
+    <h3>🧮 จัดคอลัมน์</h3>
+    <div class="sub">ติ๊กเพื่อเปิดปิด · ลากหรือกดลูกศรเพื่อสลับลำดับ ·
+      รายการนี้อ่านจากโครงตารางใน Supabase โดยตรง มีคอลัมน์ไหนก็ขึ้นตามนั้น</div>
+    <div class="pre" id="pre"></div>
+    <div class="cl" id="cl"></div>
+    <div class="br">
+      <button class="btn" data-act="colreset">↺ ค่าเริ่มต้น</button>
+      <button class="btn pri" data-act="colclose">เสร็จ</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── กล่องตั้งค่าการเชื่อมต่อ ─────────────────────────────────── -->
+<div class="ov" id="ovCfg">
+  <div class="modal" style="width:min(520px,96vw)">
+    <h3>⚙️ การเชื่อมต่อ Supabase</h3>
+    <div class="sub">ใช้ค่าเดียวกับหน้าหลัก (เก็บใน <code>cc_supa_url</code> /
+      <code>cc_supa_key</code>) แก้ที่นี่แล้วหน้าหลักจะเปลี่ยนตาม</div>
+    <div class="fld"><label>Project URL</label>
+      <input type="text" id="cfgUrl" placeholder="https://xxxx.supabase.co"></div>
+    <div class="fld"><label>Publishable / anon key</label>
+      <input type="text" id="cfgKey" placeholder="sb_publishable_..."></div>
+    <div class="br">
+      <button class="btn" data-act="cfgclose">ยกเลิก</button>
+      <button class="btn pri" data-act="cfgsave">บันทึกแล้วโหลดใหม่</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* ══════════════════════════════════════════════════════════════
+   ตัวช่วยพื้นฐาน
+   ══════════════════════════════════════════════════════════════ */
+const $ = id => document.getElementById(id);
+
+/* ค่าที่มาจากผู้ใช้หรือฐานข้อมูลต้องผ่านตัวนี้ก่อนต่อเป็นสตริง HTML */
+function esc(v){
+  return String(v == null ? '' : v)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+/* มีอักษรไทยไหม · ใช้ตัดสินว่าจะใช้ฟอนต์ mono ได้หรือไม่
+   IBM Plex Mono / Consolas ไม่มีตัวอักษรไทย ถ้าฝืนใช้จะตกบรรทัดเพี้ยน */
+const RE_TH = /[\u0E00-\u0E7F]/;
+const isTh  = v => RE_TH.test(String(v == null ? '' : v));
+
+/* เวลา · ตัดสตริงตรง ๆ ไม่ผ่าน new Date()
+   StarSync เขียนเวลาท้องถิ่นลงไปดิบ ๆ ถ้าแปลง timezone อีกที
+   ตัวเลขจะไม่ตรงกับที่หน้าหลักแสดง */
+const fmtTime = v => String(v || '').replace('T',' ').slice(0,19);
+const nf2 = new Intl.NumberFormat('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const nf0 = new Intl.NumberFormat('en-US');
+
+/* วินาที -> h:mm:ss อ่านง่ายกว่าเลขดิบหลักหมื่น */
+function hms(s){
+  s = Math.max(0, parseInt(s,10) || 0);
+  const h = Math.floor(s/3600), m = Math.floor(s%3600/60), x = s%60;
+  return h + ':' + String(m).padStart(2,'0') + ':' + String(x).padStart(2,'0');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   S = แหล่งความจริงเดียวของสถานะ
+   แก้ S แล้วเรียก render() เท่านั้น ห้ามไปยุ่ง innerHTML กระจาย
+   ══════════════════════════════════════════════════════════════ */
+const S = {
+  url:'', key:'',
+  schema:{},          // { ชื่อตาราง: [ชื่อคอลัมน์] }
+  table:'check_part',
+  cols:[],            // [{k, on, w}] ลำดับตามที่จัดไว้
+  lots:[],            // จาก lot_progress
+  lot:'',
+  rows:[],            // แถวดิบของลอตที่เลือก
+  prog:null,          // ยอดรวมของลอตนี้จาก lot_progress
+  filters:{},         // { คอลัมน์: คำค้น }
+  sort:{k:'', dir:0}, // dir 1 = น้อยไปมาก, -1 = มากไปน้อย
+  dense:false,
+  note:true,
+  busy:'',            // ข้อความตอนกำลังโหลด
+  err:'',
+  sugOn:false, sugIdx:-1, sugList:[]
+};
+
+/* ชื่อไทยของคอลัมน์ที่รู้จัก · ที่ไม่รู้จักโชว์ชื่อดิบไปเลย
+   ล่างสุดคือของที่ยังไม่มีในฐานข้อมูล ใส่เผื่อขั้น B (ตาราง lot_part) */
+const LBL = {
+  id:'ID', part_date:'เวลาที่ยิง', duration_sec:'เวลาสะสม', computer:'เครื่อง',
+  app_user:'ผู้ใช้', lot:'Lot Id', barcode:'Barcode', product_article:'Product Article',
+  part_name:'Part Name', code_part:'Code Part', code_pack:'Code Pack',
+  finish_length:'Finish Length', finish_width:'Finish Width', shelf_no:'Shelf No',
+  check_part:'State Part', proj_name:'ชื่อโครงการ', proj_id:'รหัสโครงการ',
+  created_at:'บันทึกเมื่อ',
+  total_parts:'ชิ้นที่ต้องตัด', checked_parts:'ตัดแล้ว',
+  total_all:'ทุกแถว', checked_all:'ยิงแล้วทุกแถว',
+  product_name:'Product Name', item_fg:'Item Fg', material_code:'Material Code',
+  product_seq_total:'Product Seq Total', pack_seq_total:'Pack Seq Total',
+  item_id:'Item Id', delay_no:'Delay No', check_pack:'State Pack',
+  check_pick:'State Pick', check_wh:'State Wh', check_delivery:'State Delivery'
+};
+const lbl = k => LBL[k] || k;
+
+/* คอลัมน์ที่แสดงเป็นตัวเลขชิดขวา */
+const NUMS = new Set(['finish_length','finish_width','duration_sec','id',
+  'total_parts','checked_parts','total_all','checked_all',
+  'product_seq_total','pack_seq_total','delay_no']);
+/* คอลัมน์ที่แสดงเป็นเครื่องหมายถูก/ผิด */
+const TICKS = new Set(['check_part','check_pack','check_pick','check_wh','check_delivery']);
+
+/* ชุดคอลัมน์สำเร็จรูป · จับเฉพาะตัวที่มีจริงในตารางนั้น */
+const PRESETS = {
+  'เหมือน Ax Progress':['check_part','shelf_no','product_article','part_name','code_part',
+                        'code_pack','finish_length','finish_width'],
+  'สายการผลิต':['part_date','computer','app_user','part_name','code_part',
+                'finish_length','finish_width','check_part'],
+  'ย่อสั้น':['part_date','part_name','code_part','finish_length','finish_width','check_part']
+};
+/* ค่าเริ่มต้นตอนยังไม่เคยจัดเอง */
+const DEF_ON = new Set(['part_date','computer','shelf_no','product_article','part_name',
+  'code_part','code_pack','finish_length','finish_width','check_part']);
+
+/* ══════════════════════════════════════════════════════════════
+   ชั้นคุยกับฐานข้อมูล · ที่อื่นห้ามเรียก fetch ตรง
+   ══════════════════════════════════════════════════════════════ */
+const db = {
+  head(){ return { apikey:S.key, Authorization:'Bearer ' + S.key }; },
+  base(){ return S.url.replace(/\/+$/,'') + '/rest/v1/'; },
+
+  async get(path){
+    const r = await fetch(this.base() + path, { headers:this.head() });
+    if(!r.ok){
+      const t = await r.text().catch(()=> '');
+      throw new Error('HTTP ' + r.status + ' · ' + t.slice(0,240));
+    }
+    return r.json();
+  },
+
+  /* ถามโครงจาก PostgREST · รองรับทั้ง swagger 2 และ openapi 3
+     ทำแบบนี้แทน hardcode เพราะพอเพิ่มตาราง lot_part ทีหลัง
+     มันจะขึ้นในรายการให้เลือกเองโดยไม่ต้องกลับมาแก้ไฟล์นี้ */
+  async schema(){
+    const r = await fetch(this.base(), { headers:this.head() });
+    if(!r.ok) throw new Error('อ่านโครงตารางไม่ได้ · HTTP ' + r.status);
+    const j = await r.json();
+    const defs = (j.definitions) || (j.components && j.components.schemas) || {};
+    const out = {};
+    for(const t in defs){
+      const p = defs[t] && defs[t].properties;
+      if(p) out[t] = Object.keys(p);
+    }
+    return out;
+  },
+
+  /* รายชื่อลอต · lot_progress เป็นตารางเล็ก หนึ่งแถวต่อลอต ดึงทีเดียวจบ */
+  lots(){
+    return this.get('lot_progress?select=lot,proj_name,proj_id,total_parts,' +
+                    'checked_parts,total_all,checked_all&order=lot.asc&limit=8000');
+  },
+
+  /* แถวของลอตหนึ่ง · PostgREST คืนสูงสุด 1000 แถวต่อครั้ง ต้องไล่หน้า */
+  async rowsOfLot(table, lot, onProg){
+    const out = [], PAGE = 1000;
+    for(let off = 0; off < 30000; off += PAGE){
+      const p = table + '?select=*&lot=eq.' + encodeURIComponent(lot) +
+                '&limit=' + PAGE + '&offset=' + off;
+      const page = await this.get(p);
+      out.push(...page);
+      if(onProg) onProg(out.length);
+      if(page.length < PAGE) break;
+    }
+    return out;
+  },
+
+  /* ตารางที่ไม่มีคอลัมน์ lot · ดึงมาดูเฉย ๆ แบบจำกัดจำนวน */
+  peek(table){ return this.get(table + '?select=*&limit=1000'); }
+};
+
+/* ══════════════════════════════════════════════════════════════
+   ค่าเชื่อมต่อ · อยู่ origin เดียวกับหน้าหลัก จึงอ่าน localStorage ร่วมกันได้
+   ══════════════════════════════════════════════════════════════ */
+function loadCfg(){
+  S.url = localStorage.getItem('cc_supa_url') || '';
+  S.key = localStorage.getItem('cc_supa_key') || '';
+}
+
+/* ══════════════════════════════════════════════════════════════
+   คอลัมน์ · จำการจัดไว้แยกตามตาราง
+   ══════════════════════════════════════════════════════════════ */
+const colKey = () => 'lp_cols_' + S.table;
+
+function buildCols(){
+  const all = S.schema[S.table] || [];
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(colKey()) || 'null'); } catch(e){}
+
+  const bySaved = new Map();
+  if(Array.isArray(saved)) saved.forEach(c => c && c.k && bySaved.set(c.k, c));
+
+  const seen = new Set(), out = [];
+  /* ของที่เคยจัดไว้มาก่อน แต่ต้องยังมีอยู่จริงในตาราง */
+  if(Array.isArray(saved)){
+    saved.forEach(c => {
+      if(c && c.k && all.includes(c.k) && !seen.has(c.k)){
+        seen.add(c.k);
+        out.push({ k:c.k, on:!!c.on, w:c.w || 0 });
+      }
+    });
+  }
+  /* คอลัมน์ใหม่ที่เพิ่งโผล่มา ต่อท้าย · ปิดไว้ก่อนถ้าเคยจัดเองแล้ว
+     ไม่งั้นวันไหน StarSync เพิ่มคอลัมน์ ตารางจะกว้างขึ้นเองโดยไม่ได้สั่ง */
+  all.forEach(k => {
+    if(seen.has(k)) return;
+    out.push({ k, on: saved ? false : DEF_ON.has(k), w:0 });
+  });
+  S.cols = out;
+}
+function saveCols(){
+  try { localStorage.setItem(colKey(), JSON.stringify(S.cols)); } catch(e){}
+}
+const onCols = () => S.cols.filter(c => c.on);
+
+/* ══════════════════════════════════════════════════════════════
+   กรอง + เรียง (ทำฝั่งหน้าจอ · ลอตหนึ่งไม่กี่ร้อยถึงพันแถว พอไหว)
+   ══════════════════════════════════════════════════════════════ */
+function viewRows(){
+  let rs = S.rows;
+  const fk = Object.keys(S.filters).filter(k => S.filters[k]);
+  if(fk.length){
+    rs = rs.filter(r => fk.every(k =>
+      String(r[k] == null ? '' : r[k]).toLowerCase().includes(S.filters[k].toLowerCase())));
+  }
+  if(S.sort.k && S.sort.dir){
+    const k = S.sort.k, d = S.sort.dir;
+    rs = rs.slice().sort((a,b) => {
+      const x = a[k], y = b[k];
+      if(x == null && y == null) return 0;
+      if(x == null) return 1;      /* ค่าว่างไปท้ายเสมอ ไม่ว่าจะเรียงทางไหน */
+      if(y == null) return -1;
+      const nx = Number(x), ny = Number(y);
+      if(!isNaN(nx) && !isNaN(ny) && x !== '' && y !== '') return (nx - ny) * d;
+      return String(x).localeCompare(String(y), 'th') * d;
+    });
+  }
+  return rs;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   วาดหน้าจอ
+   ══════════════════════════════════════════════════════════════ */
+function render(){
+  renderSum();
+  renderNote();
+  renderGrid();
+  renderFoot();
+  $('btnDense').textContent = S.dense ? '↕ ขยายแถว' : '↕ ย่อแถว';
+}
+
+function renderSum(){
+  const el = $('sum');
+  if(!S.lot || !S.rows.length && !S.prog){ el.style.display = 'none'; return; }
+  const p = S.prog;
+  const shot = S.rows.length;
+  const tot  = p ? (p.total_all || 0) : 0;
+  const pct  = tot ? Math.min(100, Math.round(shot / tot * 100)) : 0;
+
+  let h = '<b style="font-family:var(--mono)">' + esc(S.lot) + '</b>';
+  if(p && p.proj_name) h += '<span style="color:var(--mu2)">' + esc(p.proj_name) + '</span>';
+  h += '<span class="chip cy">ยิงแล้ว <span class="n">' + nf0.format(shot) + '</span></span>';
+  if(p){
+    h += '<span class="chip">ทั้งลอต <span class="n">' + nf0.format(p.total_all || 0) + '</span></span>' +
+         '<span class="chip ok">ชิ้นที่ต้องตัด <span class="n">' +
+           nf0.format(p.checked_parts || 0) + ' / ' + nf0.format(p.total_parts || 0) + '</span></span>';
+    const left = (p.total_all || 0) - shot;
+    if(left > 0) h += '<span class="chip warn">ยังไม่ยิง <span class="n">' + nf0.format(left) + '</span></span>';
+    h += '<div class="bar"><i style="width:' + pct + '%"></i></div>' +
+         '<span style="font-family:var(--mono);color:var(--mu)">' + pct + '%</span>';
+  }
+  el.innerHTML = h;
+  el.style.display = 'flex';
+}
+
+function renderNote(){
+  const el = $('note');
+  if(!S.note || S.table !== 'check_part'){ el.style.display = 'none'; return; }
+  $('noteTx').innerHTML =
+    'ตารางนี้มาจาก <b>บันทึกการยิง</b> (LogAxCheckPart) จึงเห็นเฉพาะชิ้นที่ยิงไปแล้ว ' +
+    'ชิ้นที่ยังไม่ทำจะไม่มีแถว · ตัวเลข “ทั้งลอต” ด้านบนมาจาก AX คนละแหล่งกัน ' +
+    'ถ้าอยากเห็นครบทุกชิ้นเหมือนหน้าโปรแกรม ต้องให้ StarSync ซิงก์ตารางรายชิ้นขึ้นมาก่อน';
+  el.style.display = 'flex';
+}
+
+function renderGrid(){
+  const mid = $('mid'), wrap = $('wrap');
+
+  /* สถานะที่ยังไม่ต้องวาดตาราง */
+  if(!S.url || !S.key){
+    wrap.style.display = 'none'; mid.style.display = 'flex';
+    mid.innerHTML = '<div class="big">🔌</div><div class="t">ยังไม่ได้ตั้งค่า Supabase</div>' +
+      '<div class="s">ปกติหน้านี้จะหยิบค่าจากหน้าหลักให้เอง ถ้าเปิดไฟล์นี้ตรง ๆ ' +
+      'ให้กดปุ่ม ⚙️ มุมขวาบนแล้วใส่ URL กับ key</div>';
+    return;
+  }
+  if(S.err){
+    wrap.style.display = 'none'; mid.style.display = 'flex';
+    mid.innerHTML = '<div class="big">⚠️</div><div class="t">ดึงข้อมูลไม่สำเร็จ</div>' +
+      '<div class="s" style="font-family:var(--mono);font-size:11px;color:#fca5a5">' +
+      esc(S.err) + '</div>';
+    return;
+  }
+  if(S.busy){
+    wrap.style.display = 'none'; mid.style.display = 'flex';
+    mid.innerHTML = '<div class="spin"></div><div class="t">' + esc(S.busy) + '</div>';
+    return;
+  }
+  if(!S.lot){
+    wrap.style.display = 'none'; mid.style.display = 'flex';
+    mid.innerHTML = '<div class="big">🧾</div><div class="t">เลือกลอตก่อน</div>' +
+      '<div class="s">พิมพ์รหัส lot หรือชื่อโครงการในช่องด้านบน ' +
+      'รายการจะเด้งขึ้นมาให้เลือก · มีทั้งหมด <b>' + nf0.format(S.lots.length) +
+      '</b> ลอตในฐานข้อมูล</div>';
+    return;
+  }
+  if(!S.rows.length){
+    wrap.style.display = 'none'; mid.style.display = 'flex';
+    mid.innerHTML = '<div class="big">🕳️</div><div class="t">ลอตนี้ยังไม่มีการยิงสักชิ้น</div>' +
+      '<div class="s">รหัส <code>' + esc(S.lot) + '</code> มีอยู่ใน lot_progress ' +
+      'แต่ยังไม่มีแถวใน ' + esc(S.table) + '</div>';
+    return;
+  }
+
+  const cols = onCols();
+  if(!cols.length){
+    wrap.style.display = 'none'; mid.style.display = 'flex';
+    mid.innerHTML = '<div class="big">🧮</div><div class="t">ยังไม่ได้เปิดคอลัมน์ไหนเลย</div>' +
+      '<div class="s">กด “จัดคอลัมน์” แล้วติ๊กที่อยากเห็น</div>';
+    return;
+  }
+
+  mid.style.display = 'none'; wrap.style.display = 'block';
+  const rs = viewRows();
+
+  /* หัวตาราง */
+  let h = '<thead><tr><th class="idx"><div class="th-in" style="justify-content:flex-end">#</div></th>';
+  cols.forEach(c => {
+    const ar = S.sort.k === c.k ? (S.sort.dir === 1 ? '▲' : '▼') : '';
+    const w  = c.w ? ' style="width:' + c.w + 'px"' : '';
+    h += '<th' + w + '><div class="th-in" data-act="sort" data-k="' + esc(c.k) + '">' +
+         '<span>' + esc(lbl(c.k)) + '</span><span class="th-s">' + ar + '</span>' +
+         '<span class="rz" data-act="rz" data-k="' + esc(c.k) + '"></span></div></th>';
+  });
+  h += '</tr><tr class="flt"><th class="idx"></th>';
+  cols.forEach(c => {
+    h += '<th><input type="text" data-fk="' + esc(c.k) + '" placeholder="กรอง" value="' +
+         esc(S.filters[c.k] || '') + '"></th>';
+  });
+  h += '</tr></thead><tbody>';
+
+  /* ตัวตาราง */
+  rs.forEach((r, i) => {
+    h += '<tr><td class="idx">' + (i + 1) + '</td>';
+    cols.forEach(c => h += cell(r, c.k));
+    h += '</tr>';
+  });
+  h += '</tbody>';
+
+  const g = $('grid');
+  g.className = S.dense ? 'dense' : '';
+  g.innerHTML = h;
+}
+
+/* หนึ่งช่องในตาราง */
+function cell(r, k){
+  const v = r[k];
+
+  if(TICKS.has(k)){
+    const y = Number(v) === 1;
+    return '<td style="text-align:center"><span class="tick ' + (y ? 'y' : 'n') + '">' +
+           (y ? '✓' : '·') + '</span></td>';
+  }
+  if(k === 'part_date' || k === 'created_at')
+    return '<td class="mono">' + esc(fmtTime(v)) + '</td>';
+  if(k === 'duration_sec')
+    return '<td class="num" title="' + esc(v == null ? '' : v) + ' วินาที">' + esc(hms(v)) + '</td>';
+  if(k === 'finish_length' || k === 'finish_width'){
+    const n = Number(v);
+    return '<td class="num">' + (v == null || isNaN(n) ? '' : nf2.format(n)) + '</td>';
+  }
+  if(NUMS.has(k)){
+    const n = Number(v);
+    return '<td class="num">' + (v == null || isNaN(n) ? esc(v) : nf0.format(n)) + '</td>';
+  }
+  /* ข้อความไทยห้ามใช้ฟอนต์ mono · ฟอนต์ไม่มีตัวอักษรไทย จะตกบรรทัดเพี้ยน */
+  const cls = isTh(v) ? '' : ' class="mono"';
+  return '<td' + cls + ' title="' + esc(v) + '">' + esc(v) + '</td>';
+}
+
+function renderFoot(){
+  const rs = viewRows();
+  const nf = Object.keys(S.filters).filter(k => S.filters[k]).length;
+  let h = '<span>แสดง <span class="n">' + nf0.format(rs.length) + '</span> แถว</span>';
+  if(rs.length !== S.rows.length)
+    h += '<span>จากทั้งหมด <span class="n">' + nf0.format(S.rows.length) + '</span></span>';
+  if(nf) h += '<span style="color:var(--warn)">กรองอยู่ ' + nf + ' คอลัมน์ ' +
+              '<button class="btn sm" data-act="fltclear">ล้าง</button></span>';
+  h += '<span style="margin-left:auto">คอลัมน์ <span class="n">' + onCols().length +
+       '</span> / ' + S.cols.length + ' · ตาราง <span class="n">' + esc(S.table) + '</span></span>';
+  $('ft').innerHTML = h;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   รายการแนะนำลอต
+   ══════════════════════════════════════════════════════════════ */
+function mark(text, q){
+  const t = String(text || '');
+  if(!q) return esc(t);
+  const i = t.toLowerCase().indexOf(q.toLowerCase());
+  if(i < 0) return esc(t);
+  return esc(t.slice(0, i)) + '<span class="hi">' + esc(t.slice(i, i + q.length)) +
+         '</span>' + esc(t.slice(i + q.length));
+}
+
+function suggest(){
+  const q = $('q').value.trim();
+  let list = S.lots;
+  if(q){
+    const lq = q.toLowerCase();
+    list = S.lots.filter(l => String(l.lot || '').toLowerCase().includes(lq) ||
+                              String(l.proj_name || '').toLowerCase().includes(lq));
+  }
+  S.sugList = list.slice(0, 30);
+  S.sugIdx  = -1;
+
+  const el = $('sug');
+  if(!S.sugList.length){
+    el.innerHTML = '<div class="sug-i"><div class="sug-p">ไม่พบลอตที่ตรง</div></div>';
+    el.classList.add('on'); S.sugOn = true; return;
+  }
+  el.innerHTML = S.sugList.map((l, i) =>
+    '<div class="sug-i" data-act="pick" data-i="' + i + '">' +
+      '<span class="sug-l">' + mark(l.lot, q) + '</span>' +
+      (l.proj_name ? '<span class="sug-p">' + mark(l.proj_name, q) + '</span>' : '') +
+      '<span class="sug-n">ยิงแล้ว ' + nf0.format(l.checked_all || 0) +
+        ' / ' + nf0.format(l.total_all || 0) + ' แถว</span>' +
+    '</div>').join('');
+  el.classList.add('on'); S.sugOn = true;
+}
+function hideSug(){ $('sug').classList.remove('on'); S.sugOn = false; }
+
+function highlightSug(){
+  [...$('sug').children].forEach((n, i) => n.classList.toggle('a', i === S.sugIdx));
+  const n = $('sug').children[S.sugIdx];
+  if(n) n.scrollIntoView({ block:'nearest' });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   โหลดข้อมูล
+   ══════════════════════════════════════════════════════════════ */
+async function boot(){
+  loadCfg();
+  if(!S.url || !S.key){ render(); return; }
+
+  S.busy = 'กำลังอ่านโครงตาราง'; S.err = ''; render();
+  try {
+    S.schema = await db.schema();
+  } catch(e){
+    /* อ่าน OpenAPI ไม่ได้ก็ยังไปต่อได้ · ถอยไปเดาคอลัมน์จากแถวจริงหนึ่งแถว */
+    S.schema = {};
+    try {
+      const one = await db.get('check_part?select=*&limit=1');
+      if(one[0]) S.schema['check_part'] = Object.keys(one[0]);
+      else throw new Error('ตาราง check_part ยังไม่มีข้อมูลสักแถว จึงเดาคอลัมน์ไม่ได้');
+    } catch(e2){ S.err = e2.message; render(); return; }
+  }
+  if(!S.schema[S.table]){
+    const first = Object.keys(S.schema)[0];
+    if(first) S.table = first;
+  }
+  fillTables();
+  buildCols();
+
+  S.busy = 'กำลังอ่านรายชื่อลอต'; render();
+  try { S.lots = await db.lots(); }
+  catch(e){ S.lots = []; }   /* ไม่มี lot_progress ก็ยังพิมพ์รหัสลอตเองได้ */
+
+  S.busy = ''; render();
+
+  /* หน้าหลักอาจส่งลอตมาแล้วตั้งแต่ก่อนโหลดเสร็จ */
+  const want = pendingLot || new URLSearchParams(location.search).get('lot') ||
+               localStorage.getItem('lp_last_lot') || '';
+  pendingLot = '';
+  if(want) selectLot(want);
+}
+
+function fillTables(){
+  const names = Object.keys(S.schema).sort();
+  $('tbl').innerHTML = names.map(n =>
+    '<option value="' + esc(n) + '"' + (n === S.table ? ' selected' : '') + '>' +
+    esc(n) + '</option>').join('');
+}
+
+async function selectLot(lot){
+  S.lot = lot;
+  $('q').value = lot;
+  hideSug();
+  try { localStorage.setItem('lp_last_lot', lot); } catch(e){}
+
+  S.prog = S.lots.find(l => l.lot === lot) || null;
+  S.filters = {}; S.sort = { k:'', dir:0 };
+  S.busy = 'กำลังดึงแถวของลอต ' + lot; S.err = ''; S.rows = [];
+  render();
+
+  try {
+    const hasLot = (S.schema[S.table] || []).includes('lot');
+    S.rows = hasLot
+      ? await db.rowsOfLot(S.table, lot, n => { S.busy = 'ดึงมาแล้ว ' + nf0.format(n) + ' แถว'; })
+      : await db.peek(S.table);
+  } catch(e){
+    S.err = e.message;
+  }
+  S.busy = '';
+  render();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   กล่องจัดคอลัมน์
+   ══════════════════════════════════════════════════════════════ */
+function renderColList(){
+  $('pre').innerHTML = Object.keys(PRESETS).map(n =>
+    '<button class="btn sm" data-act="preset" data-n="' + esc(n) + '">' + esc(n) + '</button>').join('') +
+    '<button class="btn sm" data-act="preset" data-n="__all">ทั้งหมด</button>' +
+    '<button class="btn sm" data-act="preset" data-n="__none">ไม่เอาเลย</button>';
+
+  $('cl').innerHTML = S.cols.map((c, i) =>
+    '<div class="cl-i' + (c.on ? '' : ' off') + '" draggable="true" data-i="' + i + '">' +
+      '<span class="gp">⠿</span>' +
+      '<input type="checkbox" data-act="coltog" data-i="' + i + '"' + (c.on ? ' checked' : '') + '>' +
+      '<span class="cl-nm"><span class="a">' + esc(lbl(c.k)) + '</span><br>' +
+        '<span class="b">' + esc(c.k) + '</span></span>' +
+      '<span class="mv">' +
+        '<button data-act="colup" data-i="' + i + '" title="ขึ้น">▲</button>' +
+        '<button data-act="coldn" data-i="' + i + '" title="ลง">▼</button>' +
+      '</span>' +
+    '</div>').join('');
+}
+
+function applyPreset(n){
+  if(n === '__all'){ S.cols.forEach(c => c.on = true); }
+  else if(n === '__none'){ S.cols.forEach(c => c.on = false); }
+  else {
+    const want = PRESETS[n] || [];
+    S.cols.forEach(c => c.on = want.includes(c.k));
+    /* เรียงตามลำดับในชุด แล้วค่อยตามด้วยที่เหลือ */
+    S.cols.sort((a, b) => {
+      const ia = want.indexOf(a.k), ib = want.indexOf(b.k);
+      if(ia < 0 && ib < 0) return 0;
+      if(ia < 0) return 1;
+      if(ib < 0) return -1;
+      return ia - ib;
+    });
+  }
+  saveCols(); renderColList(); render();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ส่งออก CSV · ใส่ BOM ให้ Excel อ่านภาษาไทยออก
+   ══════════════════════════════════════════════════════════════ */
+function toCsv(){
+  const cols = onCols();
+  if(!cols.length) return;
+  const q = v => '"' + String(v == null ? '' : v).replace(/"/g,'""') + '"';
+  const lines = [cols.map(c => q(lbl(c.k))).join(',')];
+  viewRows().forEach(r => lines.push(cols.map(c => {
+    const v = r[c.k];
+    if(c.k === 'part_date' || c.k === 'created_at') return q(fmtTime(v));
+    return q(v);
+  }).join(',')));
+  const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type:'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'LotParts_' + (S.lot || S.table).replace(/[^\w\-]/g,'_') + '_' +
+               new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ปุ่มทุกตัวเดินผ่านจุดเดียว · ไม่ใส่ onclick กระจาย
+   ══════════════════════════════════════════════════════════════ */
+document.addEventListener('click', ev => {
+  const t = ev.target.closest('[data-act]');
+
+  /* คลิกนอกกล่องแนะนำ = ปิด */
+  if(S.sugOn && !ev.target.closest('.lotw')) hideSug();
+  if(!t) return;
+
+  const act = t.dataset.act;
+
+  if(act === 'clear'){ $('q').value = ''; $('q').focus(); suggest(); return; }
+
+  if(act === 'pick'){
+    const l = S.sugList[+t.dataset.i];
+    if(l) selectLot(l.lot);
+    return;
+  }
+
+  if(act === 'sort'){
+    const k = t.dataset.k;
+    if(S.sort.k !== k) S.sort = { k, dir:1 };
+    else S.sort.dir = S.sort.dir === 1 ? -1 : (S.sort.dir === -1 ? 0 : 1);
+    if(!S.sort.dir) S.sort.k = '';
+    render();
+    return;
+  }
+
+  if(act === 'cols'){ renderColList(); $('ovCols').classList.add('open'); return; }
+  if(act === 'colclose'){ $('ovCols').classList.remove('open'); return; }
+  if(act === 'preset'){ applyPreset(t.dataset.n); return; }
+
+  if(act === 'coltog'){
+    const c = S.cols[+t.dataset.i];
+    if(c){ c.on = !c.on; saveCols(); renderColList(); render(); }
+    return;
+  }
+  if(act === 'colup' || act === 'coldn'){
+    const i = +t.dataset.i, j = act === 'colup' ? i - 1 : i + 1;
+    if(j < 0 || j >= S.cols.length) return;
+    [S.cols[i], S.cols[j]] = [S.cols[j], S.cols[i]];
+    saveCols(); renderColList(); render();
+    return;
+  }
+  if(act === 'colreset'){
+    try { localStorage.removeItem(colKey()); } catch(e){}
+    buildCols(); renderColList(); render();
+    return;
+  }
+
+  if(act === 'dense'){ S.dense = !S.dense;
+    try { localStorage.setItem('lp_dense', S.dense ? '1' : '0'); } catch(e){}
+    render(); return; }
+
+  if(act === 'csv'){ toCsv(); return; }
+  if(act === 'reload'){ if(S.lot) selectLot(S.lot); else boot(); return; }
+  if(act === 'fltclear'){ S.filters = {}; render(); return; }
+  if(act === 'noteoff'){ S.note = false;
+    try { localStorage.setItem('lp_note', '0'); } catch(e){}
+    render(); return; }
+
+  if(act === 'cfg'){
+    $('cfgUrl').value = S.url; $('cfgKey').value = S.key;
+    $('ovCfg').classList.add('open'); return;
+  }
+  if(act === 'cfgclose'){ $('ovCfg').classList.remove('open'); return; }
+  if(act === 'cfgsave'){
+    try {
+      localStorage.setItem('cc_supa_url', $('cfgUrl').value.trim().replace(/\/+$/,''));
+      localStorage.setItem('cc_supa_key', $('cfgKey').value.trim());
+    } catch(e){}
+    $('ovCfg').classList.remove('open');
+    boot();
+    return;
+  }
+});
+
+/* เปลี่ยนตาราง */
+$('tbl').addEventListener('change', () => {
+  S.table = $('tbl').value;
+  buildCols();
+  S.rows = []; S.filters = {}; S.sort = { k:'', dir:0 };
+  if(S.lot) selectLot(S.lot); else render();
+});
+
+/* ช่องกรองรายคอลัมน์ · ใช้ input event ผ่าน delegation
+   ไม่วาดตารางใหม่ทั้งก้อนทันทีตอนพิมพ์ ไม่งั้นช่องที่พิมพ์อยู่จะโดนลบทิ้ง
+   จึงหน่วงไว้ แล้วคืนโฟกัสกับตำแหน่งเคอร์เซอร์ให้หลังวาดเสร็จ */
+let fltTimer = null;
+document.addEventListener('input', ev => {
+  const el = ev.target;
+  if(el.id === 'q'){ suggest(); return; }
+  if(!el.dataset || !el.dataset.fk) return;
+
+  const k = el.dataset.fk, val = el.value, pos = el.selectionStart;
+  S.filters[k] = val;
+  clearTimeout(fltTimer);
+  fltTimer = setTimeout(() => {
+    render();
+    const again = document.querySelector('[data-fk="' + CSS.escape(k) + '"]');
+    if(again){
+      again.focus();
+      try { again.setSelectionRange(pos, pos); } catch(e){}
+    }
+  }, 220);
+});
+
+/* คีย์บอร์ดในช่องค้นหาลอต */
+$('q').addEventListener('focus', suggest);
+$('q').addEventListener('keydown', ev => {
+  if(!S.sugOn) return;
+  if(ev.key === 'ArrowDown'){ ev.preventDefault(); S.sugIdx = Math.min(S.sugIdx + 1, S.sugList.length - 1); highlightSug(); }
+  else if(ev.key === 'ArrowUp'){ ev.preventDefault(); S.sugIdx = Math.max(S.sugIdx - 1, 0); highlightSug(); }
+  else if(ev.key === 'Enter'){
+    ev.preventDefault();
+    const l = S.sugList[S.sugIdx >= 0 ? S.sugIdx : 0];
+    if(l) selectLot(l.lot);
+    else if($('q').value.trim()) selectLot($('q').value.trim());  /* พิมพ์รหัสเองก็ได้ */
+  }
+  else if(ev.key === 'Escape'){ hideSug(); }
+});
+
+/* Esc ปิดกล่องซ้อน */
+document.addEventListener('keydown', ev => {
+  if(ev.key !== 'Escape') return;
+  ['ovCols','ovCfg'].forEach(id => $(id).classList.remove('open'));
+});
+
+/* ══════════════════════════════════════════════════════════════
+   ลากปรับความกว้างคอลัมน์
+   ══════════════════════════════════════════════════════════════ */
+let rz = null;
+document.addEventListener('mousedown', ev => {
+  const h = ev.target.closest('[data-act="rz"]');
+  if(!h) return;
+  ev.preventDefault(); ev.stopPropagation();
+  const th = h.closest('th');
+  rz = { k:h.dataset.k, x:ev.clientX, w:th.getBoundingClientRect().width, th };
+});
+document.addEventListener('mousemove', ev => {
+  if(!rz) return;
+  const w = Math.max(46, Math.round(rz.w + ev.clientX - rz.x));
+  rz.th.style.width = w + 'px';
+  rz.now = w;
+});
+document.addEventListener('mouseup', () => {
+  if(!rz) return;
+  if(rz.now){
+    const c = S.cols.find(c => c.k === rz.k);
+    if(c){ c.w = rz.now; saveCols(); }
+  }
+  rz = null;
+});
+
+/* ══════════════════════════════════════════════════════════════
+   ลากสลับลำดับคอลัมน์ในกล่องจัดคอลัมน์
+   ══════════════════════════════════════════════════════════════ */
+let dragI = -1;
+$('cl').addEventListener('dragstart', ev => {
+  const it = ev.target.closest('.cl-i'); if(!it) return;
+  dragI = +it.dataset.i; it.classList.add('drag');
+  ev.dataTransfer.effectAllowed = 'move';
+});
+$('cl').addEventListener('dragover', ev => {
+  ev.preventDefault();
+  const it = ev.target.closest('.cl-i'); if(!it) return;
+  [...$('cl').children].forEach(n => n.classList.remove('over'));
+  it.classList.add('over');
+});
+$('cl').addEventListener('drop', ev => {
+  ev.preventDefault();
+  const it = ev.target.closest('.cl-i'); if(!it || dragI < 0) return;
+  const to = +it.dataset.i;
+  const [m] = S.cols.splice(dragI, 1);
+  S.cols.splice(to, 0, m);
+  dragI = -1;
+  saveCols(); renderColList(); render();
+});
+$('cl').addEventListener('dragend', () => {
+  dragI = -1;
+  [...$('cl').children].forEach(n => n.classList.remove('drag','over'));
+});
+
+/* ══════════════════════════════════════════════════════════════
+   คุยกับหน้าหลัก (ตอนฝังเป็น iframe)
+   ══════════════════════════════════════════════════════════════ */
+let pendingLot = '';
+let booted = false;
+window.addEventListener('message', ev => {
+  const d = ev.data;
+  if(!d || d.type !== 'lp-init') return;
+  /* หน้าหลักอาจส่งค่าเชื่อมต่อมาด้วย เผื่อวันไหนเลิกเก็บใน localStorage */
+  const had = !!(S.url && S.key);
+  if(d.url && d.key){
+    try {
+      localStorage.setItem('cc_supa_url', String(d.url).replace(/\/+$/,''));
+      localStorage.setItem('cc_supa_key', String(d.key));
+    } catch(e){}
+    loadCfg();
+  }
+  const lot = d.lot ? String(d.lot) : '';
+  if(!booted){ pendingLot = lot; return; }
+
+  /* boot รอบแรกจบไปตอนที่ยังไม่มีค่าเชื่อมต่อ (ค้างหน้า "ยังไม่ได้ตั้งค่า")
+     พอค่ามาถึงทีหลังต้องสั่งเริ่มใหม่เอง ไม่งั้นหน้าจะค้างอยู่อย่างนั้น */
+  if(!had && S.url && S.key){
+    pendingLot = lot; booted = false;
+    boot().then(() => { booted = true; });
+    return;
+  }
+  if(lot && lot !== S.lot) selectLot(lot);
+});
+
+/* ══════════════════════════════════════════════════════════════
+   เริ่มทำงาน
+   ══════════════════════════════════════════════════════════════ */
+(function init(){
+  S.dense = localStorage.getItem('lp_dense') === '1';
+  S.note  = localStorage.getItem('lp_note') !== '0';
+  boot().then(() => {
+    booted = true;
+    /* เผื่อ lot มาถึงหลัง boot อ่าน pendingLot ไปแล้ว */
+    if(pendingLot && pendingLot !== S.lot){ const l = pendingLot; pendingLot = ''; selectLot(l); }
+  });
+  /* บอกหน้าหลักว่าพร้อมรับ postMessage แล้ว */
+  try { if(window.parent !== window) window.parent.postMessage({ type:'lp-ready' }, '*'); } catch(e){}
+})();
+</script>
+</body>
+</html>
