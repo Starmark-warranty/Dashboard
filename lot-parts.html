@@ -5,8 +5,26 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Ax Progress · รายชิ้นในลอต</title>
 <!-- =====================================================================
-  Lot Parts · รายชิ้นในลอต        ·   VERSION 3.4
+  Lot Parts · รายชิ้นในลอต        ·   VERSION 3.5
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  3.5  2026-09-08  FIX  ตารางเพี้ยน ช่องกระจายเป็นบล็อกละ 4 · ต้นเหตุคือชื่อคลาสชนกัน
+                   2.8 ตั้งชื่อกริด 4 คอลัมน์ของหน้าต่างเลือกลอตว่า .pk
+                   ซึ่งชนกับ <tr class="pk"> ที่ 2.1 ใส่ไว้ให้แถวห่ออุปกรณ์
+                   แถวห่อจึงโดนสั่งเป็น display:grid 4 คอลัมน์ ช่องเลยกระจาย
+                   ตรงกับที่เห็นเป๊ะ · บล็อกที่แตกมีคำว่า Fitting_Pack อยู่ด้วย
+                   คลาส pk บนแถวเป็นคลาสตายตั้งแต่ 2.3 ที่เอาสีจางของแถวห่อออก
+                   ผมลืมถอดออก แล้วมันมาระเบิดตอน 2.8 ที่ตั้งชื่อชนพอดี
+                   · ถอดคลาสออกจากแถวตาราง
+                   · เปลี่ยนชื่อกริดของหน้าต่างเลือกลอตเป็น .pkgrid กันชนซ้ำ
+                   FIX  เก็บงานเลย์เอาต์ต่อจาก 3.4 (สองอย่างนี้คนละเรื่องกัน)
+                   3.4 ใส่ min-width:0 ให้ flex item ซึ่งเป็นวิธีมาตรฐาน แต่ยังไม่พอ
+                   เจอสาเหตุที่สอง: table ตั้ง width:max-content คู่กับ min-width:100%
+                   ความกว้างตารางขึ้นกับกล่อง กล่องขึ้นกับตาราง อ้างอิงวนกันเอง
+                   เบราว์เซอร์คำนวณเพี้ยน ช่องเลยกระจายเป็นบล็อกละ 4 ช่อง
+                   · ตัด min-width:100% ออกจาก table เหลือ width:max-content อย่างเดียว
+                   · พื้นที่หลักเปลี่ยนจาก flex เป็น grid ที่ minmax(0,1fr) 200px
+                     grid การันตีว่าคอลัมน์ซ้ายแคบลงได้เสมอ ไม่ต้องพึ่ง min-width:0
+                     ให้พลาดอีก · เป็นโครงที่พังยากกว่ามาก
   3.4  2026-09-08  FIX  ตารางเพี้ยน หัวตารางกับตัวตารางหลุดจากกัน ช่องเลื่อนไปคนละที่
                    ไม่ใช่บั๊กตรรกะ · ตรวจ HTML ที่โค้ดสร้างแล้วนับได้ 35 ช่อง
                    เท่ากันครบทุกแถว ทั้งแถบ band แถวหัว แถวกรอง และแถวข้อมูล
@@ -257,8 +275,13 @@ body{font-family:var(--sans);background:var(--pg);color:var(--tx);font-size:13px
 #app{height:100%;display:flex;flex-direction:column;padding:8px;gap:8px}
 
 /* พื้นที่หลัก · ตารางซ้าย แถบเกจขวา เต็มความสูงทั้งคู่ */
-.main{flex:1 1 auto;min-height:0;min-width:0;display:flex;gap:8px;align-items:stretch;
-  overflow:hidden}
+/* v3.5 ใช้ grid ไม่ใช้ flex สำหรับพื้นที่หลัก
+   flex item มี min-width:auto เป็นค่าเริ่มต้น = ไม่ยอมแคบกว่าเนื้อหา
+   ตารางกว้าง 34 คอลัมน์จึงดันการ์ดทะลุจอ · 3.4 ปะด้วย min-width:0 แล้วยังไม่หาย
+   grid ที่ตั้ง minmax(0,1fr) การันตีว่าคอลัมน์ซ้ายแคบลงได้เสมอ
+   ไม่ต้องพึ่ง min-width:0 ให้พลาดอีก */
+.main{flex:1 1 auto;min-height:0;display:grid;
+  grid-template-columns:minmax(0,1fr) 200px;gap:8px}
 
 /* ── แถบเครื่องมือ · เตี้ยลงจากเดิม ตารางจะได้พื้นที่มากขึ้น ────── */
 .ribbon{flex:0 0 auto;background:var(--card);border:1px solid var(--line);
@@ -294,9 +317,9 @@ body{font-family:var(--sans);background:var(--pg);color:var(--tx);font-size:13px
 
 /* หน้าต่างเลือกลอต */
 .lotmodal{width:min(1180px,97vw)}
-.pk{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-@media(max-width:980px){.pk{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:620px){.pk{grid-template-columns:1fr}}
+.pkgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media(max-width:980px){.pkgrid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:620px){.pkgrid{grid-template-columns:1fr}}
 .pc{border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;
   overflow:hidden;min-height:0}
 .pc-h{padding:8px 11px;border-bottom:1px solid var(--line);display:flex;
@@ -329,7 +352,7 @@ body{font-family:var(--sans);background:var(--pg);color:var(--tx);font-size:13px
 .dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
 
 /* ── แถบเกจสถานะทางขวา · ครบทั้ง 6 ช่องในแถบ State ─────────────── */
-.side{flex:0 0 200px;min-width:0;background:var(--card);border:1px solid var(--line);
+.side{min-width:0;min-height:0;background:var(--card);border:1px solid var(--line);
   border-radius:var(--r);box-shadow:var(--sh);padding:10px;overflow-y:auto;
   display:flex;flex-direction:column;gap:6px}
 .side .sh{font-size:11px;color:var(--mu);font-weight:600;text-transform:uppercase;
@@ -365,10 +388,13 @@ body{font-family:var(--sans);background:var(--pg);color:var(--tx);font-size:13px
    จึงดันการ์ดให้กว้างทะลุจอ แล้ว overflow ของ .wrap ไม่ทำงาน
    ผลคือหัวตารางกับตัวตารางหลุดจากกัน ช่องเลื่อนไปคนละที่
    บั๊กคลาสสิกของ flexbox · เจอตอนคอลัมน์เยอะพอเท่านั้น ตอนทดสอบ 7 คอลัมน์ไม่เจอ */
-.tcard{flex:1 1 auto;min-height:0;min-width:0;background:var(--card);border:1px solid var(--line);
+.tcard{min-width:0;min-height:0;background:var(--card);border:1px solid var(--line);
   border-radius:var(--r);box-shadow:var(--sh);display:flex;flex-direction:column;overflow:hidden}
+/* ตัวเลื่อนตารางอยู่ที่นี่ที่เดียว */
 .wrap{flex:1 1 auto;min-width:0;min-height:0;overflow:auto}
-table{border-collapse:separate;border-spacing:0;table-layout:auto;width:max-content;min-width:100%}
+/* ตัด min-width:100% ออก · คู่กับ width:max-content มันอ้างอิงวนกันเอง
+   ความกว้างของตารางขึ้นกับกล่อง กล่องขึ้นกับตาราง เบราว์เซอร์เลยคำนวณเพี้ยน */
+table{border-collapse:separate;border-spacing:0;table-layout:auto;width:max-content}
 
 thead th{background:var(--hd);border-bottom:1px solid var(--line);
   border-right:1px solid var(--line2);color:var(--mu);font-weight:600;font-size:11px;
@@ -550,7 +576,7 @@ select.sel{background:var(--card);border:1px solid var(--line);border-radius:7px
 <div class="ov" id="ovLot">
   <div class="modal lotmodal">
     <h3>เลือกลอต</h3>
-    <div class="bd"><div class="pk" id="pk"></div></div>
+    <div class="bd"><div class="pkgrid" id="pk"></div></div>
   </div>
 </div>
 
@@ -1015,7 +1041,10 @@ function renderGrid(){
   h += '</tr></thead><tbody>';
 
   rs.forEach((r, i) => {
-    h += '<tr' + (isPiece(r) ? '' : ' class="pk"') + '><td class="idx">' + (i + 1) + '</td>';
+    /* v3.5 ไม่ใส่คลาสให้แถวแล้ว · คลาส pk เดิมชนกับ .pk ของหน้าต่างเลือกลอต
+       ซึ่งเป็น display:grid 4 คอลัมน์ แถวห่อจึงกลายเป็นกริดแล้วช่องกระจาย
+       ตัวมันเองก็เป็นคลาสตายตั้งแต่ 2.3 ที่เอาสีจางของแถวห่อออกไปแล้ว */
+    h += '<tr><td class="idx">' + (i + 1) + '</td>';
     cols.forEach(c => h += (S.miss[c.k] ? '<td class="miss"></td>' : cell(r, c.k)));
     h += '</tr>';
   });
