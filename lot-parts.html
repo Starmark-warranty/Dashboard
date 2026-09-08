@@ -5,8 +5,23 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Ax Progress · รายชิ้นในลอต</title>
 <!-- =====================================================================
-  Lot Parts · รายชิ้นในลอต        ·   VERSION 2.0
+  Lot Parts · รายชิ้นในลอต        ·   VERSION 2.1
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  2.1  2026-09-08  FIX  ห่ออุปกรณ์ถูกนับเป็น "ยังไม่ตัด" ทำให้ค้างที่ 98% ตลอดไป
+                   แถวที่ Finish Length หรือ Finish Width เป็น 0 คือห่อ
+                   ตรวจกับของจริงแล้วเป็น Accessory_Pack กับ Fitting_Pack ล้วน ๆ
+                   มันไม่เคยถูกตัด ช่อง Part จึงไม่มีวันติ๊ก
+                   ลอต INNOPD_L_FL3_BF308A_309A ยังไม่ติ๊ก 14 แถว
+                   แต่ 12 แถวเป็นห่อ เหลือชิ้นที่ต้องตัดจริงแค่ 2
+                   · แถบล่างนับแยก ต้องตัด / ตัดแล้ว / ยังไม่ตัด / ห่ออุปกรณ์
+                     % คิดจากชิ้นที่ต้องตัดเท่านั้น
+                   · นับแบบเดียวกับ StarSync และหน้า Cutting Center ที่แยก
+                     total_parts กับ total_all อยู่แล้ว ไม่งั้นสองหน้าจะขึ้น
+                     ตัวเลขไม่เท่ากัน แล้วไม่มีใครรู้ว่าอันไหนถูก
+                   FEAT ปุ่มกรองแถว ทั้งหมด / ยังไม่ตัด / ห่ออุปกรณ์ ที่แถบล่าง
+                   กดปุ่มเดียวได้รายการชิ้นที่ยังค้างจริง ๆ
+                   CHANGE แถวห่อแสดงเป็นสีจาง · ของจริงในโปรแกรมไม่ได้ทำ
+                   แต่นี่คือจุดที่อ่านผิดกันมาแล้วว่าทำไมไม่ติ๊กสักที
   2.0  2026-09-08  CHANGE ทำหน้าตาให้เหมือนโปรแกรม Ax Progress ของจริง
                    1.x เป็นธีมมืดแบบ dashboard ซึ่งคนละภาษากับโปรแกรมที่
                    หน้างานใช้อยู่ทุกวัน · คนเปิดมาแล้วต้องแปลว่าอะไรคืออะไรใหม่
@@ -161,6 +176,10 @@ tbody tr:nth-child(even){background:var(--row2)}
 tbody tr:hover td{background:var(--hov)}
 td.mono{font-family:var(--mono)}
 td.num{font-family:var(--mono);text-align:right}
+/* แถวห่ออุปกรณ์ · ไม่มีขนาดจึงไม่ต้องตัด ช่อง Part ไม่มีวันติ๊ก */
+tbody tr.pk td{color:var(--mu)}
+tbody tr.pk td.st{background:#eceff2}
+tbody tr.pk:nth-child(even) td.st{background:#e4e8ec}
 
 /* คอลัมน์ลำดับแถว ตรึงซ้าย เหมือนแถบ indicator ของโปรแกรม */
 td.idx,thead th.idx{position:sticky;left:0;z-index:20}
@@ -184,6 +203,9 @@ tbody tr:hover td.st{background:var(--stbg2)}
   border-top:1px solid var(--line);padding:4px 10px;display:flex;gap:12px;
   align-items:center;flex-wrap:wrap;font-size:12px;color:var(--mu)}
 .status .n{font-family:var(--mono);color:var(--tx);font-weight:700}
+.status .n.bad{color:#b3401f}
+.status .n.mu{color:var(--mu2)}
+.status .btn{padding:2px 8px;min-height:22px}
 .status .tot{margin-left:auto;display:flex;align-items:center;gap:10px}
 .pbar{width:130px;height:11px;border:1px solid var(--line);background:#fff;overflow:hidden}
 .pbar>i{display:block;height:100%;background:linear-gradient(180deg,#8fd07a,#4fa03a)}
@@ -347,6 +369,7 @@ const S = {
   lots:[], lot:'', rows:[], prog:null,
   showFin:false,      // แสดงลอตที่ตัดจบแล้วในรายการด้วยไหม
   filters:{}, sort:{k:'',dir:0},
+  view:'all',         // ตัวกรองแถว: all | todo | pack
   busy:'', err:'', needReq:false,
   sugOn:false, sugIdx:-1, sugList:[]
 };
@@ -385,6 +408,18 @@ const isDone = r => { const k = stKey(); if(!k) return false;
                       const v = r[k]; return v === true || Number(v) === 1; };
 /* ตารางที่ดูอยู่มีครบทุกชิ้นในลอตไหม (ไม่ใช่แค่ชิ้นที่ยิงแล้ว) */
 const hasFull = () => (S.schema[S.table] || []).includes('st_part');
+
+/* แถวนี้เป็น "ชิ้นที่ต้องตัด" หรือเป็น "ห่อ"
+   แถวที่ไม่มีขนาด (Finish Length หรือ Finish Width เป็น 0) คือห่ออุปกรณ์
+   ตรวจกับของจริงแล้ว แถวพวกนั้นคือ Accessory_Pack กับ Fitting_Pack ล้วน ๆ
+   มันไม่เคยถูกตัด ช่อง Part จึงไม่มีวันติ๊ก ถ้านับรวมเป็น "ยังไม่ตัด"
+   ลอตที่ตัดครบแล้วจะค้างอยู่ที่ 98% ตลอดกาล ซึ่งอ่านแล้วเข้าใจผิด
+   StarSync กับหน้า Cutting Center แยกสองอย่างนี้อยู่แล้ว (total_parts กับ total_all)
+   หน้านี้ต้องนับให้ตรงกัน ไม่งั้นสองหน้าจะขึ้นตัวเลขไม่เท่ากัน */
+function isPiece(r){
+  if(!('finish_length' in r) && !('finish_width' in r)) return true;
+  return Number(r.finish_length) > 0 && Number(r.finish_width) > 0;
+}
 
 const PRESETS = {
   'เหมือน Ax Progress':[
@@ -512,6 +547,9 @@ const onCols = () => S.cols.filter(c => c.on);
    ══════════════════════════════════════════════════════════════ */
 function viewRows(){
   let rs = S.rows;
+  /* กรองหยาบก่อน ตัดแถวออกได้เยอะสุด */
+  if(S.view === 'todo')      rs = rs.filter(r => isPiece(r) && !isDone(r));
+  else if(S.view === 'pack') rs = rs.filter(r => !isPiece(r));
   const fk = Object.keys(S.filters).filter(k => S.filters[k]);
   if(fk.length){
     rs = rs.filter(r => fk.every(k => {
@@ -636,7 +674,9 @@ function renderGrid(){
   h += '</tr></thead><tbody>';
 
   rs.forEach((r, i) => {
-    h += '<tr><td class="idx">' + (i + 1) + '</td>';
+    /* แถวห่อทำให้จางลงนิดหน่อย · ของจริงในโปรแกรมไม่ได้ทำ
+       แต่นี่คือจุดที่คนอ่านผิดมาแล้ว ว่าทำไมมันไม่ติ๊กสักที */
+    h += '<tr' + (isPiece(r) ? '' : ' class="pk"') + '><td class="idx">' + (i + 1) + '</td>';
     cols.forEach(c => h += cell(r, c.k));
     h += '</tr>';
   });
@@ -670,23 +710,38 @@ function cell(r, k){
   return '<td' + cls + ' title="' + esc(v) + '">' + esc(v) + '</td>';
 }
 
-/* แถบสถานะล่าง · ล้อมุมล่างของโปรแกรมที่ขึ้น Total */
+/* แถบสถานะล่าง · ล้อมุมล่างของโปรแกรมที่ขึ้น Total
+   นับแยก "ชิ้นที่ต้องตัด" กับ "ห่ออุปกรณ์" เพราะห่อไม่มีวันถูกตัด
+   ถ้าเอามารวมกัน ลอตที่ตัดครบแล้วจะค้างที่ 98% ตลอดไป */
 function renderStatus(){
   if(!S.lot){ $('status').innerHTML = ''; return; }
-  const rs   = viewRows();
-  const full = hasFull();
-  const total = full ? S.rows.length : ((S.prog && S.prog.total_all) || S.rows.length);
-  const done  = stKey() ? S.rows.filter(isDone).length : S.rows.length;
-  const todo  = Math.max(0, total - done);
-  const pct   = total ? Math.min(100, Math.round(done / total * 100)) : 0;
+  const rs    = viewRows();
+  const full  = hasFull();
+  const piece = S.rows.filter(isPiece);
+  const pack  = S.rows.length - piece.length;
+  const done  = stKey() ? piece.filter(isDone).length : piece.length;
+  const todo  = piece.length - done;
+  const pct   = piece.length ? Math.round(done / piece.length * 100) : 0;
   const nf    = Object.keys(S.filters).filter(k => S.filters[k]).length;
 
-  let h = '<span>ตัดแล้ว <span class="n">' + nf0.format(done) + '</span></span>' +
-          '<span>ยังไม่ตัด <span class="n">' + nf0.format(todo) + '</span></span>' +
-          '<div class="pbar"><i style="width:' + pct + '%"></i></div>' +
-          '<span class="n">' + pct + '%</span>';
-  if(!full) h += '<span style="color:var(--warn)">ยอดทั้งลอตยืมมาจาก AX · ตารางนี้ไม่มีชิ้นที่ยังไม่ตัด</span>';
-  if(nf)    h += '<span>กรองอยู่ ' + nf + ' คอลัมน์ <button class="btn" data-act="fltclear">ล้าง</button></span>';
+  const vb = (v, txt, n, cls) =>
+    '<button class="btn' + (S.view === v ? ' on' : '') + '" data-act="view" data-v="' + v + '">' +
+    esc(txt) + ' <span class="n' + (cls ? ' ' + cls : '') + '">' + nf0.format(n) + '</span></button>';
+
+  let h = vb('all',  'ทั้งหมด',   S.rows.length, '') +
+          vb('todo', 'ยังไม่ตัด', todo, 'bad') +
+          (pack ? vb('pack', 'ห่ออุปกรณ์', pack, 'mu') : '');
+
+  h += '<span style="margin-left:6px">ต้องตัด <span class="n">' + nf0.format(piece.length) +
+       '</span> · ตัดแล้ว <span class="n">' + nf0.format(done) + '</span></span>' +
+       '<div class="pbar"><i style="width:' + pct + '%"></i></div>' +
+       '<span class="n">' + pct + '%</span>';
+
+  if(pack) h += '<span style="color:var(--mu2)">ห่อ ' + nf0.format(pack) +
+                ' แถวไม่นับ · ไม่มีขนาดจึงไม่ต้องตัด</span>';
+  if(!full) h += '<span style="color:var(--warn)">ตารางนี้ไม่มีชิ้นที่ยังไม่ตัด</span>';
+  if(nf)    h += '<span>กรอง ' + nf + ' คอลัมน์ <button class="btn" data-act="fltclear">ล้าง</button></span>';
+
   h += '<span class="tot">' + (rs.length !== S.rows.length
         ? '<span>แสดง <span class="n">' + nf0.format(rs.length) + '</span></span>' : '') +
        '<span>Total <span class="n">' + nf0.format(S.rows.length) + '</span></span></span>';
@@ -809,7 +864,7 @@ async function selectLot(lot){
   try { history.replaceState(null, '', location.pathname + '?lot=' + encodeURIComponent(lot)); } catch(e){}
 
   S.prog = S.lots.find(l => l.lot === lot) || null;
-  S.filters = {}; S.sort = { k:'', dir:0 };
+  S.filters = {}; S.sort = { k:'', dir:0 }; S.view = 'all';
   S.busy = 'กำลังดึงรายชิ้นของลอต ' + lot; S.err = ''; S.rows = []; S.needReq = false;
   render();
 
@@ -909,6 +964,8 @@ document.addEventListener('click', ev => {
   if(act === 'drop'){ $('q').focus(); suggest(); return; }
   if(act === 'fin'){ ev.stopPropagation(); S.showFin = !S.showFin; suggest(); return; }
   if(act === 'pick'){ const l = S.sugList[+t.dataset.i]; if(l) selectLot(l.lot); return; }
+
+  if(act === 'view'){ S.view = t.dataset.v; render(); return; }
 
   if(act === 'sort'){
     const k = t.dataset.k;
