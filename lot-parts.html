@@ -5,8 +5,32 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Ax Progress · รายชิ้นในลอต</title>
 <!-- =====================================================================
-  Lot Parts · รายชิ้นในลอต        ·   VERSION 2.5
+  Lot Parts · รายชิ้นในลอต        ·   VERSION 2.7
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  2.7  2026-09-08  CHANGE โชว์คอลัมน์ของ Ax Progress ให้ครบเสมอ แล้วไฮไลต์ตัวที่ไม่มีข้อมูล
+                   ของเดิมสร้างรายการคอลัมน์จากคอลัมน์ที่ตารางนั้นมีจริง
+                   ตารางไหนไม่มี คอลัมน์ก็หายไปเงียบ ๆ คนดูไม่มีทางรู้ว่าขาดอะไร
+                   ผมไปเขียนเป็นข้อความอธิบายแทน ซึ่งกลับด้าน
+                   · สร้างจากชุด AXCOLS ทั้ง 34 ช่องเสมอ · ค่าเริ่มต้นเปิดหมด
+                   · ช่องที่ไม่มีข้อมูล หัวตารางเป็นสีส้มมีเครื่องหมาย ! ตัวตารางเป็นลายทาง
+                     ชี้เมาส์บอกเหตุผล ว่าไม่มีคอลัมน์ในตาราง หรือมีแต่ทุกแถวว่าง
+                   · แผงขวาสรุปเป็นป้ายว่าขาดช่องไหนบ้าง = รายการที่ต้องไปแก้ฝั่ง sync
+                   · อ่านค่าผ่าน valOf ที่รองรับชื่อสำรอง · ช่อง Part อ่านได้ทั้ง
+                     st_part (lot_part) และ check_part (check_part)
+                   FIX  กดเลือก lot แล้วเห็นลอตเดียว
+                   suggest เอาข้อความในช่องมากรองเสมอ ซึ่งค้างชื่อลอตที่ดูอยู่
+                   จึงกรองเหลือตัวเดียวคือตัวที่กำลังดู ซึ่งไม่ใช่ตัวที่จะเลือก
+                   กดเปิดรายการหรือคลิกเข้าช่อง = เห็นทุกลอต เริ่มพิมพ์ค่อยกรอง
+                   · ค่าเริ่มต้นเห็นลอตที่ตัดจบแล้วด้วย และจำค่าที่เลือกไว้
+  2.6  2026-09-08  CHANGE เปิดลอตที่ยังไม่มีรายชิ้น = สั่งดึงให้เองทันที
+                   2.4-2.5 ขึ้นกล่องอธิบายว่าตารางไหนมีกี่คอลัมน์ ขาดอะไรบ้าง
+                   แล้วให้ไปกดปุ่มเอง · เป็นการเอาปัญหาที่แก้ได้เองไปวางไว้
+                   ตรงหน้าคนใช้ · คนเปิดหน้านี้อยากดูของในลอต ไม่ได้อยากรู้ว่า
+                   เบื้องหลังมีสองตารางแล้วตารางไหนขาดอะไร
+                   · ตกไปอ่าน check_part เมื่อไหร่ สั่งคิวดึงจาก AX ให้เองเลย
+                     ระหว่างรอยังแสดงเท่าที่มีไปก่อน ไม่ปล่อยจอว่าง
+                   · แถบเหลืองเหลือบรรทัดเดียวพร้อมตัวหมุน
+                   · กล่องในหน้าจัดคอลัมน์เหลือบรรทัดเดียว ไม่ไล่ชื่อคอลัมน์ให้อ่าน
   2.5  2026-09-08  CHANGE ย้ายเกจไปเป็นแถบขวาเต็มความสูง · มีครบทั้ง 6 ช่องสถานะ
                    2.2-2.4 มีเกจเดียวคือ Part วางอยู่บนแถบเครื่องมือ
                    แถบ State ในโปรแกรมมี 6 ช่อง ดูแค่ช่องเดียวตอบได้ไม่ครบ
@@ -206,6 +230,13 @@ body{font-family:var(--sans);background:var(--pg);color:var(--tx);font-size:13px
 .g .gn{font-family:var(--mono);font-size:10.5px;color:var(--mu);white-space:nowrap}
 .g .gn b{color:var(--ok)}
 .g .gn i{font-style:normal;color:var(--bad)}
+.side .mbox{border:1px solid var(--warnbd);background:var(--warnbg);border-radius:9px;
+  padding:7px 8px;margin-top:4px}
+.side .mt{font-size:11.5px;font-weight:700;color:var(--warn);margin-bottom:4px}
+.side .ml{display:flex;flex-wrap:wrap;gap:3px}
+.side .ml span{background:var(--card);border:1px solid var(--warnbd);border-radius:5px;
+  padding:1px 5px;font-size:10px;color:var(--warn);white-space:nowrap}
+.side .mn{font-size:10px;color:var(--warn);margin-top:5px;line-height:1.4;opacity:.85}
 .side .foot{margin-top:auto;padding-top:6px;border-top:1px solid var(--line2);
   font-size:10.5px;color:var(--mu2);line-height:1.5}
 
@@ -265,6 +296,14 @@ tbody tr:hover td.st{background:var(--stbg2)}
   font-size:10px;border-radius:5px;background:var(--ok);color:#fff;vertical-align:middle}
 .cbx.n{background:transparent;border:1.5px solid var(--mu2);color:transparent}
 
+/* คอลัมน์ที่ยังไม่มีข้อมูล · ไฮไลต์ไว้ให้เห็นว่าต้องไปแก้ฝั่ง sync */
+thead th.miss{background:var(--warnbg)}
+thead th.miss .th-in{color:var(--warn)}
+.mw{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;
+  border-radius:4px;background:var(--warn);color:#fff;font-size:9px;font-weight:700;flex:0 0 auto}
+tbody td.miss{background:repeating-linear-gradient(45deg,transparent,transparent 5px,
+  var(--warnbg) 5px,var(--warnbg) 10px)}
+
 /* แถวห่ออุปกรณ์ (Accessory_Pack / Fitting_Pack) แสดงเหมือนแถวอื่นทุกประการ
    v2.2 เคยทำให้จางลงเพื่อกันคนอ่านผิดว่าทำไมไม่ติ๊กสักที
    แต่ของจริงในโปรแกรมมันเหมือนกันหมด และเป้าหมายคือให้เหมือน จึงเอาออก
@@ -294,6 +333,7 @@ tbody tr:hover td.st{background:var(--stbg2)}
 .mid .e{font-family:var(--mono);font-size:11.5px;color:var(--bad);word-break:break-all}
 .spin{width:24px;height:24px;border:3px solid var(--line);border-top-color:var(--brand);
   border-radius:50%;animation:sp .8s linear infinite}
+.spin.sm{display:inline-block;width:12px;height:12px;border-width:2px;vertical-align:-1px}
 @keyframes sp{to{transform:rotate(360deg)}}
 
 /* ── กล่องซ้อน ───────────────────────────────────────────────── */
@@ -445,8 +485,9 @@ const S = {
   pin:false,          // ผู้ใช้เลือกตารางเองแล้ว อย่าสลับให้อัตโนมัติ
   cols:[],            // [{k,on,w}]
   lots:[], lot:'', rows:[], prog:null,
-  showFin:false,      // แสดงลอตที่ตัดจบแล้วในรายการด้วยไหม
+  showFin:true,       // แสดงลอตที่ตัดจบแล้วในรายการด้วยไหม (จำค่าไว้ในเครื่อง)
   filters:{}, sort:{k:'',dir:0},
+  miss:{},            // { คอลัมน์: เหตุผลที่ไม่มีข้อมูล }
   view:'all',         // ตัวกรองแถว: all | todo | pack
   busy:'', err:'', needReq:false,
   asking:false, askMsg:'',   // กำลังรอ StarSync มาดึงลอตนี้ให้
@@ -474,6 +515,46 @@ const LBL = {
 };
 const lbl = k => LBL[k] || k;
 
+/* ── คอลัมน์มาตรฐานของกริด Ax Progress ─────────────────────────
+   ถอดลำดับมาจากนิยามกริดในตัว AxProgress.exe · แถบ State มาก่อน แล้วข้อมูลชิ้น
+   v2.7 หน้านี้สร้างรายการคอลัมน์จากชุดนี้เสมอ ไม่ได้สร้างจากคอลัมน์ที่ตารางมี
+   ของเดิมถ้าตารางไหนไม่มีคอลัมน์ มันจะหายไปเงียบ ๆ คนดูไม่มีทางรู้ว่าขาดอะไร
+   ตอนนี้ขึ้นครบทุกช่องเสมอ ช่องที่ยังไม่มีข้อมูลจะไฮไลต์ส้มไว้
+   จะได้เห็นทันทีว่าต้องไปแก้ฝั่ง sync ให้ดึงคอลัมน์ไหนเพิ่ม */
+const AXCOLS = [
+  'st_part','st_pack','st_pick','st_wh','st_delivery','st_site','st_wh_rec','st_wh_issue',
+  'rec_id','lot','proj_id','proj_name','order_number','build','floor','room','room_category',
+  'shelf_no','product_article','product_name','item_fg','item_part','part_name',
+  'code_pack','code_part','material_code','finish_length','finish_width',
+  'part_seq_total','product_seq_total','pack_seq_total','item_id','barcode','delay_no'
+];
+
+/* ชื่อคอลัมน์สำรอง · ตอนอ่านจาก check_part ช่อง Part เก็บอยู่ในชื่อ check_part */
+const ALIAS = { st_part:['st_part','check_part'] };
+
+/* คอลัมน์นี้อ่านค่าจากชื่อไหนในตารางที่กำลังดูอยู่ · ไม่มีเลยคืนค่าว่าง */
+function srcKey(k){
+  const cols = S.schema[S.table] || [];
+  const cands = ALIAS[k] || [k];
+  for(const c of cands) if(cols.includes(c)) return c;
+  return '';
+}
+function valOf(r, k){ const sk = srcKey(k); return sk ? r[sk] : undefined; }
+
+/* คอลัมน์นี้มีข้อมูลจริงไหมในลอตที่เปิดอยู่
+   ไม่มีคอลัมน์ในตาราง หรือมีแต่ทุกแถวว่างหมด ก็ถือว่าไม่มี
+   เก็บผลไว้ใน S.miss ตอนโหลดเสร็จ ไม่ได้คิดใหม่ทุกครั้งที่วาด
+   ลอตใหญ่ ๆ สองพันแถวคูณสามสิบคอลัมน์ ถ้าคิดใหม่ทุกครั้งจะหน่วง */
+function scanMissing(){
+  const out = {};
+  AXCOLS.forEach(k => {
+    if(!srcKey(k)){ out[k] = 'ไม่มีคอลัมน์นี้ในตาราง ' + S.table; return; }
+    const any = S.rows.some(r => { const v = valOf(r, k); return v !== null && v !== undefined && v !== ''; });
+    if(!any) out[k] = 'มีคอลัมน์แต่ทุกแถวว่าง';
+  });
+  S.miss = out;
+}
+
 const DATES = new Set(['part_date','imported_at','synced_at','updated_at']);
 const NUMS  = new Set(['finish_length','finish_width','duration_sec','id','rec_id',
   'total_parts','checked_parts','total_all','checked_all','delay_no']);
@@ -481,10 +562,9 @@ const NUMS  = new Set(['finish_length','finish_width','duration_sec','id','rec_i
 const TICKS = new Set(['st_part','st_pack','st_pick','st_wh','st_delivery','st_site',
                        'st_wh_rec','st_wh_issue','check_part']);
 
-const stKey = () => (S.schema[S.table] || []).includes('st_part') ? 'st_part'
-                  : ((S.schema[S.table] || []).includes('check_part') ? 'check_part' : '');
-const isDone = r => { const k = stKey(); if(!k) return false;
-                      const v = r[k]; return v === true || Number(v) === 1; };
+const stKey = () => srcKey('st_part');
+const isDone = r => { const v = valOf(r, 'st_part');
+                      return v === true || Number(v) === 1; };
 /* ตารางที่ดูอยู่มีครบทุกชิ้นในลอตไหม (ไม่ใช่แค่ชิ้นที่ยิงแล้ว) */
 const hasFull = () => (S.schema[S.table] || []).includes('st_part');
 
@@ -496,33 +576,25 @@ const hasFull = () => (S.schema[S.table] || []).includes('st_part');
    StarSync กับหน้า Cutting Center แยกสองอย่างนี้อยู่แล้ว (total_parts กับ total_all)
    หน้านี้ต้องนับให้ตรงกัน ไม่งั้นสองหน้าจะขึ้นตัวเลขไม่เท่ากัน */
 function isPiece(r){
-  if(!('finish_length' in r) && !('finish_width' in r)) return true;
-  return Number(r.finish_length) > 0 && Number(r.finish_width) > 0;
+  const L = valOf(r, 'finish_length'), W = valOf(r, 'finish_width');
+  if(L === undefined && W === undefined) return true;
+  return Number(L) > 0 && Number(W) > 0;
 }
 
 const PRESETS = {
   'เหมือน Ax Progress':[
-    'st_part','st_pack','st_pick','st_wh','st_delivery','st_site','check_part',
+    'st_part','st_pack','st_pick','st_wh','st_delivery','st_site',
     'shelf_no','product_article','product_name','item_fg','part_name','code_pack',
     'material_code','finish_length','finish_width','product_seq_total','pack_seq_total',
     'item_id','delay_no'],
-  'กริดเต็มทุกช่อง':[
-    'st_part','st_pack','st_pick','st_wh','st_delivery','st_site',
-    'st_wh_rec','st_wh_issue','check_part',
-    'rec_id','lot','proj_id','proj_name','order_number','build','floor','room',
-    'room_category','shelf_no','product_article','product_name','item_fg','item_part',
-    'part_name','code_pack','code_part','material_code','finish_length','finish_width',
-    'part_seq_total','product_seq_total','pack_seq_total','item_id','barcode','delay_no'],
-  'ที่ตั้ง':['st_part','check_part','build','floor','room','room_category','shelf_no',
-            'part_name','finish_length','finish_width'],
-  'ย่อสั้น':['st_part','check_part','shelf_no','part_name','finish_length','finish_width']
+  'ทุกช่องในกริด':AXCOLS.slice(),
+  'ที่ตั้ง':['st_part','build','floor','room','room_category','shelf_no','part_name',
+            'finish_length','finish_width'],
+  'ย่อสั้น':['st_part','shelf_no','part_name','finish_length','finish_width']
 };
-const DEF_ON = new Set([
-  'st_part','st_pack','st_pick','st_wh','st_delivery','st_site',
-  'shelf_no','product_article','product_name','item_fg','part_name','code_pack',
-  'material_code','finish_length','finish_width','product_seq_total','pack_seq_total',
-  'item_id','delay_no',
-  'check_part','part_date','computer','code_part']);
+/* ค่าเริ่มต้น = เปิดทุกช่องที่กริดของ Ax Progress มี
+   จะได้เห็นครบตั้งแต่เปิดหน้าแรก และเห็นด้วยว่าช่องไหนยังไม่มีข้อมูล */
+const DEF_ON = new Set(AXCOLS);
 
 /* ══════════════════════════════════════════════════════════════
    ชั้นคุยกับฐานข้อมูล · ที่อื่นห้ามเรียก fetch ตรง
@@ -616,10 +688,15 @@ function loadCfg(){
 const colKey = () => 'lp_cols_' + S.table;
 /* บวกเลขนี้ทุกครั้งที่แก้ DEF_ON หรือ PRESETS
    ถ้าไม่บวก คนที่เคยจัดคอลัมน์เองไว้จะไม่มีวันเห็นคอลัมน์ที่เพิ่มใหม่ */
-const COLS_VER = 6;
+const COLS_VER = 7;
 
 function buildCols(){
   const all = S.schema[S.table] || [];
+  /* คอลัมน์มาตรฐานของ Ax Progress มาก่อนเสมอ ไม่ว่าตารางนี้จะมีจริงหรือไม่
+     ตามด้วยคอลัมน์อื่นที่ตารางมีแต่กริดของโปรแกรมไม่มี (เวลาที่ยิง เครื่อง ฯลฯ) */
+  const extra = all.filter(k => !AXCOLS.includes(k) && !(ALIAS.st_part || []).includes(k));
+  const universe = AXCOLS.concat(extra);
+
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem(colKey()) || 'null'); } catch(e){}
   if(saved && saved.v !== COLS_VER) saved = null;
@@ -628,14 +705,12 @@ function buildCols(){
   const seen = new Set(), out = [];
   if(list){
     list.forEach(c => {
-      if(c && c.k && all.includes(c.k) && !seen.has(c.k)){
+      if(c && c.k && universe.includes(c.k) && !seen.has(c.k)){
         seen.add(c.k); out.push({ k:c.k, on:!!c.on, w:c.w || 0 });
       }
     });
   }
-  /* คอลัมน์ใหม่ที่เพิ่งโผล่ ต่อท้ายและปิดไว้ก่อนถ้าเคยจัดเอง
-     ไม่งั้นวันไหน StarSync เพิ่มคอลัมน์ ตารางจะกว้างขึ้นเองโดยไม่ได้สั่ง */
-  all.forEach(k => { if(!seen.has(k)) out.push({ k, on: list ? false : DEF_ON.has(k), w:0 }); });
+  universe.forEach(k => { if(!seen.has(k)) out.push({ k, on: list ? false : DEF_ON.has(k), w:0 }); });
   S.cols = out;
 }
 function saveCols(){
@@ -654,7 +729,7 @@ function viewRows(){
   const fk = Object.keys(S.filters).filter(k => S.filters[k]);
   if(fk.length){
     rs = rs.filter(r => fk.every(k => {
-      const raw = r[k];
+      const raw = valOf(r, k);
       /* ช่องติ๊กพิมพ์กรองเป็นตัวเลขหรือคำก็ได้ · เทียบกับ True/False เหมือนไฟล์ export */
       const txt = TICKS.has(k) ? (raw === true || Number(raw) === 1 ? 'true 1' : 'false 0')
                                : String(raw == null ? '' : raw);
@@ -664,7 +739,7 @@ function viewRows(){
   if(S.sort.k && S.sort.dir){
     const k = S.sort.k, d = S.sort.dir;
     rs = rs.slice().sort((a,b) => {
-      const x = a[k], y = b[k];
+      const x = valOf(a, k), y = valOf(b, k);
       if(x == null && y == null) return 0;
       if(x == null) return 1;      /* ค่าว่างไปท้ายเสมอ ไม่ว่าจะเรียงทางไหน */
       if(y == null) return -1;
@@ -705,18 +780,14 @@ function renderNote(){
   /* บอกให้ครบว่าอะไรหายไปบ้าง ไม่ใช่แค่ "ยังไม่มีข้อมูล"
      ที่หายไม่ใช่แค่ชิ้นที่ยังไม่ตัด แต่รวมห่อทั้งหมดด้วย
      เพราะห่อไม่เคยถูกยิงบาร์โค้ด check_part จึงไม่มีแถวของมันเลย */
+  /* สั้น ๆ พอ · หน้าสั่งดึงให้เองอยู่แล้ว คนอ่านไม่ต้องรู้ว่าเบื้องหลังมีสองตาราง */
   if(S.asking){
-    $('noteTx').innerHTML = '<b>' + esc(S.askMsg) + '</b> · หน้านี้จะโหลดเองเมื่อข้อมูลมาถึง';
+    $('noteTx').innerHTML = '<span class="spin sm"></span> <b>กำลังดึงรายชิ้นของลอตนี้จาก AX</b> · ' +
+      esc(S.askMsg) + ' · ระหว่างนี้แสดงเท่าที่มีไปก่อน หน้าจะโหลดเองเมื่อข้อมูลมาถึง';
   } else {
-    /* บอกให้ครบว่าอะไรหายไปบ้าง แล้วมีปุ่มให้กดแก้เลย
-       การบอกปัญหาโดยไม่มีทางแก้ให้กด คือโยนงานกลับไปให้คนอ่าน */
     $('noteTx').innerHTML =
-      'ลอตนี้ยังไม่ได้ดึงรายชิ้นจาก AX · ที่เห็นอยู่คือ <b>' + esc(S.table) +
-      '</b> ซึ่งมีแค่ <b>18 คอลัมน์</b> และเฉพาะชิ้นที่ยิงบาร์โค้ดแล้ว · ' +
-      'คอลัมน์อย่าง Product Name, Item Fg, Material Code, Item Id, Delay No, ' +
-      'ช่องติ๊ก Pack/Pick/Wh/Delivery/Site รวมทั้งห่อ Accessory_Pack / Fitting_Pack ' +
-      '<b>ไม่มีอยู่ในตารางนี้ตั้งแต่แรก</b> ' +
-      '<button class="btn pri" data-act="ask" style="margin-left:8px">⤓ ดึงลอตนี้จาก AX เดี๋ยวนี้</button>';
+      'ลอตนี้ยังไม่มีรายชิ้นครบ · ที่เห็นคือเฉพาะชิ้นที่ยิงบาร์โค้ดแล้ว ' +
+      '<button class="btn pri" data-act="ask" style="margin-left:8px">⤓ ดึงจาก AX เดี๋ยวนี้</button>';
   }
   el.style.display = 'flex';
 }
@@ -775,7 +846,12 @@ function renderGrid(){
     const ar  = S.sort.k === c.k ? (S.sort.dir === 1 ? '▲' : '▼') : '';
     const w   = c.w ? ' style="width:' + c.w + 'px"' : '';
     const cls = NUMS.has(c.k) ? ' num' : '';
-    h += '<th' + w + '><div class="th-in' + cls + '" data-act="sort" data-k="' + esc(c.k) + '">' +
+    /* ช่องที่ยังไม่มีข้อมูลไฮไลต์ส้มพร้อมบอกเหตุผลตอนชี้เมาส์
+       ไม่ซ่อนทิ้ง เพราะจุดประสงค์คือให้เห็นว่าขาดอะไรบ้าง */
+    const bad = S.miss[c.k];
+    h += '<th' + w + (bad ? ' class="miss" title="' + esc(bad) + '"' : '') +
+         '><div class="th-in' + cls + '" data-act="sort" data-k="' + esc(c.k) + '">' +
+         (bad ? '<span class="mw">!</span>' : '') +
          '<span>' + esc(lbl(c.k)) + '</span><span class="th-s">' + ar + '</span>' +
          '<span class="rz" data-act="rz" data-k="' + esc(c.k) + '"></span></div></th>';
   });
@@ -790,7 +866,7 @@ function renderGrid(){
 
   rs.forEach((r, i) => {
     h += '<tr' + (isPiece(r) ? '' : ' class="pk"') + '><td class="idx">' + (i + 1) + '</td>';
-    cols.forEach(c => h += cell(r, c.k));
+    cols.forEach(c => h += (S.miss[c.k] ? '<td class="miss"></td>' : cell(r, c.k)));
     h += '</tr>';
   });
   h += '</tbody>';
@@ -799,7 +875,7 @@ function renderGrid(){
 
 /* หนึ่งช่องในตาราง */
 function cell(r, k){
-  const v = r[k];
+  const v = valOf(r, k);
 
   if(TICKS.has(k)){
     /* lot_part เก็บเป็น boolean · check_part เก็บเป็น smallint 0/1 · รับทั้งสองแบบ */
@@ -881,7 +957,7 @@ function renderSide(){
       return;
     }
     const base = g.piece ? piece : S.rows;
-    const yes  = base.filter(r => r[key] === true || Number(r[key]) === 1).length;
+    const yes  = base.filter(r => { const v = r[key]; return v === true || Number(v) === 1; }).length;
     const no   = base.length - yes;
     const pct  = base.length ? Math.round(yes / base.length * 100) : 0;
     h += '<div class="g">' + arcSvg(pct, false) +
@@ -889,6 +965,15 @@ function renderSide(){
          '<div class="gn"><b>' + nf0.format(yes) + '</b> / ' + nf0.format(base.length) +
          (no ? ' · เหลือ <i>' + nf0.format(no) + '</i>' : '') + '</div></div></div>';
   });
+
+  /* สรุปว่าช่องไหนยังไม่มีข้อมูล · จุดนี้คือคำตอบว่าต้องไปแก้ sync ตรงไหน */
+  const mk = AXCOLS.filter(k => S.miss[k]);
+  if(mk.length){
+    h += '<div class="mbox"><div class="mt">! ยังไม่มีข้อมูล ' + mk.length + ' ช่อง</div>' +
+         '<div class="ml">' + mk.map(k =>
+            '<span title="' + esc(S.miss[k]) + '">' + esc(lbl(k)) + '</span>').join('') + '</div>' +
+         '<div class="mn">ต้องแก้ฝั่ง StarSync ให้ดึงคอลัมน์เหล่านี้มาด้วย</div></div>';
+  }
 
   h += '<div class="foot">Part นับเฉพาะชิ้นที่มีขนาด' +
        (pack ? ' (ไม่รวมห่อ ' + nf0.format(pack) + ' แถว)' : '') +
@@ -948,8 +1033,11 @@ function mark(text, q){
 /* ลอตนี้ตัดจบแล้วหรือยัง · ใช้ยอดจาก AX ไม่ใช่จำนวนแถวที่โหลดมา */
 const isFinished = l => (l.total_parts > 0 && l.checked_parts >= l.total_parts);
 
-function suggest(){
-  const q = $('q').value.trim();
+/* all = true คือกดเปิดรายการ ไม่ใช่พิมพ์ค้นหา
+   ต้องไม่เอาชื่อลอตที่ค้างอยู่ในช่องมากรอง ไม่งั้นเปิดมาเห็นลอตเดียวคือตัวที่ดูอยู่
+   ซึ่งเป็นตัวที่ไม่ต้องการเลือกอยู่แล้ว */
+function suggest(all){
+  const q = all ? '' : $('q').value.trim();
   let list = S.lots;
   /* ตัดจบแล้วไม่ได้แปลว่าจบงาน อาจยังไม่ส่งหรืออยู่ในคลัง ข้อมูลจึงยังเปิดดูได้
      แค่ซ่อนจากรายการ เพราะตอนไล่หาลอตที่ทำอยู่ มันเกะกะ */
@@ -1038,6 +1126,7 @@ function fillTables(){
 }
 
 async function selectLot(lot){
+  let autoAsk = false;
   S.lot = lot;
   $('q').value = lot;
   hideSug();
@@ -1066,6 +1155,11 @@ async function selectLot(lot){
         S.table = 'check_part'; buildCols();
         S.rows = await db.rowsOfLot('check_part', lot);
         S.needReq = true;
+        /* v2.6 สั่งดึงให้เองเลย ไม่ต้องรอคนกดปุ่ม
+           ของเดิมขึ้นกล่องอธิบายว่าทำไมคอลัมน์ไม่ครบ แล้วให้ไปกดปุ่มเอง
+           ซึ่งเป็นการเอาปัญหาที่แก้ได้เองไปวางไว้ตรงหน้าคนใช้
+           เปิดลอตไหนก็ควรได้ข้อมูลเต็ม ไม่ต้องรู้ว่าเบื้องหลังมีสองตาราง */
+        autoAsk = true;
       }
     } else {
       const hasLot = (S.schema[S.table] || []).includes('lot');
@@ -1074,8 +1168,10 @@ async function selectLot(lot){
   } catch(e){ S.err = e.message; }
 
   S.busy = '';
+  scanMissing();
   fillTables();
   render();
+  if(autoAsk) askForLot();
 }
 
 /* ── สั่งให้ StarSync ดึงรายชิ้นของลอตนี้ก่อนคิวปกติ ────────────
@@ -1124,18 +1220,14 @@ function renderColList(){
      ถ้าไม่บอก คนกดจะสรุปว่าโปรแกรมพัง */
   const all  = S.schema[S.table] || [];
   const want = PRESETS['เหมือน Ax Progress'] || [];
-  const miss = want.filter(k => !all.includes(k) && k !== 'check_part' && !k.startsWith('st_'));
-  const missSt = want.filter(k => !all.includes(k) && k.startsWith('st_'));
-  let warn = '';
-  if(miss.length || missSt.length){
-    warn = '<div style="background:var(--warnbg);border:1px solid var(--warnbd);' +
-      'border-radius:8px;padding:9px 11px;margin-bottom:11px;color:var(--warn);line-height:1.6">' +
-      'ตาราง <b>' + esc(S.table) + '</b> มีแค่ <b>' + all.length + ' คอลัมน์</b> ' +
-      'ชุดสำเร็จรูปจึงติ๊กได้ไม่ครบ · ที่ไม่มีในตารางนี้: ' +
-      (missSt.length ? '<b>ช่องติ๊ก ' + missSt.map(k => esc(lbl(k))).join(', ') + '</b> · ' : '') +
-      esc(miss.map(lbl).join(', ')) +
-      '<br>ต้องอ่านจากตาราง <b>lot_part</b> ถึงจะครบ · ปิดกล่องนี้แล้วกดปุ่มในแถบเหลืองด้านบน</div>';
-  }
+  const miss = want.filter(k => !all.includes(k)).length;
+  /* บรรทัดเดียวพอ · ไม่ต้องไล่ชื่อคอลัมน์ให้อ่าน
+     หน้าสั่งดึงข้อมูลให้เองอยู่แล้ว รอสักครู่ก็ครบ */
+  const warn = miss
+    ? '<div style="background:var(--warnbg);border:1px solid var(--warnbd);border-radius:8px;' +
+      'padding:8px 11px;margin-bottom:11px;color:var(--warn)">ลอตนี้ยังดึงรายชิ้นไม่เสร็จ ' +
+      'จึงติ๊กได้ไม่ครบ ' + miss + ' ช่อง · รอสักครู่แล้วกด ReLoad</div>'
+    : '';
   $('pre').innerHTML = warn + Object.keys(PRESETS).map(n =>
     '<button class="btn" data-act="preset" data-n="' + esc(n) + '">' + esc(n) + '</button>').join('') +
     '<button class="btn" data-act="preset" data-n="__all">ทั้งหมด</button>' +
@@ -1177,7 +1269,7 @@ function toCsv(){
   const q = v => '"' + String(v == null ? '' : v).replace(/"/g,'""') + '"';
   const lines = [cols.map(c => q(lbl(c.k))).join(',')];
   viewRows().forEach(r => lines.push(cols.map(c => {
-    const v = r[c.k];
+    const v = valOf(r, c.k);
     if(DATES.has(c.k)) return q(fmtTime(v));
     /* ช่องติ๊กเขียน True/False ให้เหมือนไฟล์ export ของโปรแกรม
        จะได้เอาสองไฟล์มาวางเทียบกันได้ตรง ๆ */
@@ -1202,8 +1294,10 @@ document.addEventListener('click', ev => {
   if(!t) return;
   const act = t.dataset.act;
 
-  if(act === 'drop'){ $('q').focus(); suggest(); return; }
-  if(act === 'fin'){ ev.stopPropagation(); S.showFin = !S.showFin; suggest(); return; }
+  if(act === 'drop'){ $('q').focus(); $('q').select(); suggest(true); return; }
+  if(act === 'fin'){ ev.stopPropagation(); S.showFin = !S.showFin;
+    try { localStorage.setItem('lp_showfin', S.showFin ? '1' : '0'); } catch(e){}
+    suggest(true); return; }
   if(act === 'pick'){ const l = S.sugList[+t.dataset.i]; if(l) selectLot(l.lot); return; }
 
   if(act === 'view'){ S.view = t.dataset.v; render(); return; }
@@ -1275,7 +1369,8 @@ document.addEventListener('input', ev => {
   }, 220);
 });
 
-$('q').addEventListener('focus', suggest);
+/* คลิกเข้าช่องครั้งแรกให้เห็นทุกลอต · เริ่มพิมพ์เมื่อไหร่ค่อยกรอง */
+$('q').addEventListener('focus', () => { $('q').select(); suggest(true); });
 $('q').addEventListener('keydown', ev => {
   if(!S.sugOn) return;
   if(ev.key === 'ArrowDown'){ ev.preventDefault(); S.sugIdx = Math.min(S.sugIdx+1, S.sugList.length-1); highlightSug(); }
@@ -1341,6 +1436,7 @@ $('cl').addEventListener('dragend', () => {
    เริ่มทำงาน · หน้านี้เป็นแท็บของตัวเอง อยู่ origin เดียวกับหน้าหลัก
    จึงอ่าน cc_supa_url / cc_supa_key จาก localStorage ได้ตรง ๆ
    ══════════════════════════════════════════════════════════════ */
+try { S.showFin = localStorage.getItem('lp_showfin') !== '0'; } catch(e){}
 boot();
 </script>
 </body>
