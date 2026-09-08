@@ -5,8 +5,35 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Ax Progress · รายชิ้นในลอต</title>
 <!-- =====================================================================
-  Lot Parts · รายชิ้นในลอต        ·   VERSION 3.2
+  Lot Parts · รายชิ้นในลอต        ·   VERSION 3.4
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  3.4  2026-09-08  FIX  ตารางเพี้ยน หัวตารางกับตัวตารางหลุดจากกัน ช่องเลื่อนไปคนละที่
+                   ไม่ใช่บั๊กตรรกะ · ตรวจ HTML ที่โค้ดสร้างแล้วนับได้ 35 ช่อง
+                   เท่ากันครบทุกแถว ทั้งแถบ band แถวหัว แถวกรอง และแถวข้อมูล
+                   ต้นเหตุอยู่ที่ CSS · .tcard กับ .wrap เป็น flex item ที่ไม่ได้
+                   ตั้ง min-width:0 · ค่าเริ่มต้นของ flex item คือ min-width:auto
+                   แปลว่ามันจะไม่ยอมแคบกว่าเนื้อหาข้างใน
+                   ตารางกว้าง 34 คอลัมน์ที่ตั้ง white-space:nowrap จึงดันการ์ด
+                   ให้กว้างทะลุจอ แล้ว overflow:auto ของ .wrap ไม่ได้ทำงาน
+                   เป็นบั๊กคลาสสิกของ flexbox · โผล่ตอนคอลัมน์เยอะพอเท่านั้น
+                   ตอนทดสอบด้วย 7 คอลัมน์จึงไม่เจอ พอ 3.3 เปิดครบ 34 ช่องเลยโผล่
+                   · ใส่ min-width:0 ให้ .main .tcard .wrap .side
+                   · ใส่ overflow:hidden ให้ .main กันตารางดันทั้งหน้า
+                   · ระบุ table-layout:auto ไว้ให้ชัด
+  3.3  2026-09-08  CHANGE ถอด check_part ออกจากหน้านี้ทั้งหมด · เหลือ lot_part อย่างเดียว
+                   ผมเขียนหน้านี้ตอนที่ยังไม่มี lot_part แล้วพอสร้างแล้ว
+                   ไม่ได้ถอด check_part ออก เก็บไว้เป็นทางถอยเพราะกลัวจอว่าง
+                   ทางถอยนั้นเองคือต้นเหตุของทุกอาการที่เจอมาตลอด
+                     2.9 ขึ้น 100% ทั้งที่ของจริง 29% เพราะทุกแถวติ๊กหมดโดยนิยาม
+                     2.4 คอลัมน์ติ๊กได้แค่ 7 จาก 20 เพราะมีแค่ 18 คอลัมน์
+                     3.1 แถวไม่ครบ เพราะไม่มีชิ้นที่ยังไม่ตัดและไม่มีห่อ
+                     3.2 จอหมุนไม่จบ เพราะตกไปอ่านตารางผิดแล้วสั่งดึงซ้ำ
+                   ทุกอาการมาจากรากเดียวกัน คือเอาตารางที่แทนกันไม่ได้มาแทนกัน
+                   · ถอด ALIAS · ถอดการยืมตัวหารจาก lot_progress
+                     ถอด dropdown เลือกตาราง · ถอด S.pin
+                     ยอดนับจากแถวใน lot_part ตรง ๆ ทั้งหมด
+                   · ลอตที่ยังไม่ถูกดึง ขึ้นจอว่างพร้อมบอกว่ากำลังดึงอยู่
+                     ตรงไปตรงมากว่าเอาของผิดมาโชว์แล้วเขียนคำอธิบายชดเชย
   3.2  2026-09-08  FIX  หน้าไม่รู้ว่ามีตาราง lot_part แล้วไปอ่าน check_part แทน
                    ทั้งที่ lot_part มีลอตนั้นครบอยู่แล้ว แถมสั่งดึงซ้ำอีก
                    ต้นเหตุ: อ่านโครงตารางจาก OpenAPI ที่ราก /rest/v1/ อย่างเดียว
@@ -230,7 +257,8 @@ body{font-family:var(--sans);background:var(--pg);color:var(--tx);font-size:13px
 #app{height:100%;display:flex;flex-direction:column;padding:8px;gap:8px}
 
 /* พื้นที่หลัก · ตารางซ้าย แถบเกจขวา เต็มความสูงทั้งคู่ */
-.main{flex:1 1 auto;min-height:0;display:flex;gap:8px;align-items:stretch}
+.main{flex:1 1 auto;min-height:0;min-width:0;display:flex;gap:8px;align-items:stretch;
+  overflow:hidden}
 
 /* ── แถบเครื่องมือ · เตี้ยลงจากเดิม ตารางจะได้พื้นที่มากขึ้น ────── */
 .ribbon{flex:0 0 auto;background:var(--card);border:1px solid var(--line);
@@ -301,7 +329,7 @@ body{font-family:var(--sans);background:var(--pg);color:var(--tx);font-size:13px
 .dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
 
 /* ── แถบเกจสถานะทางขวา · ครบทั้ง 6 ช่องในแถบ State ─────────────── */
-.side{flex:0 0 200px;background:var(--card);border:1px solid var(--line);
+.side{flex:0 0 200px;min-width:0;background:var(--card);border:1px solid var(--line);
   border-radius:var(--r);box-shadow:var(--sh);padding:10px;overflow-y:auto;
   display:flex;flex-direction:column;gap:6px}
 .side .sh{font-size:11px;color:var(--mu);font-weight:600;text-transform:uppercase;
@@ -332,10 +360,15 @@ body{font-family:var(--sans);background:var(--pg);color:var(--tx);font-size:13px
   color:var(--warn);padding:9px 14px;flex:0 0 auto;display:flex;gap:9px;align-items:center;font-size:12.5px}
 
 /* ── การ์ดตาราง ──────────────────────────────────────────────── */
-.tcard{flex:1 1 auto;min-height:0;background:var(--card);border:1px solid var(--line);
+/* min-width:0 สำคัญมาก · flex item มีค่าเริ่มต้น min-width:auto
+   แปลว่ามันจะไม่ยอมแคบกว่าเนื้อหาข้างใน · ตารางกว้าง 34 คอลัมน์ที่ตั้ง nowrap
+   จึงดันการ์ดให้กว้างทะลุจอ แล้ว overflow ของ .wrap ไม่ทำงาน
+   ผลคือหัวตารางกับตัวตารางหลุดจากกัน ช่องเลื่อนไปคนละที่
+   บั๊กคลาสสิกของ flexbox · เจอตอนคอลัมน์เยอะพอเท่านั้น ตอนทดสอบ 7 คอลัมน์ไม่เจอ */
+.tcard{flex:1 1 auto;min-height:0;min-width:0;background:var(--card);border:1px solid var(--line);
   border-radius:var(--r);box-shadow:var(--sh);display:flex;flex-direction:column;overflow:hidden}
-.wrap{flex:1 1 auto;overflow:auto}
-table{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%}
+.wrap{flex:1 1 auto;min-width:0;min-height:0;overflow:auto}
+table{border-collapse:separate;border-spacing:0;table-layout:auto;width:max-content;min-width:100%}
 
 thead th{background:var(--hd);border-bottom:1px solid var(--line);
   border-right:1px solid var(--line2);color:var(--mu);font-weight:600;font-size:11px;
@@ -478,7 +511,6 @@ select.sel{background:var(--card);border:1px solid var(--line);border-radius:7px
     <button class="btn" data-act="reload" title="ดึงข้อมูลใหม่">⟳ ReLoad</button>
     <button class="btn" data-act="cols">▦ คอลัมน์</button>
     <button class="btn" data-act="csv">⤓ Export</button>
-    <select class="sel" id="tbl" title="แหล่งข้อมูล"></select>
     <button class="btn" data-act="cfg" title="ตั้งค่าการเชื่อมต่อ">⚙</button>
   </div>
 
@@ -575,7 +607,6 @@ const S = {
   url:'', key:'',
   schema:{},          // { ชื่อตาราง: [ชื่อคอลัมน์] }
   table:'lot_part',
-  pin:false,          // ผู้ใช้เลือกตารางเองแล้ว อย่าสลับให้อัตโนมัติ
   cols:[],            // [{k,on,w}]
   lots:[], lot:'', rows:[], prog:null,
   pkOpen:'',          // คอลัมน์ที่กางดูทั้งหมดอยู่ในหน้าต่างเลือกลอต
@@ -602,7 +633,7 @@ const LBL = {
   pack_seq_total:'Pack Seq Total', item_id:'Item Id', delay_no:'Delay No',
   synced_at:'ดึงจาก AX เมื่อ',
   id:'ID', part_date:'เวลาที่ยิง', duration_sec:'เวลาสะสม', computer:'เครื่อง',
-  app_user:'ผู้ใช้', barcode:'Barcode', check_part:'Part', imported_at:'นำเข้าเมื่อ',
+  app_user:'ผู้ใช้', barcode:'Barcode', imported_at:'นำเข้าเมื่อ',
   total_parts:'ชิ้นที่ต้องตัด', checked_parts:'ตัดแล้ว',
   total_all:'ทุกแถว', checked_all:'ยิงแล้วทุกแถว', updated_at:'อัปเดตเมื่อ'
 };
@@ -622,22 +653,15 @@ const AXCOLS = [
   'part_seq_total','product_seq_total','pack_seq_total','item_id','barcode','delay_no'
 ];
 
-/* ชื่อคอลัมน์สำรอง · ตอนอ่านจาก check_part ช่อง Part เก็บอยู่ในชื่อ check_part */
-const ALIAS = { st_part:['st_part','check_part'] };
-
-/* ตารางที่หน้านี้ต้องใช้ · ต้องยืนยันให้ได้ว่ามีจริงหรือไม่ ไม่ใช่เดาจาก OpenAPI อย่างเดียว */
-const NEED_TABLES = ['lot_part','check_part','lot_progress'];
+/* v3.3 ตารางที่หน้านี้ใช้ · lot_part สำหรับรายชิ้น · lot_progress สำหรับรายการลอต
+   ไม่มี check_part แล้ว เพราะเอามาแสดงแทนกันไม่ได้ตั้งแต่แรก */
+const NEED_TABLES = ['lot_part','lot_progress'];
 /* คอลัมน์สำรอง · ใช้ตอนตารางมีอยู่จริงแต่ยังไม่มีข้อมูลสักแถว
    จึงอ่านชื่อคอลัมน์จากแถวตัวอย่างไม่ได้ */
 const FALLBACK_COLS = { lot_part: AXCOLS.concat(['synced_at']) };
 
 /* คอลัมน์นี้อ่านค่าจากชื่อไหนในตารางที่กำลังดูอยู่ · ไม่มีเลยคืนค่าว่าง */
-function srcKey(k){
-  const cols = S.schema[S.table] || [];
-  const cands = ALIAS[k] || [k];
-  for(const c of cands) if(cols.includes(c)) return c;
-  return '';
-}
+function srcKey(k){ return (S.schema[S.table] || []).includes(k) ? k : ''; }
 function valOf(r, k){ const sk = srcKey(k); return sk ? r[sk] : undefined; }
 
 /* คอลัมน์นี้มีข้อมูลจริงไหมในลอตที่เปิดอยู่
@@ -659,7 +683,7 @@ const NUMS  = new Set(['finish_length','finish_width','duration_sec','id','rec_i
   'total_parts','checked_parts','total_all','checked_all','delay_no']);
 /* ช่องติ๊กในแถบ State · โปรแกรมโชว์ 6 ช่องแรก อีกสองซ่อนไว้ */
 const TICKS = new Set(['st_part','st_pack','st_pick','st_wh','st_delivery','st_site',
-                       'st_wh_rec','st_wh_issue','check_part']);
+                       'st_wh_rec','st_wh_issue']);
 
 const stKey = () => srcKey('st_part');
 const isDone = r => { const v = valOf(r, 'st_part');
@@ -676,18 +700,10 @@ const hasFull = () => (S.schema[S.table] || []).includes('st_part');
    หน้านี้ต้องนับให้ตรงกัน ไม่งั้นสองหน้าจะขึ้นตัวเลขไม่เท่ากัน */
 /* ยอดตัดของลอตนี้ · ใช้ที่เดียวกันทั้งแถบล่างและเกจ
    ตารางที่มีครบทุกชิ้น (lot_part) ใช้จำนวนแถวเป็นตัวหารได้ตรง ๆ
-   ตารางบันทึกการยิง (check_part) มีแต่ชิ้นที่ยิงแล้ว ตัวหารต้องยืมจาก lot_progress
-   ไม่งั้นจะได้ 243/243 = 100% ทั้งที่ของจริง 243/831 = 29%
-   ซึ่งผิดทางที่อันตรายที่สุด คือบอกว่างานเสร็จแล้วทั้งที่เหลืออีก 588 ชิ้น */
+   ห่อไม่ต้องเข้าเครื่องตัด จึงไม่นับเป็นตัวหาร */
 function partStats(){
   const piece = S.rows.filter(isPiece);
-  const done  = piece.filter(isDone).length;
-  if(hasFull()) return { done, total:piece.length, borrowed:false, unknown:false };
-  const t = (S.prog && S.prog.total_parts)   || 0;
-  const d = (S.prog && S.prog.checked_parts) || done;
-  if(t) return { done:d, total:t, borrowed:true, unknown:false };
-  /* ไม่มียอดจาก AX เลย · บอกว่าไม่รู้ ดีกว่าเดาแล้วขึ้น 100% */
-  return { done, total:0, borrowed:true, unknown:true };
+  return { done: piece.filter(isDone).length, total: piece.length };
 }
 
 function isPiece(r){
@@ -830,7 +846,7 @@ function buildCols(){
   const all = S.schema[S.table] || [];
   /* คอลัมน์มาตรฐานของ Ax Progress มาก่อนเสมอ ไม่ว่าตารางนี้จะมีจริงหรือไม่
      ตามด้วยคอลัมน์อื่นที่ตารางมีแต่กริดของโปรแกรมไม่มี (เวลาที่ยิง เครื่อง ฯลฯ) */
-  const extra = all.filter(k => !AXCOLS.includes(k) && !(ALIAS.st_part || []).includes(k));
+  const extra = all.filter(k => !AXCOLS.includes(k));
   const universe = AXCOLS.concat(extra);
 
   let saved = null;
@@ -915,15 +931,10 @@ function renderHead(){
 function renderNote(){
   const el = $('note');
   if(!S.lot || !S.needReq){ el.style.display = 'none'; return; }
-  /* บอกสองอย่าง: ตอนนี้เห็นอะไรอยู่ และกำลังทำอะไรให้
-     ไม่บล็อกจอ ดูของที่มีไปพลางได้ พอของครบมาถึงจะสลับให้เอง */
-  const shot = nf0.format(S.rows.length);
   $('noteTx').innerHTML = S.asking
-    ? '<span class="spin sm"></span> <b>กำลังดึงรายชิ้นครบทุกชิ้นจาก AX</b> · ' + esc(S.askMsg) +
-      ' · ตอนนี้แสดง ' + shot + ' ชิ้นที่ยิงแล้วไปก่อน ได้มาแล้วจะสลับให้เอง'
-    : '<b>แถวยังไม่ครบ</b> · ที่เห็นคือ ' + shot + ' ชิ้นที่ยิงบาร์โค้ดแล้ว ' +
-      'ชิ้นที่ยังไม่ตัดยังไม่มีแถว ' +
-      '<button class="btn pri" data-act="ask" style="margin-left:8px">⤓ ดึงจาก AX อีกครั้ง</button>';
+    ? '<span class="spin sm"></span> <b>กำลังดึงรายชิ้นของลอตนี้จาก AX</b> · ' + esc(S.askMsg)
+    : '<b>ลอตนี้ยังไม่มีรายชิ้นใน lot_part</b> ' +
+      '<button class="btn pri" data-act="ask" style="margin-left:8px">⤓ ดึงจาก AX</button>';
   el.style.display = 'flex';
 }
 
@@ -960,7 +971,7 @@ function renderGrid(){
   if(!S.rows.length){
     /* ไม่มีทั้งสองตารางจริง ๆ ถึงจะขึ้นจอเปล่า · ไม่บล็อกรอแบบ v3.0 */
     return show('<div class="big">▢</div><div class="t">ลอตนี้ยังไม่มีข้อมูลสักแถว</div>' +
-      '<div class="s">รหัส <code>' + esc(S.lot) + '</code> ไม่มีทั้งใน lot_part และ check_part' +
+      '<div class="s">รหัส <code>' + esc(S.lot) + '</code> ยังไม่มีรายชิ้นใน lot_part' +
       (S.asking ? '<br><br><span class="spin sm"></span> ' + esc(S.askMsg) : '') + '</div>' +
       (S.asking ? '' : '<div class="s"><button class="btn pri" data-act="ask">⤓ ดึงจาก AX</button></div>'));
   }
@@ -1017,7 +1028,6 @@ function cell(r, k){
   const v = valOf(r, k);
 
   if(TICKS.has(k)){
-    /* lot_part เก็บเป็น boolean · check_part เก็บเป็น smallint 0/1 · รับทั้งสองแบบ */
     const y = v === true || Number(v) === 1;
     return '<td class="st"><span class="cbx' + (y ? '' : ' n') + '" title="' +
            (y ? 'ติ๊กแล้ว' : 'ยังไม่ติ๊ก') + '">✔</span></td>';
@@ -1044,19 +1054,18 @@ function cell(r, k){
    ══════════════════════════════════════════════════════════════ */
 
 /* ช่องสถานะทั้ง 6 ในแถบ State ของโปรแกรม เรียงตามลำดับที่โปรแกรมเรียง
-   fb = คอลัมน์สำรองตอนอ่านจาก check_part ซึ่งมีแค่ช่อง Part ช่องเดียว
    piece = นับเฉพาะชิ้นที่ต้องตัดหรือนับทุกแถว
      Part นับเฉพาะชิ้นที่มีขนาด เพราะห่อไม่ต้องเข้าเครื่องตัด
      ที่เหลือนับทุกแถว เพราะห่อก็ต้องถูกแพ็ก หยิบ เข้าคลัง และส่งเหมือนกัน
      ยืนยันจากไฟล์ export จริง: ลอตที่ปิดงานแล้ว Pack/Pick/Wh/Delivery
      เป็น True ครบทั้ง 432 แถว รวมแถว Fitting_Pack กับ Accessory_Pack ด้วย */
 const GAUGES = [
-  { k:'st_part',     fb:'check_part', label:'Part',     piece:true  },
-  { k:'st_pack',     fb:'',           label:'Pack',     piece:false },
-  { k:'st_pick',     fb:'',           label:'Pick',     piece:false },
-  { k:'st_wh',       fb:'',           label:'Wh',       piece:false },
-  { k:'st_delivery', fb:'',           label:'Delivery', piece:false },
-  { k:'st_site',     fb:'',           label:'Site',     piece:false }
+  { k:'st_part',     label:'Part',     piece:true  },
+  { k:'st_pack',     label:'Pack',     piece:false },
+  { k:'st_pick',     label:'Pick',     piece:false },
+  { k:'st_wh',       label:'Wh',       piece:false },
+  { k:'st_delivery', label:'Delivery', piece:false },
+  { k:'st_site',     label:'Site',     piece:false }
 ];
 
 /* วาดครึ่งวงกลมหนึ่งอัน · rad 30 กว้าง 74 สูง 42 */
@@ -1086,9 +1095,8 @@ function renderSide(){
   let h = '<div class="sh">สถานะ</div>';
   GAUGES.forEach(g => {
     /* ใช้คอลัมน์จริงถ้ามี ไม่มีก็ลองคอลัมน์สำรอง ไม่มีอีกก็ปล่อยว่างไว้
-       ตอนอ่านจาก check_part จะเห็นแค่ Part ช่องเดียว ที่เหลือขึ้นขีด
-       ปล่อยว่างดีกว่าซ่อน เพราะคนจะได้รู้ว่ามีอีก 5 ช่องที่ยังไม่มีข้อมูล */
-    const key = cols.includes(g.k) ? g.k : (g.fb && cols.includes(g.fb) ? g.fb : '');
+       ปล่อยว่างดีกว่าซ่อน เพราะคนจะได้รู้ว่าช่องนั้นมีอยู่แต่ยังไม่มีข้อมูล */
+    const key = cols.includes(g.k) ? g.k : '';
     if(!key){
       h += '<div class="g na">' + arcSvg(0, true) +
            '<div class="gi"><div class="gl">' + esc(g.label) + '</div>' +
@@ -1097,25 +1105,12 @@ function renderSide(){
     }
     /* Part ใช้ยอดกลางจาก partStats เพราะตัวหารอาจต้องยืมจาก AX
        ช่องอื่นมีเฉพาะใน lot_part ซึ่งมีครบทุกแถวอยู่แล้ว นับตรง ๆ ได้ */
-    let yes, tot, warn = '';
-    if(g.k === 'st_part'){
-      const st = partStats();
-      if(st.unknown){
-        h += '<div class="g na">' + arcSvg(0, true) +
-             '<div class="gi"><div class="gl">' + esc(g.label) + '</div>' +
-             '<div class="gn">AX ยังไม่มียอด</div></div></div>';
-        return;
-      }
-      yes = st.done; tot = st.total;
-      if(st.borrowed) warn = ' title="ตัวหารมาจาก AX · ตารางนี้มีแถวเฉพาะชิ้นที่ยิงแล้ว"';
-    } else {
-      const base = g.piece ? piece : S.rows;
-      yes = base.filter(r => { const v = r[key]; return v === true || Number(v) === 1; }).length;
-      tot = base.length;
-    }
-    const no  = Math.max(0, tot - yes);
-    const pct = tot ? Math.round(yes / tot * 100) : 0;
-    h += '<div class="g"' + warn + '>' + arcSvg(pct, false) +
+    const base = g.piece ? piece : S.rows;
+    const yes  = base.filter(r => { const v = r[key]; return v === true || Number(v) === 1; }).length;
+    const tot  = base.length;
+    const no   = Math.max(0, tot - yes);
+    const pct  = tot ? Math.round(yes / tot * 100) : 0;
+    h += '<div class="g">' + arcSvg(pct, false) +
          '<div class="gi"><div class="gl">' + esc(g.label) + '</div>' +
          '<div class="gn"><b>' + nf0.format(yes) + '</b> / ' + nf0.format(tot) +
          (no ? ' · เหลือ <i>' + nf0.format(no) + '</i>' : '') + '</div></div></div>';
@@ -1158,20 +1153,15 @@ function renderStatus(){
     (n === null ? '—' : nf0.format(n)) + '</span></button>';
 
   let h = vb('all', 'ทั้งหมด', S.rows.length, '', false) +
-          vb('todo', 'ยังไม่ตัด', st.unknown ? null : todo, 'bad', !hasFull()) +
+          vb('todo', 'ยังไม่ตัด', todo, 'bad', false) +
           (pack ? vb('pack', 'ห่ออุปกรณ์', pack, 'mu', false) : '');
 
   h += '<span style="margin-left:6px">ต้องตัด <span class="n">' +
-       (st.unknown ? '—' : nf0.format(st.total)) + '</span> · ตัดแล้ว <span class="n">' +
+       nf0.format(st.total) + '</span> · ตัดแล้ว <span class="n">' +
        nf0.format(st.done) + '</span></span>' +
-       '<div class="pbar"><i style="width:' + (st.unknown ? 0 : pct) + '%"></i></div>' +
-       '<span class="n">' + (st.unknown ? '—' : pct + '%') + '</span>';
+       '<div class="pbar"><i style="width:' + pct + '%"></i></div>' +
+       '<span class="n">' + pct + '%</span>';
 
-  if(st.borrowed)
-    h += '<span style="color:var(--warn)">' +
-         (st.unknown ? 'AX ยังไม่มียอดของลอตนี้ จึงบอก % ไม่ได้'
-                     : 'ยอดนี้มาจาก AX · ตารางนี้มีแถวเฉพาะ ' +
-                       nf0.format(S.rows.length) + ' ชิ้นที่ยิงแล้ว') + '</span>';
   if(nf) h += '<span>กรอง ' + nf + ' คอลัมน์ <button class="btn" data-act="fltclear">ล้าง</button></span>';
 
   h += '<span class="tot">' + (rs.length !== S.rows.length
@@ -1282,10 +1272,11 @@ async function boot(){
   try { S.schema = await db.schema(); }
   catch(e){ S.err = e.message; render(); return; }
 
-  if(S.schema['lot_part'])        S.table = 'lot_part';
-  else if(S.schema['check_part']) S.table = 'check_part';
-  else { const f = Object.keys(S.schema)[0]; if(f) S.table = f; }
-  fillTables();
+  if(!S.schema['lot_part']){
+    S.err = 'ไม่พบตาราง lot_part บน Supabase · หน้านี้อ่านจากตารางนั้นอย่างเดียว';
+    render(); return;
+  }
+  S.table = 'lot_part';
   buildCols();
 
   S.busy = 'กำลังอ่านรายชื่อลอต'; render();
@@ -1301,13 +1292,6 @@ async function boot(){
     try { want = await db.latestPartsLot(); } catch(e){}
   }
   if(want) selectLot(want);
-}
-
-function fillTables(){
-  const names = Object.keys(S.schema).sort();
-  $('tbl').innerHTML = names.map(n =>
-    '<option value="' + esc(n) + '"' + (n === S.table ? ' selected' : '') + '>' +
-    esc(n) + '</option>').join('');
 }
 
 async function selectLot(lot){
@@ -1328,36 +1312,20 @@ async function selectLot(lot){
   render();
 
   try {
-    /* v3.0 อ่าน lot_part อย่างเดียว · ไม่ถอยไป check_part อีกแล้ว
-       check_part เป็นบันทึกการยิง มีแต่ชิ้นที่ยิงแล้ว จำนวนแถวจึงไม่มีวันครบ
-       ลอต 30 ชิ้นที่ยิงไป 19 จะเห็นแค่ 19 แถว อีก 11 ชิ้นหายไปเฉย ๆ
-       ทั้งที่สิ่งที่อยากดูคือ 11 ชิ้นนั้น · แสดงไม่ครบแล้วมาเขียนคำอธิบายชดเชย
-       ไม่ได้แก้ปัญหา แค่ย้ายภาระไปให้คนอ่าน
-       ลอตไหนยังไม่มีใน lot_part = สั่งดึงแล้วรอ ไม่ใช่เอาของครึ่ง ๆ มาโชว์ */
-    if(!S.pin){
-      /* v3.1 เอาของที่มีขึ้นจอก่อนเสมอ แล้วค่อยอัปเกรดทีหลัง
-         v3.0 บล็อกจอรอจนกว่า lot_part จะมา ซึ่งถ้า StarSync ไม่ได้รันอยู่
-         จะหมุนไปเรื่อย ๆ ไม่มีอะไรให้ดูเลย · แย่กว่าเห็นของไม่ครบเสียอีก
-         ลำดับ: lot_part ก่อน · ไม่มีก็เอา check_part ขึ้นจอไปพลาง
-         แล้วสั่งดึงเบื้องหลัง พอมาถึงค่อยสลับให้เอง */
-      S.table = 'lot_part'; buildCols();
-      S.rows = S.schema['lot_part'] ? await db.rowsOfLot('lot_part', lot) : [];
-      if(!S.rows.length && S.schema['check_part']){
-        S.table = 'check_part'; buildCols();
-        S.rows = await db.rowsOfLot('check_part', lot);
-        S.needReq = true;
-      }
-    } else {
-      const hasLot = (S.schema[S.table] || []).includes('lot');
-      S.rows = hasLot ? await db.rowsOfLot(S.table, lot) : await db.peek(S.table);
-    }
+    /* v3.3 อ่าน lot_part อย่างเดียว ไม่มีทางถอยไป check_part แล้ว
+       check_part เป็นบันทึกการยิง มีแต่ชิ้นที่ยิงแล้ว ไม่มีสถานะอีก 5 ช่อง
+       ไม่มีห่อ และไม่มีชิ้นที่ยังไม่ตัด · แทนกันไม่ได้ตั้งแต่แรก
+       ทางถอยที่ผมเก็บไว้เพราะกลัวจอว่าง กลายเป็นต้นเหตุของทุกอาการที่เจอมา */
+    S.table = 'lot_part';
+    buildCols();
+    S.rows = S.schema['lot_part'] ? await db.rowsOfLot('lot_part', lot) : [];
+    if(!S.rows.length) S.needReq = true;
   } catch(e){ S.err = e.message; }
 
   S.busy = '';
   scanMissing();
-  fillTables();
   render();
-  if(S.needReq && !S.pin) askForLot();
+  if(S.needReq) askForLot();
 }
 
 /* ── สั่งให้ StarSync ดึงรายชิ้นของลอตนี้ก่อนคิวปกติ ────────────
@@ -1491,8 +1459,6 @@ document.addEventListener('click', ev => {
 
   if(act === 'view'){ S.view = t.dataset.v; render(); return; }
   if(act === 'ask'){ askForLot(); return; }
-  /* เลือกตารางเองจาก dropdown แล้วอยากกลับไปให้ระบบเลือกให้ */
-  if(act === 'backfull'){ S.pin = false; selectLot(S.lot); return; }
 
   if(act === 'sort'){
     const k = t.dataset.k;
@@ -1534,13 +1500,6 @@ document.addEventListener('click', ev => {
   }
 });
 
-$('tbl').addEventListener('change', () => {
-  S.table = $('tbl').value;
-  S.pin = true;   /* เลือกเองแล้ว อย่าไปสลับให้อัตโนมัติอีก */
-  buildCols();
-  S.rows = []; S.filters = {}; S.sort = { k:'', dir:0 };
-  if(S.lot) selectLot(S.lot); else render();
-});
 
 /* ช่องกรองรายคอลัมน์
    หน่วงก่อนวาดใหม่ แล้วคืนโฟกัสกับตำแหน่งเคอร์เซอร์ให้หลังวาดเสร็จ
