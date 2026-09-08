@@ -5,8 +5,27 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=5.0,user-scalable=yes">
 <title>รายชิ้นในลอต · Lot Parts</title>
 <!-- =====================================================================
-  Lot Parts · รายชิ้นในลอต        ·   VERSION 1.0
+  Lot Parts · รายชิ้นในลอต        ·   VERSION 1.1
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  1.1  2026-09-08  FEAT คอลัมน์ครบ 27 ตัวตามไฟล์ export จริง + สถานะครบ 6 ช่อง
+                   ของเดิมมีแค่ 16 คอลัมน์ที่ check_part มี และช่องติ๊กช่องเดียว
+                   ตอนนี้รู้ชื่อคอลัมน์จริงทั้งหมดแล้วจากไฟล์ export ที่ส่งมา
+                   · State ครบทั้ง Part / Pack / Pick / Wh / Delivery / Site
+                     ไม่ติ๊กขึ้นกากบาทแดง ไม่ใช่เว้นว่าง จะได้เห็นว่ามีอยู่แต่ยังไม่ทำ
+                   · ชุดคอลัมน์ "เหมือน Ax Progress" เรียงตามลำดับในหน้าโปรแกรมเป๊ะ
+                     และเพิ่ม "ครบทุกช่องใน export" กับ "ที่ตั้ง" (build/floor/room)
+                   · ปุ่มกรอง ทั้งหมด / ✓ ตัดแล้ว / ✗ ยังไม่ตัด บนแถบสรุป
+                     พร้อมตัวเลขในปุ่ม · เป็นทางที่เร็วที่สุดในการตอบ "เหลืออะไรบ้าง"
+                   · เลือกตาราง lot_part ให้เองถ้ามี เพราะเป็นตัวเดียวที่เก็บ
+                     ชิ้นที่ยังไม่ตัดไว้ด้วย · ไม่มีค่อยถอยไป check_part
+                     ยอด "ทั้งลอต" จึงนับจากแถวจริงได้ ไม่ต้องยืมจาก lot_progress
+                   · สั่ง order ตอนไล่หน้าเสมอ (shelf_no, part_name เหมือนโปรแกรม)
+                     ของเดิมไม่ได้สั่ง · PostgREST ไม่รับประกันลำดับ แถวอาจซ้ำหรือหาย
+                     ตอนข้ามหน้า ลอตที่เกิน 1000 ชิ้นจะเจอปัญหานี้
+                   · ช่องติ๊กรับทั้ง boolean (lot_part) และ int 0/1 (check_part)
+                   · CSV เขียนช่องติ๊กเป็น True/False ให้เอาไปวางเทียบกับไฟล์
+                     export ของโปรแกรมได้ตรง ๆ
+                   ยังไม่ได้ทดสอบกับของจริง
   1.0  2026-09-08  FEAT หน้าแรก · ตารางรายชิ้นในลอต หน้าตาอิงโปรแกรม Ax Progress
                    แยกเป็นไฟล์ต่างหากจาก index.html เพราะไฟล์นั้นโต 549 KB แล้ว
                    การยัดของใหม่เข้าไปแปลว่าต้องส่งไฟล์ทั้งก้อนกลับทุกครั้งที่แก้
@@ -94,6 +113,16 @@ body{font-family:var(--sans);background:var(--dk);color:var(--tx);font-size:13px
 .chip.ok .n{color:var(--ok)} .chip.warn .n{color:var(--warn)} .chip.cy .n{color:var(--cyan)}
 .bar{flex:1 1 130px;max-width:220px;height:8px;background:var(--dk);border-radius:99px;overflow:hidden}
 .bar>i{display:block;height:100%;background:var(--green);border-radius:99px;transition:width .3s}
+/* ปุ่มกรองสถานะ ตัดแล้ว / ยังไม่ตัด */
+.stf{display:inline-flex;border:1px solid var(--bd);border-radius:8px;overflow:hidden}
+.stb{background:var(--card);color:var(--mu2);border:0;border-right:1px solid var(--bd);
+  padding:5px 11px;min-height:30px;font-size:11px;font-family:inherit;cursor:pointer;
+  display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.stb:last-child{border-right:0}
+.stb b{font-family:var(--mono);font-size:11.5px}
+.stb:hover{background:var(--hov);color:#fff}
+.stb.on{background:#1d4ed8;color:#fff}
+.stb.on b{color:#fff}
 
 /* แถบเตือนที่มาของข้อมูล */
 .note{background:#3a2a08;border-bottom:1px solid #78350f;color:#fde68a;
@@ -302,6 +331,7 @@ const S = {
   rows:[],            // แถวดิบของลอตที่เลือก
   prog:null,          // ยอดรวมของลอตนี้จาก lot_progress
   filters:{},         // { คอลัมน์: คำค้น }
+  st:'all',           // ตัวกรองสถานะ: all | done | todo
   sort:{k:'', dir:0}, // dir 1 = น้อยไปมาก, -1 = มากไปน้อย
   dense:false,
   note:true,
@@ -310,42 +340,71 @@ const S = {
   sugOn:false, sugIdx:-1, sugList:[]
 };
 
-/* ชื่อไทยของคอลัมน์ที่รู้จัก · ที่ไม่รู้จักโชว์ชื่อดิบไปเลย
-   ล่างสุดคือของที่ยังไม่มีในฐานข้อมูล ใส่เผื่อขั้น B (ตาราง lot_part) */
+/* ชื่อที่จะขึ้นบนหัวตาราง · ที่ไม่รู้จักโชว์ชื่อดิบไปเลย
+   ชื่ออังกฤษล้อตามหัวคอลัมน์ในไฟล์ export ของโปรแกรม Ax Progress ทุกตัว
+   เพื่อให้คนที่ชินกับหน้าโปรแกรมอ่านแล้วรู้ทันทีว่าตัวไหนคือตัวไหน */
 const LBL = {
-  id:'ID', part_date:'เวลาที่ยิง', duration_sec:'เวลาสะสม', computer:'เครื่อง',
-  app_user:'ผู้ใช้', lot:'Lot Id', barcode:'Barcode', product_article:'Product Article',
-  part_name:'Part Name', code_part:'Code Part', code_pack:'Code Pack',
-  finish_length:'Finish Length', finish_width:'Finish Width', shelf_no:'Shelf No',
-  check_part:'State Part', proj_name:'ชื่อโครงการ', proj_id:'รหัสโครงการ',
-  created_at:'บันทึกเมื่อ',
-  total_parts:'ชิ้นที่ต้องตัด', checked_parts:'ตัดแล้ว',
-  total_all:'ทุกแถว', checked_all:'ยิงแล้วทุกแถว',
-  product_name:'Product Name', item_fg:'Item Fg', material_code:'Material Code',
+  /* ── ตาราง lot_part · รายชิ้นทั้งลอต ─────────────────────────── */
+  rec_id:'Rec Id', lot:'Lot Id', proj_id:'Proj Id', proj_name:'Proj Name',
+  order_number:'OrderNumber', build:'Build', floor:'Floor', room:'Room',
+  shelf_no:'Shelf No', product_article:'Product Article', product_name:'Product Name',
+  item_fg:'Item Fg', part_name:'Part Name', code_part:'Code Part', code_pack:'Code Pack',
+  material_code:'Material Code', finish_length:'Finish Length', finish_width:'Finish Width',
   product_seq_total:'Product Seq Total', pack_seq_total:'Pack Seq Total',
-  item_id:'Item Id', delay_no:'Delay No', check_pack:'State Pack',
-  check_pick:'State Pick', check_wh:'State Wh', check_delivery:'State Delivery'
+  item_id:'Item Id', delay_no:'Delay No',
+  st_part:'Part', st_pack:'Pack', st_pick:'Pick',
+  st_wh:'Wh', st_delivery:'Delivery', st_site:'Site',
+  synced_at:'ดึงจาก AX เมื่อ',
+  /* ── ตาราง check_part · บันทึกการยิง ────────────────────────── */
+  id:'ID', part_date:'เวลาที่ยิง', duration_sec:'เวลาสะสม', computer:'เครื่อง',
+  app_user:'ผู้ใช้', barcode:'Barcode', check_part:'Part', created_at:'บันทึกเมื่อ',
+  /* ── ตาราง lot_progress · ยอดรวมรายลอต ─────────────────────── */
+  total_parts:'ชิ้นที่ต้องตัด', checked_parts:'ตัดแล้ว',
+  total_all:'ทุกแถว', checked_all:'ยิงแล้วทุกแถว', updated_at:'อัปเดตเมื่อ'
 };
 const lbl = k => LBL[k] || k;
 
 /* คอลัมน์ที่แสดงเป็นตัวเลขชิดขวา */
-const NUMS = new Set(['finish_length','finish_width','duration_sec','id',
-  'total_parts','checked_parts','total_all','checked_all',
-  'product_seq_total','pack_seq_total','delay_no']);
-/* คอลัมน์ที่แสดงเป็นเครื่องหมายถูก/ผิด */
-const TICKS = new Set(['check_part','check_pack','check_pick','check_wh','check_delivery']);
+const NUMS = new Set(['finish_length','finish_width','duration_sec','id','rec_id',
+  'total_parts','checked_parts','total_all','checked_all','delay_no']);
+/* คอลัมน์ที่แสดงเป็นช่องติ๊ก · ครบทั้ง 6 ช่องเหมือนแถบ State ในโปรแกรม */
+const TICKS = new Set(['st_part','st_pack','st_pick','st_wh','st_delivery','st_site',
+                       'check_part']);
+/* คอลัมน์สถานะหลัก = "ชิ้นนี้ตัดแล้วหรือยัง" ใช้เป็นตัวกรองและตัวนับ
+   lot_part ใช้ st_part · check_part ใช้ check_part */
+const stKey = () => (S.schema[S.table] || []).includes('st_part') ? 'st_part'
+                  : ((S.schema[S.table] || []).includes('check_part') ? 'check_part' : '');
+const isDone = r => { const k = stKey(); if(!k) return false;
+                      const v = r[k]; return v === true || Number(v) === 1; };
 
-/* ชุดคอลัมน์สำเร็จรูป · จับเฉพาะตัวที่มีจริงในตารางนั้น */
+/* ชุดคอลัมน์สำเร็จรูป · จับเฉพาะตัวที่มีจริงในตารางนั้น
+   ชุดแรกเรียงตามลำดับคอลัมน์ในหน้าโปรแกรมเป๊ะ ๆ ตามไฟล์ export */
 const PRESETS = {
-  'เหมือน Ax Progress':['check_part','shelf_no','product_article','part_name','code_part',
-                        'code_pack','finish_length','finish_width'],
+  'เหมือน Ax Progress':[
+    'st_part','st_pack','st_pick','st_wh','st_delivery','st_site',
+    'shelf_no','product_article','product_name','item_fg','part_name','code_pack',
+    'material_code','finish_length','finish_width','product_seq_total','pack_seq_total',
+    'item_id','delay_no'],
+  'ครบทุกช่องใน export':[
+    'st_part','st_pack','st_pick','st_wh','st_delivery','st_site',
+    'rec_id','lot','proj_id','proj_name','order_number','build','floor','room',
+    'shelf_no','product_article','product_name','item_fg','part_name','code_pack',
+    'material_code','finish_length','finish_width','product_seq_total','pack_seq_total',
+    'item_id','delay_no'],
+  'ที่ตั้ง':['st_part','build','floor','room','shelf_no','part_name',
+            'finish_length','finish_width'],
   'สายการผลิต':['part_date','computer','app_user','part_name','code_part',
                 'finish_length','finish_width','check_part'],
-  'ย่อสั้น':['part_date','part_name','code_part','finish_length','finish_width','check_part']
+  'ย่อสั้น':['st_part','shelf_no','part_name','finish_length','finish_width','check_part']
 };
-/* ค่าเริ่มต้นตอนยังไม่เคยจัดเอง */
-const DEF_ON = new Set(['part_date','computer','shelf_no','product_article','part_name',
-  'code_part','code_pack','finish_length','finish_width','check_part']);
+/* ค่าเริ่มต้นตอนยังไม่เคยจัดเอง · ให้ตรงกับที่เห็นบนหน้าโปรแกรมเลย */
+const DEF_ON = new Set([
+  'st_part','st_pack','st_pick','st_wh','st_delivery','st_site',
+  'shelf_no','product_article','product_name','item_fg','part_name','code_pack',
+  'material_code','finish_length','finish_width','product_seq_total','pack_seq_total',
+  'item_id','delay_no',
+  /* เผื่อกรณีที่ยังไม่มี lot_part แล้วต้องถอยไปใช้ check_part */
+  'part_date','computer','code_part','check_part']);
 
 /* ══════════════════════════════════════════════════════════════
    ชั้นคุยกับฐานข้อมูล · ที่อื่นห้ามเรียก fetch ตรง
@@ -385,12 +444,17 @@ const db = {
                     'checked_parts,total_all,checked_all&order=lot.asc&limit=8000');
   },
 
-  /* แถวของลอตหนึ่ง · PostgREST คืนสูงสุด 1000 แถวต่อครั้ง ต้องไล่หน้า */
+  /* แถวของลอตหนึ่ง · PostgREST คืนสูงสุด 1000 แถวต่อครั้ง ต้องไล่หน้า
+     ต้องสั่ง order ทุกครั้ง ไม่งั้นการไล่หน้าไม่รับประกันว่าแถวจะไม่ซ้ำหรือหาย */
   async rowsOfLot(table, lot, onProg){
+    const cols = S.schema[table] || [];
+    const ord  = cols.includes('shelf_no')  ? 'shelf_no.asc,part_name.asc'   /* เรียงเหมือนหน้าโปรแกรม */
+               : cols.includes('part_date') ? 'part_date.asc'
+               : cols.includes('rec_id')    ? 'rec_id.asc' : 'lot.asc';
     const out = [], PAGE = 1000;
     for(let off = 0; off < 30000; off += PAGE){
       const p = table + '?select=*&lot=eq.' + encodeURIComponent(lot) +
-                '&limit=' + PAGE + '&offset=' + off;
+                '&order=' + ord + '&limit=' + PAGE + '&offset=' + off;
       const page = await this.get(p);
       out.push(...page);
       if(onProg) onProg(out.length);
@@ -452,6 +516,9 @@ const onCols = () => S.cols.filter(c => c.on);
    ══════════════════════════════════════════════════════════════ */
 function viewRows(){
   let rs = S.rows;
+  /* กรองสถานะก่อน · เป็นตัวที่คนใช้บ่อยสุด ตัดแถวออกได้เยอะสุด */
+  if(S.st !== 'all' && stKey())
+    rs = rs.filter(r => S.st === 'done' ? isDone(r) : !isDone(r));
   const fk = Object.keys(S.filters).filter(k => S.filters[k]);
   if(fk.length){
     rs = rs.filter(r => fk.every(k =>
@@ -485,35 +552,60 @@ function render(){
 
 function renderSum(){
   const el = $('sum');
-  if(!S.lot || !S.rows.length && !S.prog){ el.style.display = 'none'; return; }
-  const p = S.prog;
-  const shot = S.rows.length;
-  const tot  = p ? (p.total_all || 0) : 0;
-  const pct  = tot ? Math.min(100, Math.round(shot / tot * 100)) : 0;
+  if(!S.lot || (!S.rows.length && !S.prog)){ el.style.display = 'none'; return; }
+  const p = S.prog, full = hasFull();
+
+  /* ตาราง lot_part มีทุกชิ้นในลอตอยู่แล้ว จึงนับจากแถวจริงได้ตรง ๆ
+     ถ้ายังใช้ check_part อยู่ ต้องยืม "ทั้งลอต" มาจาก lot_progress
+     เพราะตัวมันเองมีแต่ชิ้นที่ยิงแล้ว นับเองแล้วจะได้ตัวหารผิด */
+  const total = full ? S.rows.length : (p ? (p.total_all || 0) : 0);
+  const done  = stKey() ? S.rows.filter(isDone).length : S.rows.length;
+  const todo  = Math.max(0, total - done);
+  const pct   = total ? Math.min(100, Math.round(done / total * 100)) : 0;
 
   let h = '<b style="font-family:var(--mono)">' + esc(S.lot) + '</b>';
-  if(p && p.proj_name) h += '<span style="color:var(--mu2)">' + esc(p.proj_name) + '</span>';
-  h += '<span class="chip cy">ยิงแล้ว <span class="n">' + nf0.format(shot) + '</span></span>';
-  if(p){
-    h += '<span class="chip">ทั้งลอต <span class="n">' + nf0.format(p.total_all || 0) + '</span></span>' +
-         '<span class="chip ok">ชิ้นที่ต้องตัด <span class="n">' +
-           nf0.format(p.checked_parts || 0) + ' / ' + nf0.format(p.total_parts || 0) + '</span></span>';
-    const left = (p.total_all || 0) - shot;
-    if(left > 0) h += '<span class="chip warn">ยังไม่ยิง <span class="n">' + nf0.format(left) + '</span></span>';
-    h += '<div class="bar"><i style="width:' + pct + '%"></i></div>' +
-         '<span style="font-family:var(--mono);color:var(--mu)">' + pct + '%</span>';
-  }
+  const pn = (S.rows[0] && S.rows[0].proj_name) || (p && p.proj_name) || '';
+  if(pn) h += '<span style="color:var(--mu2)">' + esc(pn) + '</span>';
+
+  /* สามปุ่มนี้กดกรองได้ · เป็นวิธีที่เร็วที่สุดในการตอบว่า "เหลืออะไรบ้าง" */
+  h += '<span class="stf">' +
+       btnSt('all',  'ทั้งหมด', total) +
+       btnSt('done', '✓ ตัดแล้ว', done) +
+       btnSt('todo', '✗ ยังไม่ตัด', todo) +
+       '</span>';
+
+  if(!full && p)
+    h += '<span class="chip">ทั้งลอต (จาก AX) <span class="n">' +
+         nf0.format(p.total_all || 0) + '</span></span>';
+  if(p && p.total_parts)
+    h += '<span class="chip ok">ชิ้นที่ต้องตัด <span class="n">' +
+         nf0.format(p.checked_parts || 0) + ' / ' + nf0.format(p.total_parts || 0) + '</span></span>';
+
+  h += '<div class="bar"><i style="width:' + pct + '%"></i></div>' +
+       '<span style="font-family:var(--mono);color:var(--mu)">' + pct + '%</span>';
   el.innerHTML = h;
   el.style.display = 'flex';
 }
 
+/* ปุ่มกรองสถานะหนึ่งปุ่ม */
+function btnSt(v, txt, n){
+  const on = S.st === v ? ' on' : '';
+  return '<button class="stb' + on + '" data-act="st" data-v="' + v + '">' +
+         esc(txt) + ' <b>' + nf0.format(n) + '</b></button>';
+}
+
+/* ตารางที่กำลังดูอยู่ มีครบทุกชิ้นในลอตไหม (ไม่ใช่แค่ชิ้นที่ยิงแล้ว) */
+const hasFull = () => (S.schema[S.table] || []).includes('st_part');
+
 function renderNote(){
   const el = $('note');
-  if(!S.note || S.table !== 'check_part'){ el.style.display = 'none'; return; }
+  /* เตือนเฉพาะตอนที่ตารางนั้นมีแต่ชิ้นที่ยิงแล้ว · พอ lot_part มาแล้วก็เงียบไปเอง */
+  if(!S.note || hasFull() || !S.lot){ el.style.display = 'none'; return; }
   $('noteTx').innerHTML =
-    'ตารางนี้มาจาก <b>บันทึกการยิง</b> (LogAxCheckPart) จึงเห็นเฉพาะชิ้นที่ยิงไปแล้ว ' +
-    'ชิ้นที่ยังไม่ทำจะไม่มีแถว · ตัวเลข “ทั้งลอต” ด้านบนมาจาก AX คนละแหล่งกัน ' +
-    'ถ้าอยากเห็นครบทุกชิ้นเหมือนหน้าโปรแกรม ต้องให้ StarSync ซิงก์ตารางรายชิ้นขึ้นมาก่อน';
+    'ตอนนี้กำลังอ่านจาก <b>' + esc(S.table) + '</b> ซึ่งเป็นบันทึกการยิง ' +
+    'จึงเห็นเฉพาะชิ้นที่ยิงไปแล้ว ชิ้นที่ยังไม่ทำไม่มีแถว ปุ่ม “ยังไม่ตัด” จึงเป็นศูนย์เสมอ · ' +
+    'ต้องสร้างตาราง <b>lot_part</b> แล้วให้ StarSync v2.1 ส่งรายชิ้นขึ้นมาก่อน ' +
+    'พอมีแล้วหน้านี้จะสลับไปใช้เองอัตโนมัติ';
   el.style.display = 'flex';
 }
 
@@ -601,9 +693,10 @@ function cell(r, k){
   const v = r[k];
 
   if(TICKS.has(k)){
-    const y = Number(v) === 1;
-    return '<td style="text-align:center"><span class="tick ' + (y ? 'y' : 'n') + '">' +
-           (y ? '✓' : '·') + '</span></td>';
+    /* lot_part เก็บเป็น boolean · check_part เก็บเป็น int 0/1 · รับทั้งสองแบบ */
+    const y = v === true || Number(v) === 1;
+    return '<td style="text-align:center"><span class="tick ' + (y ? 'y' : 'n') + '" ' +
+           'title="' + (y ? 'ติ๊กแล้ว' : 'ยังไม่ติ๊ก') + '">' + (y ? '✓' : '✗') + '</span></td>';
   }
   if(k === 'part_date' || k === 'created_at')
     return '<td class="mono">' + esc(fmtTime(v)) + '</td>';
@@ -628,6 +721,8 @@ function renderFoot(){
   let h = '<span>แสดง <span class="n">' + nf0.format(rs.length) + '</span> แถว</span>';
   if(rs.length !== S.rows.length)
     h += '<span>จากทั้งหมด <span class="n">' + nf0.format(S.rows.length) + '</span></span>';
+  if(S.st !== 'all')
+    h += '<span style="color:var(--warn)">เฉพาะ ' + (S.st === 'done' ? 'ที่ตัดแล้ว' : 'ที่ยังไม่ตัด') + '</span>';
   if(nf) h += '<span style="color:var(--warn)">กรองอยู่ ' + nf + ' คอลัมน์ ' +
               '<button class="btn sm" data-act="fltclear">ล้าง</button></span>';
   h += '<span style="margin-left:auto">คอลัมน์ <span class="n">' + onCols().length +
@@ -699,7 +794,13 @@ async function boot(){
       else throw new Error('ตาราง check_part ยังไม่มีข้อมูลสักแถว จึงเดาคอลัมน์ไม่ได้');
     } catch(e2){ S.err = e2.message; render(); return; }
   }
-  if(!S.schema[S.table]){
+  /* lot_part เป็นตัวเดียวที่มีครบทุกชิ้นในลอต ถ้ามีให้ใช้ตัวนี้ก่อนเสมอ
+     ไม่มีค่อยถอยไป check_part ซึ่งเห็นเฉพาะชิ้นที่ยิงแล้ว */
+  const savedTbl = localStorage.getItem('lp_table') || '';
+  if(savedTbl && S.schema[savedTbl])    S.table = savedTbl;
+  else if(S.schema['lot_part'])         S.table = 'lot_part';
+  else if(S.schema['check_part'])       S.table = 'check_part';
+  else {
     const first = Object.keys(S.schema)[0];
     if(first) S.table = first;
   }
@@ -733,7 +834,7 @@ async function selectLot(lot){
   try { localStorage.setItem('lp_last_lot', lot); } catch(e){}
 
   S.prog = S.lots.find(l => l.lot === lot) || null;
-  S.filters = {}; S.sort = { k:'', dir:0 };
+  S.filters = {}; S.sort = { k:'', dir:0 }; S.st = 'all';
   S.busy = 'กำลังดึงแถวของลอต ' + lot; S.err = ''; S.rows = [];
   render();
 
@@ -799,7 +900,10 @@ function toCsv(){
   const lines = [cols.map(c => q(lbl(c.k))).join(',')];
   viewRows().forEach(r => lines.push(cols.map(c => {
     const v = r[c.k];
-    if(c.k === 'part_date' || c.k === 'created_at') return q(fmtTime(v));
+    if(c.k === 'part_date' || c.k === 'created_at' || c.k === 'synced_at') return q(fmtTime(v));
+    /* ช่องติ๊กเขียนเป็น True/False ให้เหมือนไฟล์ export ของโปรแกรม
+       จะได้เอาสองไฟล์มาวางเทียบกันได้ตรง ๆ */
+    if(TICKS.has(c.k)) return q(v === true || Number(v) === 1 ? 'True' : 'False');
     return q(v);
   }).join(',')));
   const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type:'text/csv;charset=utf-8' });
@@ -830,6 +934,8 @@ document.addEventListener('click', ev => {
     if(l) selectLot(l.lot);
     return;
   }
+
+  if(act === 'st'){ S.st = t.dataset.v; render(); return; }
 
   if(act === 'sort'){
     const k = t.dataset.k;
@@ -892,8 +998,9 @@ document.addEventListener('click', ev => {
 /* เปลี่ยนตาราง */
 $('tbl').addEventListener('change', () => {
   S.table = $('tbl').value;
+  try { localStorage.setItem('lp_table', S.table); } catch(e){}
   buildCols();
-  S.rows = []; S.filters = {}; S.sort = { k:'', dir:0 };
+  S.rows = []; S.filters = {}; S.sort = { k:'', dir:0 }; S.st = 'all';
   if(S.lot) selectLot(S.lot); else render();
 });
 
