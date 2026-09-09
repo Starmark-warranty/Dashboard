@@ -5,8 +5,33 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Ax Progress · รายชิ้นในลอต</title>
 <!-- =====================================================================
-  Lot Parts · รายชิ้นในลอต        ·   VERSION 3.5
+  Lot Parts · รายชิ้นในลอต        ·   VERSION 3.6
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  3.6  2026-09-09  FEAT ปุ่ม ⤓ ดึงจาก AX ออกมาอยู่บนแถบเครื่องมือ เห็นตลอดเวลา
+                   เดิมปุ่มนี้โผล่เฉพาะตอน S.needReq ซึ่งเป็นจริงก็ต่อเมื่อ
+                   ลอตนั้นไม่มีสักแถว · ผมเขียนไว้ตอนคิดว่าปัญหาเดียวคือจอว่าง
+                   แต่เคสที่เจอจริงคือ "มีของ แต่เป็นของเก่า" ซึ่งไม่มีปุ่มให้กด
+                   ⟳ ReLoad ก็ช่วยไม่ได้ เพราะมันอ่าน Supabase ใหม่เฉย ๆ
+                   ไม่ได้ไปแตะ AX · กดกี่ทีก็ได้เลขเดิม
+                   ตัวอย่างจริง ลอต ตู้ขาว CP_15-6-69 ขึ้น 881/882 ค้างมาสามเดือน
+                   เพราะลอตเดือน 6 หลุดทั้งสามทางที่ StarSync จะรีเฟรชให้
+                   (ไม่มีการยิงใหม่ · ไม่มีคำขอ · อยู่นอกช่วงเติมย้อนหลัง)
+                   FIX  askForLot() รอผิดเงื่อนไข ใช้กับลอตที่มีข้อมูลอยู่แล้วไม่ได้
+                   ของเดิมถือว่า "มีแถวใน lot_part" = ของมาถึงแล้ว
+                   ลอตที่มีของค้างอยู่ 882 แถว รอบตรวจแรกที่ 5 วินาที
+                   จะเห็นแถวเดิมทันทีแล้วสรุปว่าเสร็จ ทั้งที่ StarSync
+                   ยังไม่ได้เริ่มทำด้วยซ้ำ · จอจะกะพริบแล้วโชว์เลขเดิม
+                   · จดค่า synced_at ล่าสุดไว้ก่อนส่งคำขอ ใช้เป็นเส้นตัด
+                     ของใหม่ = synced_at ที่มากกว่าเส้นนั้น
+                   · ลอตที่จอว่างยังทำงานเหมือนเดิม เพราะเส้นตัดเป็น 0
+                   FEAT ป้าย "ดึงจาก AX" บนแถบ บอกว่าของที่ดูอยู่เก่าแค่ไหน
+                   ไม่งั้นคนดูแยกไม่ออกระหว่าง "ยังไม่ตัด" กับ "ตัดแล้วแต่ยังไม่ซิงก์"
+                   ซึ่งเป็นคนละเรื่องกันคนละโลก
+                   · synced_at เขียนเป็น UTC (StarSync ใช้ ToUniversalTime)
+                     แต่ PostgREST อาจคืนมาโดยไม่มีตัวบอกโซน ปล่อยให้ JS เดา
+                     มันจะอ่านเป็นเวลาท้องถิ่น เพี้ยนไป 7 ชั่วโมงทันที
+                     จึงเติม Z ให้เองก่อนแปลง · ไม่ใช้ fmtTime ที่ตัดสตริงดิบ
+                   หมายเหตุ ยังไม่ได้ทดสอบกับของจริง เขียนแล้วส่งเลย
   3.5  2026-09-08  FIX  ตารางเพี้ยน ช่องกระจายเป็นบล็อกละ 4 · ต้นเหตุคือชื่อคลาสชนกัน
                    2.8 ตั้งชื่อกริด 4 คอลัมน์ของหน้าต่างเลือกลอตว่า .pk
                    ซึ่งชนกับ <tr class="pk"> ที่ 2.1 ใส่ไว้ให้แถวห่ออุปกรณ์
@@ -585,8 +610,14 @@ thead th.tick-col .th-s:empty{display:none}
     </div>
     <div class="fld"><label>Name</label><div class="ro empty" id="fName">—</div></div>
     <div class="fld"><label>หมวดงาน</label><div class="ro empty" id="fCat">—</div></div>
+    <!-- v3.6 ของที่ดูอยู่เก่าแค่ไหน · แยก "ยังไม่ตัด" ออกจาก "ตัดแล้วแต่ยังไม่ซิงก์" -->
+    <div class="fld"><label>ดึงจาก AX</label><div class="ro empty" id="fSync">—</div></div>
 
-    <button class="btn" data-act="reload" title="ดึงข้อมูลใหม่">⟳ ReLoad</button>
+    <button class="btn" data-act="reload"
+            title="อ่านจาก Supabase ใหม่ · ไม่ได้ไปเอาของสดจาก AX">⟳ ReLoad</button>
+    <!-- v3.6 เดิมปุ่มนี้ซ่อนไว้ โผล่เฉพาะตอนลอตไม่มีสักแถว · เอาออกมาให้เห็นตลอด -->
+    <button class="btn pri" data-act="ask" id="bAsk"
+            title="สั่งให้ StarSync ไปเอาของสดจาก AX มาทับ">⤓ ดึงจาก AX</button>
     <button class="btn" data-act="cols">▦ คอลัมน์</button>
     <button class="btn" data-act="csv">⤓ Export</button>
     <button class="btn" data-act="cfg" title="ตั้งค่าการเชื่อมต่อ">⚙</button>
@@ -669,6 +700,34 @@ const isTh  = v => RE_TH.test(String(v == null ? '' : v));
 /* เวลา · ตัดสตริงตรง ๆ ไม่ผ่าน new Date()
    StarSync เขียนเวลาท้องถิ่นลงไปดิบ ๆ ถ้าแปลง timezone อีกทีจะไม่ตรงกับหน้าหลัก */
 const fmtTime = v => String(v || '').replace('T',' ').slice(0,19);
+
+/* v3.6 synced_at เป็นข้อยกเว้นของกฎด้านบน · StarSync เขียนตัวนี้ด้วย
+   ToUniversalTime() จึงเป็น UTC เสมอ ไม่ใช่เวลาท้องถิ่นแบบ part_date
+   แต่ PostgREST อาจคืนมาโดยไม่มี Z ต่อท้าย แล้วแต่ชนิดคอลัมน์
+   ปล่อยให้ JS เดาเอง มันจะอ่านเป็นเวลาท้องถิ่น เพี้ยนไป 7 ชั่วโมงทันที
+   จึงเติม Z ให้เองเมื่อไม่มีตัวบอกโซนติดมา */
+function parseUtc(v){
+  const s = String(v || '').trim();
+  if(!s) return 0;
+  const t = Date.parse(/[Zz]$|[+-]\d{2}:?\d{2}$/.test(s) ? s : s + 'Z');
+  return isNaN(t) ? 0 : t;
+}
+/* บอกว่านานแค่ไหนแล้ว · ไม่ต้องแม่นระดับวินาที แค่ให้รู้ว่าสดหรือค้าง */
+function agoTx(ms){
+  if(!ms) return '';
+  const s = Math.max(0, Math.round((Date.now() - ms) / 1000));
+  if(s < 60)    return s + ' วินาทีที่แล้ว';
+  if(s < 3600)  return Math.round(s / 60) + ' นาทีที่แล้ว';
+  if(s < 86400) return Math.round(s / 3600) + ' ชม.ที่แล้ว';
+  return Math.round(s / 86400) + ' วันที่แล้ว';
+}
+/* เวลาซิงก์ล่าสุดของชุดแถวที่โหลดมา · คิดครั้งเดียวตอนโหลด ไม่คิดใหม่ทุกครั้งที่วาด
+   ลอตใหญ่สามพันแถว ถ้าไล่ทุกรอบ render จะหน่วงโดยไม่จำเป็น */
+function maxSynced(rows){
+  let m = 0;
+  for(const r of rows){ const t = parseUtc(r && r.synced_at); if(t > m) m = t; }
+  return m;
+}
 const nf2 = new Intl.NumberFormat('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 const nf0 = new Intl.NumberFormat('en-US');
 
@@ -694,6 +753,7 @@ const S = {
   view:'all',         // ตัวกรองแถว: all | todo | pack
   busy:'', err:'', needReq:false,
   asking:false, askMsg:'',   // กำลังรอ StarSync มาดึงลอตนี้ให้
+  synced:0,                  // v3.6 synced_at ล่าสุดของลอตที่เปิดอยู่ (มิลลิวินาที)
 };
 
 /* ชื่อหัวคอลัมน์ · ถอดมาจากนิยามกริดในตัว AxProgress.exe ทั้งหมด */
@@ -1016,11 +1076,25 @@ function renderHead(){
   const qb = $('q');
   qb.className = 'lotbtn' + (S.lot ? '' : ' empty');
   $('qtx').textContent = S.lot || 'เลือกลอต';
+
+  /* v3.6 ป้ายบอกอายุของข้อมูล · ข้อความไทย ห้ามใส่ฟอนต์ mono
+     เวลาเต็มไปอยู่ใน title แทน คนที่อยากรู้วินาทีก็ชี้เมาส์เอา */
+  const sy = $('fSync');
+  sy.textContent = S.synced ? agoTx(S.synced) : '—';
+  sy.className   = 'ro' + (S.synced ? '' : ' empty');
+  sy.title       = S.synced ? new Date(S.synced).toLocaleString('th-TH') : '';
+
+  /* กดซ้ำระหว่างรอไม่มีประโยชน์ · คำขอใบเดิมถูก merge ทับอยู่แล้ว */
+  const ab = $('bAsk');
+  ab.disabled  = !S.lot || S.asking;
+  ab.innerHTML = S.asking ? '<span class="spin sm"></span> กำลังดึง' : '⤓ ดึงจาก AX';
 }
 
 function renderNote(){
   const el = $('note');
-  if(!S.lot || !S.needReq){ el.style.display = 'none'; return; }
+  /* v3.6 เดิมผูกกับ needReq อย่างเดียว แถบจึงเงียบสนิทเวลากดดึงลอตที่มีของอยู่แล้ว
+     คนกดไม่รู้ว่ามันทำงานอยู่หรือกดไม่ติด · ให้โผล่ตอนกำลังดึงด้วย */
+  if(!S.lot || (!S.needReq && !S.asking)){ el.style.display = 'none'; return; }
   $('noteTx').innerHTML = S.asking
     ? '<span class="spin sm"></span> <b>กำลังดึงรายชิ้นของลอตนี้จาก AX</b> · ' + esc(S.askMsg)
     : '<b>ลอตนี้ยังไม่มีรายชิ้นใน lot_part</b> ' +
@@ -1442,7 +1516,7 @@ async function selectLot(lot){
   S.prog = S.lots.find(l => l.lot === lot) || null;
   S.filters = {}; S.sort = { k:'', dir:0 }; S.view = 'all';
   S.busy = 'กำลังดึงรายชิ้นของลอต ' + lot; S.err = ''; S.rows = []; S.needReq = false;
-  S.asking = false; S.askMsg = '';
+  S.asking = false; S.askMsg = ''; S.synced = 0;
   render();
 
   try {
@@ -1454,6 +1528,7 @@ async function selectLot(lot){
     buildCols();
     S.rows = S.schema['lot_part'] ? await db.rowsOfLot('lot_part', lot) : [];
     rememberPickerStats(lot, S.rows);
+    S.synced = maxSynced(S.rows);          /* v3.6 ของที่ดูอยู่ลอกมาจาก AX เมื่อไหร่ */
     if(!S.rows.length) S.needReq = true;
   } catch(e){ S.err = e.message; }
 
@@ -1469,6 +1544,16 @@ async function selectLot(lot){
 async function askForLot(){
   const lot = S.lot;
   if(!lot || S.asking) return;
+
+  /* v3.6 เส้นตัดว่า "ของใหม่มาถึงหรือยัง" · จดเวลาซิงก์ของเดิมไว้ก่อนส่งคำขอ
+     ของเดิมใช้ "มีแถวใน lot_part ไหม" ซึ่งจริงเฉพาะลอตที่จอว่าง
+     ลอตที่มีของค้าง 882 แถว รอบตรวจแรกจะเห็นแถวเดิมแล้วสรุปว่าเสร็จทันที
+     ทั้งที่ StarSync ยังไม่ได้เริ่มทำ · ลอตที่ว่างจริงเส้นตัดเป็น 0
+     ค่าอะไรก็มากกว่า พฤติกรรมเดิมจึงไม่เปลี่ยน
+     เทียบเวลาจากฐานข้อมูลกับเวลาจากฐานข้อมูลด้วยกัน นาฬิกาเครื่องคนใช้
+     จะเดินเพี้ยนแค่ไหนก็ไม่เกี่ยว */
+  const before = S.synced;
+
   S.asking = true; S.askMsg = 'ส่งคำขอแล้ว รอ StarSync มาเก็บไปทำ'; render();
   try { await db.request(lot); }
   catch(e){
@@ -1486,10 +1571,15 @@ async function askForLot(){
     render();
     try {
       /* ดูที่ lot_part ก่อน · ลอตนี้อาจมาจากรอบเติมอัตโนมัติ ไม่ใช่จากคำขอเรา
-         ถ้าดูแต่ done_at ของคำขอ จะนั่งรอครบห้านาทีทั้งที่ข้อมูลมาถึงแล้ว */
-      const got = await db.get('lot_part?select=rec_id&lot=eq.' +
-                               encodeURIComponent(lot) + '&limit=1');
-      if(got.length){ S.asking = false; S.askMsg = ''; await selectLot(lot); return; }
+         ถ้าดูแต่ done_at ของคำขอ จะนั่งรอครบห้านาทีทั้งที่ข้อมูลมาถึงแล้ว
+         v3.6 ต้อง nullslast · Postgres เรียง desc แล้วเอา null ขึ้นก่อน
+         ถ้าลอตนั้นมีสักแถวที่ synced_at ว่าง จะได้ null มาตลอดแล้วรอไม่จบ */
+      const got = await db.get('lot_part?select=synced_at&lot=eq.' +
+                               encodeURIComponent(lot) +
+                               '&order=synced_at.desc.nullslast&limit=1');
+      if(got.length && parseUtc(got[0].synced_at) > before){
+        S.asking = false; S.askMsg = ''; await selectLot(lot); return;
+      }
 
       const q = await db.requestState(lot);
       if(q && q.done_at){
