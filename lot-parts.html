@@ -5,8 +5,47 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Ax Progress · รายชิ้นในลอต</title>
 <!-- =====================================================================
-  Lot Parts · รายชิ้นในลอต        ·   VERSION 3.7
+  Lot Parts · รายชิ้นในลอต        ·   VERSION 3.9
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  3.9  2026-09-09  CHANGE ยิง Pack แต่ไม่ได้ยิง Part = ถือว่าตัดแล้ว · ตามระบบเก่า
+                   3.8 ผมเดาว่า 27 แถวนั้นเป็นของหลุดที่ควรตามไล่
+                   เจ้าของงานยืนยันแล้วว่าไม่ใช่ · เป็นกฎที่ตั้งใจใส่ไว้
+                   ของที่ห่อไปแล้วย่อมผ่านเลื่อยมาแล้วแน่นอน ที่ขาดคือ
+                   คนตัดไม่ได้ยิงบาร์โค้ดเข้าระบบ ไม่ใช่ชิ้นงานไม่ได้ถูกตัด
+                   ระบบเก่าจึงติ๊ก Part ให้เองตอนแสดงผล ผมทำตาม
+                   · isDone() รวมเงื่อนไข st_pack เข้าไปด้วย มีผลกับทุกที่
+                     ที่นับยอด: เกจ Part แถบล่าง ตัวกรอง "ยังไม่ตัด"
+                     และยอดในหน้าต่างเลือกลอต · ลอตในภาพจึงขึ้น 882/882
+                   · เกจ Part เดิมอ่านค่าดิบเองไม่ผ่าน isDone จึงต้องแก้ด้วย
+                     ไม่งั้นเกจขึ้น 881 แถบล่างขึ้น 882 ขัดกันเองบนจอเดียว
+                   · ไม่แตะค่าใน lot_part · ติ๊กเฉพาะตอนแสดงผลเหมือนระบบเก่า
+                     ฐานข้อมูลยังเก็บ CHECKPART=0 ตามความจริงของ AX
+                   CHANGE พื้นหลังเขียวเป็นสัญญาณว่าตัดครบ ไม่ใช่สีประจำกลุ่ม
+                   ของเดิมทาเขียวให้ทุกช่องใน State ตลอดเวลา สีเลยไม่ได้บอกอะไร
+                   ระบบเก่าใช้เขียวเป็นสัญญาณว่าคอลัมน์ Part ครบแล้ว
+                   · ช่อง State เป็นสีเทาจาง ๆ แทน ยังอ่านออกว่าเป็นกลุ่มเดียวกัน
+                   · คอลัมน์ Part เขียวทั้งคอลัมน์เมื่อตัดครบทุกชิ้น
+                   FEAT ป้าย "ไม่ได้ยิงตัด" ยังอยู่ แต่เปลี่ยนความหมาย
+                   ไม่ใช่ของผิดปกติที่ต้องตามแล้ว เป็นแค่ตัวบอกว่าลอตนี้
+                   มีกี่ชิ้นที่ติ๊กมาจากกฎ ไม่ได้ยิงจริง · กดกรองดูได้เหมือนเดิม
+                   ยอดตัดไม่เปลี่ยนตามป้ายนี้ เพราะนับรวมไปแล้ว
+                   หมายเหตุ ยังไม่ได้ทดสอบกับของจริง
+  3.8  2026-09-09  FEAT ทำเครื่องหมายชิ้นที่ห่อแล้วแต่ไม่มีบันทึกการยิงตัด
+                   ที่มา: ลอต ตู้ขาว CP_15-6-69 หน้านี้ขึ้น 881/882
+                   แต่โปรแกรมเก่า export ออกมาเป็น 882/882 ครบ
+                   ไล่ดูแล้วไม่ใช่ข้อมูลค้าง ห่างกันแค่ 2 นาที
+                   ถาม AX ตรง ๆ ได้ CHECKPART 0 หนึ่งแถว 1 อีก 881 แถว
+                   แปลว่าฝั่งเราอ่านถูก · โปรแกรมเก่าต่างหากที่ไม่ได้โชว์ค่าดิบ
+                   แถวนั้น CHECKPART=0 แต่ CHECKPACK=1 ทั้งตารางมีแบบนี้ 27 แถว
+                   น้อยพอที่จะเป็นของผิดปกติจริง ไม่ใช่สภาพปกติของ AX
+                   ตัดสินใจไม่ติ๊กตามโปรแกรมเก่า · "ตัดแล้ว" กับ "ไม่รู้ว่าตัดหรือยัง
+                   แต่ห่อไปแล้ว" เป็นคนละเรื่อง เอามาแทนกันคือรากของทุกอาการ
+                   ที่ไล่แก้กันมาตั้งแต่ 2.9 ถึง 3.3 · ยอดจึงยังเป็น 881/882 เท่าเดิม
+                   · ช่อง Part ของแถวแบบนี้ขึ้นเป็นกรอบสีส้มมี ! แทนกรอบว่าง
+                     ชี้เมาส์บอกว่าห่อแล้วแต่ไม่มีบันทึกการยิงตัด
+                   · แถบล่างมีป้าย "ห่อแล้วไม่ได้ยิง" พร้อมจำนวน กดกรองดูได้
+                     ป้ายโผล่เฉพาะลอตที่มีแถวแบบนี้ ลอตปกติไม่เห็นอะไรเพิ่ม
+                   หมายเหตุ ยังไม่ได้ทดสอบกับของจริง
   3.7  2026-09-09  CHANGE เลือกลอตแล้วสั่งดึงจาก AX ให้เอง ไม่ต้องกดปุ่ม
                    3.6 เอาปุ่มออกมาให้เห็น ซึ่งดีกว่าซ่อนไว้ แต่ยังผลักภาระ
                    ให้คนใช้ต้องรู้เองว่าเมื่อไหร่ควรกด · คนเปิดหน้านี้อยากเห็น
@@ -487,9 +526,16 @@ td.idx{background:var(--hd);font-family:var(--mono);color:var(--mu2);text-align:
 tbody tr:hover td.idx{background:var(--hov)}
 
 /* ช่องติ๊กในแถบ State */
-td.st{background:var(--stbg);text-align:center}
-tbody tr:nth-child(even) td.st{background:var(--stbg2)}
-tbody tr:hover td.st{background:var(--stbg2)}
+/* v3.9 เขียวคือสัญญาณว่าคอลัมน์ Part ตัดครบแล้ว ไม่ใช่สีประจำกลุ่ม State
+   ของเดิมทาเขียวทุกช่องตลอดเวลา สีจึงไม่ได้บอกอะไรเลย
+   ช่อง State เป็นเทาจาง ๆ พอให้อ่านออกว่าเป็นกลุ่มเดียวกัน */
+td.st{background:var(--flt);text-align:center}
+tbody tr:nth-child(even) td.st{background:var(--band)}
+tbody tr:hover td.st{background:var(--band)}
+/* ตัดครบทุกชิ้นเมื่อไหร่ คอลัมน์ Part เขียวทั้งคอลัมน์ */
+#grid.cut td.st.p{background:var(--stbg)}
+#grid.cut tbody tr:nth-child(even) td.st.p,
+#grid.cut tbody tr:hover td.st.p{background:var(--stbg2)}
 .cbx{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;
   font-size:10px;border-radius:5px;background:var(--ok);color:#fff;vertical-align:middle}
 .cbx.n{background:transparent;border:1.5px solid var(--mu2);color:transparent}
@@ -515,6 +561,7 @@ tbody td.miss{background:repeating-linear-gradient(45deg,transparent,transparent
 .status .n{font-family:var(--mono);color:var(--tx);font-weight:600}
 .status .n.bad{color:var(--bad)}
 .status .n.mu{color:var(--mu2)}
+.status .n.warn{color:var(--warn)}   /* v3.8 ห่อแล้วไม่ได้ยิง */
 .status .btn{padding:4px 10px;min-height:28px;font-size:11.5px}
 .status .tot{margin-left:auto;display:flex;align-items:center;gap:10px}
 .pbar{width:120px;height:8px;border-radius:99px;background:var(--line);overflow:hidden}
@@ -613,8 +660,13 @@ thead th.tick-col .th-s:empty{display:none}
 #grid thead tr.flt th .fbox{position:absolute;left:3px;right:3px;top:3px;height:22px;box-sizing:border-box}
 #grid .fbox input{width:100%;min-width:0;box-sizing:border-box}
 #grid td.st{min-width:34px}
-#grid td.state-fixed{position:sticky;z-index:21;background:var(--stbg)}
-#grid tbody tr:nth-child(even) td.state-fixed,#grid tbody tr:hover td.state-fixed{background:var(--stbg2)}
+#grid td.state-fixed{position:sticky;z-index:21;background:var(--flt)}
+#grid tbody tr:nth-child(even) td.state-fixed,#grid tbody tr:hover td.state-fixed{background:var(--band)}
+/* v3.9 คอลัมน์ที่ตรึงไว้มีกฎสีของตัวเอง ต้องเติมให้ตรงกับที่ไม่ได้ตรึง
+   ไม่งั้น Part ที่ตรึงอยู่จะเป็นเทาตลอด ทั้งที่ตัวที่เลื่อนได้เป็นเขียว */
+#grid.cut td.state-fixed.p{background:var(--stbg)}
+#grid.cut tbody tr:nth-child(even) td.state-fixed.p,
+#grid.cut tbody tr:hover td.state-fixed.p{background:var(--stbg2)}
 #grid thead tr.cols th.state-fixed{z-index:41;background:var(--hd)}
 #grid thead tr.flt th.state-fixed{z-index:40;background:var(--flt)}
 #grid thead tr.band th.state-fixed{z-index:42;background:var(--band)}
@@ -845,8 +897,22 @@ const TICKS = new Set(['st_part','st_pack','st_pick','st_wh','st_delivery','st_s
                        'st_wh_rec','st_wh_issue']);
 
 const stKey = () => srcKey('st_part');
-const isDone = r => { const v = valOf(r, 'st_part');
-                      return v === true || Number(v) === 1; };
+
+/* ค่าดิบจาก AX · ยิงบาร์โค้ดที่หน้าเลื่อยจริงหรือเปล่า
+   แยกไว้เพราะยังต้องใช้ตอบคำถามว่าชิ้นไหนไม่ได้ยิง */
+const isCutScanned = r => { const v = valOf(r, 'st_part');
+                            return v === true || Number(v) === 1; };
+const isPacked     = r => { const v = valOf(r, 'st_pack');
+                            return v === true || Number(v) === 1; };
+
+/* v3.9 ตัดแล้วหรือยัง ในความหมายที่ระบบเก่าใช้
+   ยิง Pack แล้วแต่ไม่ได้ยิง Part = ถือว่าตัดแล้ว
+   เหตุผลคือของที่ห่อไปแล้วย่อมผ่านเลื่อยมาแล้วแน่นอน ที่ขาดคือ
+   คนตัดไม่ได้ยิงบาร์โค้ดเข้าระบบ ไม่ใช่ชิ้นงานไม่ได้ถูกตัด
+   ติ๊กเฉพาะตอนแสดงผล ไม่ได้ไปแก้ค่าใน lot_part หรือ AX
+   ทุกที่ที่นับยอดต้องเรียกตัวนี้ ห้ามอ่าน st_part ดิบเอง
+   ไม่งั้นเกจกับแถบล่างจะขึ้นเลขไม่ตรงกันบนจอเดียว */
+const isDone = r => isCutScanned(r) || (isPiece(r) && isPacked(r));
 /* ตารางที่ดูอยู่มีครบทุกชิ้นในลอตไหม (ไม่ใช่แค่ชิ้นที่ยิงแล้ว) */
 const hasFull = () => (S.schema[S.table] || []).includes('st_part');
 
@@ -870,6 +936,18 @@ function isPiece(r){
   if(L === undefined && W === undefined) return true;
   return Number(L) > 0 && Number(W) > 0;
 }
+
+/* v3.8 ชิ้นที่ต้องตัด · AX ไม่ได้ติ๊ก Part แต่ติ๊ก Pack ไปแล้ว
+   v3.9 ต้องดูค่าดิบด้วย isCutScanned ไม่ใช่ isDone
+   เพราะ isDone รวมกฎนี้เข้าไปแล้ว ถ้าเรียก isDone จะไม่เจอสักแถว
+   ความหมายเปลี่ยนไปจาก 3.8 · ไม่ใช่ของผิดปกติที่ต้องตามแล้ว
+   เป็นตัวบอกว่าลอตนี้มีกี่ชิ้นที่ติ๊กมาจากกฎ ไม่ได้ยิงจริง
+   ยอดตัดไม่เปลี่ยนตามตัวนี้ เพราะนับรวมไปแล้ว */
+function isOrphan(r){
+  if(!isPiece(r) || isCutScanned(r)) return false;
+  return isPacked(r);
+}
+const orphanCount = () => S.rows.filter(isOrphan).length;
 
 const PRESETS = {
   'เหมือน Ax Progress':[
@@ -1056,10 +1134,14 @@ function viewRows(){
   /* กรองหยาบก่อน ตัดแถวออกได้เยอะสุด */
   if(S.view === 'todo')      rs = rs.filter(r => isPiece(r) && !isDone(r));
   else if(S.view === 'pack') rs = rs.filter(r => !isPiece(r));
+  else if(S.view === 'orph') rs = rs.filter(isOrphan);   /* v3.8 */
   const fk = Object.keys(S.filters).filter(k => S.filters[k]);
   if(fk.length){
     rs = rs.filter(r => fk.every(k => {
       const raw = valOf(r, k);
+      /* v3.9 กรองช่อง Part ต้องเดินตามกฎเดียวกับที่ตารางแสดง
+         ไม่งั้นแถวที่เห็นเป็นติ๊ก พอกรอง "ติ๊กแล้ว" กลับหายไป */
+      if(k === 'st_part') return isDone(r) === (S.filters[k] === '1');
       if(TICKS.has(k)) return (raw === true || Number(raw) === 1) === (S.filters[k] === '1');
       /* ช่องติ๊กพิมพ์กรองเป็นตัวเลขหรือคำก็ได้ · เทียบกับ True/False เหมือนไฟล์ export */
       const txt = TICKS.has(k) ? (raw === true || Number(raw) === 1 ? 'true 1' : 'false 0')
@@ -1231,7 +1313,12 @@ function renderGrid(){
     h += '</tr>';
   });
   h += '</tbody>';
-  $('grid').innerHTML = h;
+  const grid = $('grid');
+  grid.innerHTML = h;
+  /* v3.9 ตัดครบเมื่อไหร่ คอลัมน์ Part เขียวทั้งคอลัมน์ · สัญญาณเดียวกับระบบเก่า
+     ต้องมีชิ้นที่ต้องตัดจริงก่อน ลอตที่มีแต่ห่ออุปกรณ์อย่างเดียวไม่นับว่าครบ */
+  const cs = partStats();
+  grid.classList.toggle('cut', cs.total > 0 && cs.done >= cs.total);
   pinStateColumns();
 }
 
@@ -1240,9 +1327,19 @@ function cell(r, k){
   const v = valOf(r, k);
 
   if(TICKS.has(k)){
-    const y = v === true || Number(v) === 1;
-    return '<td class="st"><span class="cbx' + (y ? '' : ' n') + '" title="' +
-           (y ? 'ติ๊กแล้ว' : 'ยังไม่ติ๊ก') + '">✔</span></td>';
+    let y = v === true || Number(v) === 1;
+    /* v3.9 ช่อง Part เดินตามกฎเดียวกับที่ใช้นับยอด ไม่ใช่ค่าดิบ
+       ไม่งั้นแถบล่างขึ้น 882/882 แต่ในตารางยังมีช่องว่างให้เห็น ขัดกันเอง
+       ช่องอื่นไม่มีกฎอะไร อ่านค่าดิบตามเดิม
+       ติ๊กที่มาจากกฎบอกไว้ใน title · หน้าตาเหมือนกันตามระบบเก่า
+       แต่ยังหาเจอได้จากป้าย "ไม่ได้ยิงตัด" ที่แถบล่าง */
+    let tip = y ? 'ติ๊กแล้ว' : 'ยังไม่ติ๊ก';
+    if(k === 'st_part' && !y && isOrphan(r)){
+      y = true;
+      tip = 'ยิง Pack แล้วแต่ไม่ได้ยิงตัด · ระบบถือว่าตัดแล้ว';
+    }
+    return '<td class="st' + (k === 'st_part' ? ' p' : '') + '">' +
+           '<span class="cbx' + (y ? '' : ' n') + '" title="' + tip + '">✔</span></td>';
   }
   if(k === 'rec_id') return '<td class="mono">' + esc(v == null ? '' : String(v)) + '</td>';
   if(DATES.has(k))       return '<td class="mono">' + esc(fmtTime(v)) + '</td>';
@@ -1317,9 +1414,14 @@ function renderSide(){
       return;
     }
     /* Part ใช้ยอดกลางจาก partStats เพราะตัวหารอาจต้องยืมจาก AX
-       ช่องอื่นมีเฉพาะใน lot_part ซึ่งมีครบทุกแถวอยู่แล้ว นับตรง ๆ ได้ */
+       ช่องอื่นมีเฉพาะใน lot_part ซึ่งมีครบทุกแถวอยู่แล้ว นับตรง ๆ ได้
+       v3.9 Part ต้องผ่าน isDone ไม่ใช่อ่าน r[key] ดิบ
+       ของเดิมอ่านดิบ พอ 3.9 ใส่กฎ "ยิง Pack = ถือว่าตัดแล้ว" เข้าไป
+       เกจจะขึ้น 881 ส่วนแถบล่างขึ้น 882 ขัดกันเองบนจอเดียวกัน */
     const base = g.piece ? piece : S.rows;
-    const yes  = base.filter(r => { const v = r[key]; return v === true || Number(v) === 1; }).length;
+    const yes  = g.k === 'st_part'
+               ? base.filter(isDone).length
+               : base.filter(r => { const v = r[key]; return v === true || Number(v) === 1; }).length;
     const tot  = base.length;
     const no   = Math.max(0, tot - yes);
     const pct  = tot ? Math.round(yes / tot * 100) : 0;
@@ -1368,6 +1470,13 @@ function renderStatus(){
   let h = vb('all', 'ทั้งหมด', S.rows.length, '', false) +
           vb('todo', 'ยังไม่ตัด', todo, 'bad', false) +
           (pack ? vb('pack', 'ห่ออุปกรณ์', pack, 'mu', false) : '');
+
+  /* v3.9 เปลี่ยนความหมาย · ไม่ใช่ของผิดปกติที่ต้องตามแล้ว
+     เป็นตัวบอกว่ามีกี่ชิ้นที่ติ๊กมาจากกฎ ไม่ได้ยิงจริงที่หน้าเลื่อย
+     ยอดตัดไม่เปลี่ยนตามป้ายนี้ เพราะนับรวมเป็นตัดแล้วไปแล้ว
+     โผล่เฉพาะลอตที่มี · ลอตปกติไม่เห็นอะไรเพิ่ม */
+  const orph = orphanCount();
+  if(orph) h += vb('orph', 'ไม่ได้ยิงตัด', orph, 'warn', false);
 
   h += '<span style="margin-left:6px">ต้องตัด <span class="n">' +
        nf0.format(st.total) + '</span> · ตัดแล้ว <span class="n">' +
