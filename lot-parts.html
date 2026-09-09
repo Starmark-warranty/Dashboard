@@ -517,6 +517,41 @@ tbody td.miss{background:repeating-linear-gradient(45deg,transparent,transparent
 .f2 input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brandbg)}
 select.sel{background:var(--card);border:1px solid var(--line);border-radius:7px;
   padding:5px 8px;min-height:28px;font-size:11.5px;font-family:inherit;cursor:pointer;color:var(--tx)}
+/* Expanded lot picker and compact parts table */
+#ovLot{padding:12px}
+.modal.lotmodal{width:100%;height:calc(100vh - 24px);height:calc(100dvh - 24px);
+  margin:0;display:flex;flex-direction:column;min-height:0}
+.lotmodal h3{display:flex;align-items:center;justify-content:space-between;
+  flex-shrink:0;padding:10px 14px}
+.lotmodal .bd{flex:1;min-height:0;padding:12px;overflow:auto;display:flex}
+.lotmodal .pkgrid{flex:1;min-width:0;min-height:0;grid-template-columns:repeat(4,minmax(0,1fr))}
+.lotmodal .pc{min-width:0}
+.lotmodal .pc-l{min-height:0;max-height:none}
+.lotmodal .pc-h,.lotmodal .pc-s,.lotmodal .pc-f{flex-shrink:0}
+.lotmodal .pc-i .l{white-space:normal;overflow-wrap:anywhere}
+thead tr.band th{height:22px}
+thead tr.cols th{top:22px}
+thead tr.flt th{top:50px;padding:2px 3px}
+.th-in{height:28px;padding:5px 7px;font-size:10px;gap:3px}
+.fbox{padding:1px 4px;border-radius:4px;gap:2px}
+.fbox input{font-size:10.5px;padding:1px 0;min-width:28px}
+tbody td{padding:4px 7px;font-size:11.5px;line-height:16px}
+td.st{padding:3px 4px}
+.cbx{width:14px;height:14px;font-size:9px;border-radius:4px}
+thead th.tick-col .th-in{padding:4px;gap:2px;justify-content:center;letter-spacing:0}
+thead th.tick-col .fbox{padding:1px 2px}
+thead th.tick-col input{width:18px;min-width:0}
+thead th.tick-col .th-s:empty{display:none}
+@media(max-width:980px){
+  .lotmodal .pkgrid{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:620px){
+  #ovLot{padding:6px}
+  .modal.lotmodal{height:calc(100vh - 12px);height:calc(100dvh - 12px)}
+  .lotmodal .bd{padding:8px}
+  .lotmodal .pkgrid{grid-template-columns:minmax(0,1fr);grid-template-rows:none}
+  .lotmodal .pc{min-height:260px;max-height:400px}
+}
 </style>
 </head>
 <body>
@@ -575,7 +610,7 @@ select.sel{background:var(--card);border:1px solid var(--line);border-radius:7px
 <!-- ── หน้าต่างเลือกลอต · แบ่งตามสถานะ 3 คอลัมน์ + ช่องค้นหา ────── -->
 <div class="ov" id="ovLot">
   <div class="modal lotmodal">
-    <h3>เลือกลอต</h3>
+    <h3>เลือกลอต<button type="button" class="btn" data-act="pkclose" aria-label="ปิดหน้าต่างเลือกลอต">ปิด ×</button></h3>
     <div class="bd"><div class="pkgrid" id="pk"></div></div>
   </div>
 </div>
@@ -1025,7 +1060,7 @@ function renderGrid(){
     /* ช่องที่ยังไม่มีข้อมูลไฮไลต์ส้มพร้อมบอกเหตุผลตอนชี้เมาส์
        ไม่ซ่อนทิ้ง เพราะจุดประสงค์คือให้เห็นว่าขาดอะไรบ้าง */
     const bad = S.miss[c.k];
-    h += '<th' + w + (bad ? ' class="miss" title="' + esc(bad) + '"' : '') +
+    h += '<th' + w + ' class="' + (TICKS.has(c.k) ? 'tick-col ' : '') + (bad ? 'miss' : '') + '"' + (bad ? ' title="' + esc(bad) + '"' : '') +
          '><div class="th-in' + cls + '" data-act="sort" data-k="' + esc(c.k) + '">' +
          (bad ? '<span class="mw">!</span>' : '') +
          '<span>' + esc(lbl(c.k)) + '</span><span class="th-s">' + ar + '</span>' +
@@ -1035,7 +1070,7 @@ function renderGrid(){
   /* ── ชั้นที่ 3: แถวกรอง ── */
   h += '</tr><tr class="flt"><th class="idx"></th>';
   cols.forEach(c => {
-    h += '<th><div class="fbox"><span class="fi">▼</span>' +
+    h += '<th' + (TICKS.has(c.k) ? ' class="tick-col"' : '') + '><div class="fbox"><span class="fi">▼</span>' +
          '<input type="text" data-fk="' + esc(c.k) + '" value="' + esc(S.filters[c.k] || '') + '"></div></th>';
   });
   h += '</tr></thead><tbody>';
@@ -1229,7 +1264,7 @@ const BUCKETS = [
   { id:'wip',  label:'กำลังตัด',    cls:'wip'  },
   { id:'fin',  label:'ตัดจบแล้ว',   cls:'fin'  }
 ];
-const PK_FIRST = 5;   /* โชว์กี่รายการแรกก่อนกด "ดูทั้งหมด" */
+const PK_FIRST = 30;   /* โชว์กี่รายการแรกก่อนกด "ดูทั้งหมด" */
 
 function lotItem(l, q, cur){
   const pct = pctOf(l);
@@ -1483,6 +1518,7 @@ document.addEventListener('click', ev => {
   const act = t.dataset.act;
 
   if(act === 'drop'){ openPicker(); return; }
+  if(act === 'pkclose'){ closePicker(); return; }
   if(act === 'pkmore'){ S.pkOpen = (S.pkOpen === t.dataset.b ? '' : t.dataset.b); renderPicker(); return; }
   if(act === 'pick'){ selectLot(t.dataset.lot); return; }
 
