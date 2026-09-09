@@ -620,7 +620,7 @@ thead th.tick-col .th-s:empty{display:none}
   <div class="modal" style="width:min(520px,96vw)">
     <h3>การเชื่อมต่อ Supabase</h3>
     <div class="bd">
-      <div class="sub">ใช้ค่าเดียวกับหน้าหลัก (<code>cc_supa_url</code> / <code>cc_supa_key</code>)</div>
+      <div class="sub">การเชื่อมต่อ Smart Production สำหรับหน้าลอต</div>
       <div class="f2"><label>Project URL</label><input type="text" id="cfgUrl" placeholder="https://xxxx.supabase.co"></div>
       <div class="f2"><label>Publishable key</label><input type="text" id="cfgKey" placeholder="sb_publishable_..."></div>
       <div class="br">
@@ -792,7 +792,7 @@ const DEF_ON = new Set(AXCOLS);
    ชั้นคุยกับฐานข้อมูล · ที่อื่นห้ามเรียก fetch ตรง
    ══════════════════════════════════════════════════════════════ */
 const db = {
-  head(){ return { apikey:S.key, Authorization:'Bearer ' + S.key }; },
+  head(){ return S.key.startsWith('sb_publishable_') ? { apikey:S.key } : { apikey:S.key, Authorization:'Bearer ' + S.key }; },
   base(){ return S.url.replace(/\/+$/,'') + '/rest/v1/'; },
 
   async get(path){
@@ -891,8 +891,8 @@ const db = {
 };
 
 function loadCfg(){
-  S.url = localStorage.getItem('cc_supa_url') || '';
-  S.key = localStorage.getItem('cc_supa_key') || '';
+  S.url = localStorage.getItem('lp_smart_url') || 'https://xuekxoejlaarkemugjew.supabase.co';
+  S.key = localStorage.getItem('lp_smart_key') || 'sb_publishable_b7hUz8isyjcF5U3OAGJXmQ_azoc1Uur';
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1592,8 +1592,8 @@ document.addEventListener('click', ev => {
   if(act === 'cfgclose'){ $('ovCfg').classList.remove('open'); return; }
   if(act === 'cfgsave'){
     try {
-      localStorage.setItem('cc_supa_url', $('cfgUrl').value.trim().replace(/\/+$/,''));
-      localStorage.setItem('cc_supa_key', $('cfgKey').value.trim());
+      localStorage.setItem('lp_smart_url', $('cfgUrl').value.trim().replace(/\/+$/,''));
+      localStorage.setItem('lp_smart_key', $('cfgKey').value.trim());
     } catch(e){}
     $('ovCfg').classList.remove('open'); boot(); return;
   }
@@ -1682,7 +1682,7 @@ $('cl').addEventListener('dragend', () => {
 
 /* ══════════════════════════════════════════════════════════════
    เริ่มทำงาน · หน้านี้เป็นแท็บของตัวเอง อยู่ origin เดียวกับหน้าหลัก
-   จึงอ่าน cc_supa_url / cc_supa_key จาก localStorage ได้ตรง ๆ
+   จึงอ่าน lp_smart_url / lp_smart_key จาก localStorage ได้ตรง ๆ
    ══════════════════════════════════════════════════════════════ */
 boot();
 </script>
