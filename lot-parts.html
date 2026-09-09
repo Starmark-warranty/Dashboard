@@ -1251,13 +1251,44 @@ function mark(text, q){
 
 /* จัดลอตเข้ากลุ่มตามความคืบหน้าการตัด · ใช้ยอดจาก AX ไม่ใช่จำนวนแถวที่โหลด
    total_parts = ชิ้นที่ต้องตัดจริง ไม่รวมห่อ จึงเทียบตรงได้เลย */
+/* Verify empty summaries using the same Part flags shown in the table.
+   Keep these corrections in memory; never write aggregate data to Supabase. */
+const pickerStats = new Map();
+function rememberPickerStats(lot, rows){
+  if(!rows.length || rows.length >= 30000) return;
+  const pieces = rows.filter(isPiece);
+  const counted = pieces.length ? pieces : rows;
+  pickerStats.set(lot, {
+    total: counted.length,
+    done: counted.filter(isDone).length
+  });
+}
+function pickerCounts(l){
+  return pickerStats.get(l.lot) || {
+    total: Number(l.total_parts) || 0,
+    done: Number(l.checked_parts) || 0
+  };
+}
+async function verifyEmptyLotSummaries(){
+  const lots = S.lots;
+  for(const l of lots){
+    if(S.lots !== lots) return;
+    if(Number(l.total_parts) > 0 || pickerStats.has(l.lot)) continue;
+    try {
+      const rows = await db.rowsOfLot('lot_part', l.lot);
+      if(S.lots !== lots) return;
+      rememberPickerStats(l.lot, rows);
+    } catch(e){ /* Keep original summary when verification is unavailable. */ }
+  }
+  if($('ovLot').classList.contains('open')) renderPicker();
+}
 function bucketOf(l){
-  const t = l.total_parts || 0, c = l.checked_parts || 0;
+  const counts = pickerCounts(l), t = counts.total, c = counts.done;
   if(t > 0 && c >= t) return 'fin';
   if(c > 0)           return 'wip';
   return 'todo';
 }
-const pctOf = l => (l.total_parts > 0 ? Math.round((l.checked_parts||0) / l.total_parts * 100) : 0);
+const pctOf = l => { const n = pickerCounts(l); return n.total > 0 ? Math.min(100, Math.round(n.done / n.total * 100)) : 0; };
 
 const BUCKETS = [
   { id:'todo', label:'ยังไม่ตัด',   cls:'todo' },
@@ -1273,7 +1304,7 @@ function lotItem(l, q, cur){
     '<div class="l">' + mark(l.lot, q) + '</div>' +
     (l.proj_name ? '<div class="p">' + mark(l.proj_name, q) + '</div>' : '') +
     '<div class="m"><span class="bar"><i style="width:' + pct + '%"></i></span>' +
-    nf0.format(l.checked_parts||0) + '/' + nf0.format(l.total_parts||0) + ' · ' + pct + '%</div></div>';
+    nf0.format(pickerCounts(l).done) + '/' + nf0.format(pickerCounts(l).total) + ' · ' + pct + '%</div></div>';
 }
 
 function renderPicker(){
@@ -1344,7 +1375,9 @@ async function boot(){
   buildCols();
 
   S.busy = 'กำลังอ่านรายชื่อลอต'; render();
+  pickerStats.clear();
   try { S.lots = await db.lots(); } catch(e){ S.lots = []; }
+  void verifyEmptyLotSummaries();
 
   S.busy = ''; render();
 
@@ -1383,6 +1416,7 @@ async function selectLot(lot){
     S.table = 'lot_part';
     buildCols();
     S.rows = S.schema['lot_part'] ? await db.rowsOfLot('lot_part', lot) : [];
+    rememberPickerStats(lot, S.rows);
     if(!S.rows.length) S.needReq = true;
   } catch(e){ S.err = e.message; }
 
