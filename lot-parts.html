@@ -5,8 +5,31 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Ax Progress · รายชิ้นในลอต</title>
 <!-- =====================================================================
-  Lot Parts · รายชิ้นในลอต        ·   VERSION 3.6
+  Lot Parts · รายชิ้นในลอต        ·   VERSION 3.7
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  3.7  2026-09-09  CHANGE เลือกลอตแล้วสั่งดึงจาก AX ให้เอง ไม่ต้องกดปุ่ม
+                   3.6 เอาปุ่มออกมาให้เห็น ซึ่งดีกว่าซ่อนไว้ แต่ยังผลักภาระ
+                   ให้คนใช้ต้องรู้เองว่าเมื่อไหร่ควรกด · คนเปิดหน้านี้อยากเห็น
+                   ของจริงของลอตนั้น ไม่ได้อยากรู้ว่าเบื้องหลังซิงก์มาเมื่อไหร่
+                   · ถอดปุ่ม ⤓ ดึงจาก AX ออกจากแถบเครื่องมือ
+                   · ป้าย "ดึงจาก AX" กดได้แทน เผื่ออยากบังคับดึงเดี๋ยวนั้น
+                     ยังเห็นอายุข้อมูลเหมือนเดิม แค่กดได้เพิ่มมา
+                   · เปิดลอตแล้วของเก่ากว่า AUTO_ASK_MIN (5 นาที) = ขอเอง
+                     ขอลอตละครั้งต่อการเปิดหน้าหนึ่งรอบ กันคนไล่กดดูหลายลอต
+                     แล้วยิง AX รัวเป็นสิบคำขอ
+                   · ของที่มีอยู่ขึ้นจอทันทีเสมอ ดึงเบื้องหลัง มาถึงค่อยสลับ
+                     หลักเดียวกับ 3.1 ไม่บล็อกจอรอ
+                   FIX  คำขอที่ล้มเหลวลบตารางที่กำลังดูอยู่ทิ้ง
+                   askForLot() เขียน S.err ตอนส่งคำขอไม่สำเร็จ และ renderGrid
+                   เจอ S.err เมื่อไหร่จะแทนที่ทั้งตารางด้วยจอ error
+                   ตอน 3.6 ยังพอรับได้เพราะคนกดเอง รู้ว่าตัวเองทำอะไรอยู่
+                   แต่พอ 3.7 ยิงเอง เน็ตสะดุดครั้งเดียว ตาราง 882 แถว
+                   ที่อ่านอยู่ดี ๆ จะหายไปทั้งจอโดยไม่มีใครสั่ง · รับไม่ได้
+                   · โหมดเบื้องหลังไม่แตะ S.err · ล้มก็เงียบ ของเดิมยังอยู่
+                   · แถบเตือนแยกสามกรณีชัด ๆ แทนที่จะผูกกับ needReq อย่างเดียว
+                     จะได้บอกได้ว่า "รอเกิน 5 นาที StarSync อาจไม่ได้รันอยู่"
+                     ซึ่ง 3.6 ตั้งข้อความไว้แล้วแต่ไม่มีวันโผล่ให้ใครเห็น
+                   หมายเหตุ ยังไม่ได้ทดสอบกับของจริง
   3.6  2026-09-09  FEAT ปุ่ม ⤓ ดึงจาก AX ออกมาอยู่บนแถบเครื่องมือ เห็นตลอดเวลา
                    เดิมปุ่มนี้โผล่เฉพาะตอน S.needReq ซึ่งเป็นจริงก็ต่อเมื่อ
                    ลอตนั้นไม่มีสักแถว · ผมเขียนไว้ตอนคิดว่าปัญหาเดียวคือจอว่าง
@@ -318,6 +341,10 @@ body{font-family:var(--sans);background:var(--pg);color:var(--tx);font-size:13px
   min-height:28px;display:flex;align-items:center;color:var(--tx);font-size:12px;
   max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ro.empty{color:var(--mu2)}
+/* v3.7 ป้ายอายุข้อมูลเป็นปุ่มแล้ว · ปุ่มไม่รับ font ของ body เอง ต้องสั่งเอง */
+button.ro{font-family:inherit;font-size:12px;cursor:pointer;gap:5px}
+button.ro:hover:not(:disabled){border-color:var(--brand);background:var(--brandbg);color:var(--brand)}
+button.ro:disabled{cursor:default;color:var(--mu)}
 
 .btn{padding:5px 11px;min-height:28px;border:1px solid var(--line);border-radius:7px;
   background:var(--card);color:var(--tx);cursor:pointer;font-size:12.5px;font-weight:500;
@@ -610,14 +637,16 @@ thead th.tick-col .th-s:empty{display:none}
     </div>
     <div class="fld"><label>Name</label><div class="ro empty" id="fName">—</div></div>
     <div class="fld"><label>หมวดงาน</label><div class="ro empty" id="fCat">—</div></div>
-    <!-- v3.6 ของที่ดูอยู่เก่าแค่ไหน · แยก "ยังไม่ตัด" ออกจาก "ตัดแล้วแต่ยังไม่ซิงก์" -->
-    <div class="fld"><label>ดึงจาก AX</label><div class="ro empty" id="fSync">—</div></div>
+    <!-- v3.6 ของที่ดูอยู่เก่าแค่ไหน · แยก "ยังไม่ตัด" ออกจาก "ตัดแล้วแต่ยังไม่ซิงก์"
+         v3.7 กดได้ด้วย · ถอดปุ่มแยกออกไปแล้ว หน้าสั่งดึงให้เองตอนเลือกลอต
+         ที่ยังเหลือให้กดไว้ เผื่อกรณีอยากบังคับดึงเดี๋ยวนั้นโดยไม่ต้องรอ -->
+    <div class="fld"><label>ดึงจาก AX</label>
+      <button class="ro empty" id="fSync" data-act="ask"
+              title="กดเพื่อสั่งดึงของสดจาก AX ทันที">—</button>
+    </div>
 
     <button class="btn" data-act="reload"
             title="อ่านจาก Supabase ใหม่ · ไม่ได้ไปเอาของสดจาก AX">⟳ ReLoad</button>
-    <!-- v3.6 เดิมปุ่มนี้ซ่อนไว้ โผล่เฉพาะตอนลอตไม่มีสักแถว · เอาออกมาให้เห็นตลอด -->
-    <button class="btn pri" data-act="ask" id="bAsk"
-            title="สั่งให้ StarSync ไปเอาของสดจาก AX มาทับ">⤓ ดึงจาก AX</button>
     <button class="btn" data-act="cols">▦ คอลัมน์</button>
     <button class="btn" data-act="csv">⤓ Export</button>
     <button class="btn" data-act="cfg" title="ตั้งค่าการเชื่อมต่อ">⚙</button>
@@ -1078,27 +1107,36 @@ function renderHead(){
   $('qtx').textContent = S.lot || 'เลือกลอต';
 
   /* v3.6 ป้ายบอกอายุของข้อมูล · ข้อความไทย ห้ามใส่ฟอนต์ mono
-     เวลาเต็มไปอยู่ใน title แทน คนที่อยากรู้วินาทีก็ชี้เมาส์เอา */
+     เวลาเต็มไปอยู่ใน title แทน คนที่อยากรู้วินาทีก็ชี้เมาส์เอา
+     v3.7 เป็นปุ่มแล้ว · กดสั่งดึงเดี๋ยวนั้นได้ ระหว่างดึงกดซ้ำไม่ได้
+     เพราะคำขอใบเดิมถูก merge ทับอยู่แล้ว กดกี่ทีก็ได้ผลเท่ากัน */
   const sy = $('fSync');
-  sy.textContent = S.synced ? agoTx(S.synced) : '—';
-  sy.className   = 'ro' + (S.synced ? '' : ' empty');
-  sy.title       = S.synced ? new Date(S.synced).toLocaleString('th-TH') : '';
-
-  /* กดซ้ำระหว่างรอไม่มีประโยชน์ · คำขอใบเดิมถูก merge ทับอยู่แล้ว */
-  const ab = $('bAsk');
-  ab.disabled  = !S.lot || S.asking;
-  ab.innerHTML = S.asking ? '<span class="spin sm"></span> กำลังดึง' : '⤓ ดึงจาก AX';
+  sy.className = 'ro' + (S.synced || S.asking ? '' : ' empty');
+  sy.disabled  = !S.lot || S.asking;
+  if(S.asking)      sy.innerHTML   = '<span class="spin sm"></span> กำลังดึง';
+  else              sy.textContent = S.synced ? agoTx(S.synced) : '—';
+  sy.title = S.asking ? 'กำลังรอ StarSync ดึงข้อมูลให้'
+           : S.synced ? new Date(S.synced).toLocaleString('th-TH') + ' · กดเพื่อดึงใหม่เดี๋ยวนี้'
+                      : 'กดเพื่อสั่งดึงของสดจาก AX ทันที';
 }
 
 function renderNote(){
   const el = $('note');
   /* v3.6 เดิมผูกกับ needReq อย่างเดียว แถบจึงเงียบสนิทเวลากดดึงลอตที่มีของอยู่แล้ว
-     คนกดไม่รู้ว่ามันทำงานอยู่หรือกดไม่ติด · ให้โผล่ตอนกำลังดึงด้วย */
-  if(!S.lot || (!S.needReq && !S.asking)){ el.style.display = 'none'; return; }
-  $('noteTx').innerHTML = S.asking
-    ? '<span class="spin sm"></span> <b>กำลังดึงรายชิ้นของลอตนี้จาก AX</b> · ' + esc(S.askMsg)
-    : '<b>ลอตนี้ยังไม่มีรายชิ้นใน lot_part</b> ' +
-      '<button class="btn pri" data-act="ask" style="margin-left:8px">⤓ ดึงจาก AX</button>';
+     คนกดไม่รู้ว่ามันทำงานอยู่หรือกดไม่ติด · ให้โผล่ตอนกำลังดึงด้วย
+     v3.7 แยกเป็นสามกรณี · ของเดิมมีสองทาง ข้อความ "รอเกิน 5 นาที
+     StarSync อาจไม่ได้รันอยู่" จึงไม่มีวันโผล่ เพราะตอนนั้น asking เป็น false
+     ไปแล้ว และลอตที่มีของอยู่ needReq ก็ false แถบเลยหายไปพร้อมข้อความ */
+  if(!S.lot || (!S.needReq && !S.asking && !S.askMsg)){ el.style.display = 'none'; return; }
+  let h;
+  if(S.asking)
+    h = '<span class="spin sm"></span> <b>กำลังดึงรายชิ้นของลอตนี้จาก AX</b> · ' + esc(S.askMsg);
+  else if(S.needReq)
+    h = '<b>ลอตนี้ยังไม่มีรายชิ้นใน lot_part</b> ' +
+        '<button class="btn pri" data-act="ask" style="margin-left:8px">⤓ ดึงจาก AX</button>';
+  else
+    h = esc(S.askMsg);          /* ดึงไม่สำเร็จ แต่ของเดิมยังอยู่บนจอครบ */
+  $('noteTx').innerHTML = h;
   el.style.display = 'flex';
 }
 
@@ -1365,6 +1403,16 @@ function mark(text, q){
 /* Verify empty summaries using the same Part flags shown in the table.
    Keep these corrections in memory; never write aggregate data to Supabase. */
 const pickerStats = new Map();
+
+/* v3.7 เปิดลอตแล้วของเก่ากว่านี้ (นาที) = สั่งดึงจาก AX ให้เอง
+   5 นาทีเพราะ StarSync วิ่งทุก 1 นาที และหน่วงต่อลอต 15 นาทีอยู่แล้ว
+   ตั้งสั้นกว่านี้ก็แค่ยิงคำขอที่ StarSync จะทำอยู่แล้วซ้ำเปล่า ๆ */
+const AUTO_ASK_MIN = 5;
+/* จำว่าเปิดหน้ารอบนี้ขอลอตไหนไปแล้ว · กันคนไล่กดดูสิบลอตแล้วยิง AX สิบคำขอ
+   อยู่นอก S เพราะไม่ใช่สถานะที่มีผลกับหน้าจอ ไม่ต้องวาดใหม่เวลาเปลี่ยน
+   ที่เดียวกับ pickerStats ด้านบน */
+const AUTO_ASK_MS = AUTO_ASK_MIN * 60000;
+const askedLots = new Set();
 function rememberPickerStats(lot, rows){
   if(!rows.length || rows.length >= 30000) return;
   const pieces = rows.filter(isPiece);
@@ -1536,14 +1584,33 @@ async function selectLot(lot){
   scanMissing();
   render();
   if(S.needReq) askForLot();
+  else if(shouldAutoAsk(lot)) askForLot(true);   /* v3.7 โหมดเบื้องหลัง */
+}
+
+/* v3.7 ควรสั่งดึงให้เองไหมตอนเพิ่งเปิดลอตนี้
+   ไม่ขอเมื่อ: อ่านไม่สำเร็จ · ลอตนี้ขอไปแล้วในรอบเปิดหน้านี้
+   ลอตที่จอว่างไม่ผ่านทางนี้ ไปทาง needReq ซึ่งขอแบบไม่เงียบอยู่แล้ว
+   ไม่รู้อายุ (ไม่มี synced_at สักแถว) ถือว่าเก่า ขอไว้ก่อนดีกว่าเดา */
+function shouldAutoAsk(lot){
+  if(S.err || !S.rows.length) return false;
+  if(askedLots.has(lot)) return false;
+  if(!S.synced) return true;
+  return (Date.now() - S.synced) > AUTO_ASK_MS;
 }
 
 /* ── สั่งให้ StarSync ดึงรายชิ้นของลอตนี้ก่อนคิวปกติ ────────────
    หย่อนคำขอไว้ในตาราง lot_part_request แล้ว StarSync เก็บไปทำในรอบถัดไป
-   ลอตที่มีคนขอไม่ผ่านการหน่วง 15 นาที เพราะมีคนนั่งรอดูอยู่หน้าจอ */
-async function askForLot(){
+   ลอตที่มีคนขอไม่ผ่านการหน่วง 15 นาที เพราะมีคนนั่งรอดูอยู่หน้าจอ
+
+   v3.7 quiet = โหมดเบื้องหลัง · หน้าเรียกเองตอนเปิดลอต ไม่ใช่คนกด
+   ต่างกันตรงเวลาล้มเหลวเท่านั้น · โหมดนี้ห้ามแตะ S.err เด็ดขาด
+   เพราะ renderGrid เจอ S.err เมื่อไหร่จะแทนที่ทั้งตารางด้วยจอ error
+   เน็ตสะดุดครั้งเดียว ตาราง 882 แถวที่คนกำลังอ่านอยู่จะหายไปทั้งจอ
+   ทั้งที่เขาไม่ได้สั่งอะไรเลย · ของที่มีอยู่ต้องอยู่ต่อเสมอ */
+async function askForLot(quiet){
   const lot = S.lot;
   if(!lot || S.asking) return;
+  askedLots.add(lot);        /* จดก่อนเริ่ม · ล้มเหลวก็ไม่วนขอซ้ำในรอบเปิดหน้านี้ */
 
   /* v3.6 เส้นตัดว่า "ของใหม่มาถึงหรือยัง" · จดเวลาซิงก์ของเดิมไว้ก่อนส่งคำขอ
      ของเดิมใช้ "มีแถวใน lot_part ไหม" ซึ่งจริงเฉพาะลอตที่จอว่าง
@@ -1554,11 +1621,16 @@ async function askForLot(){
      จะเดินเพี้ยนแค่ไหนก็ไม่เกี่ยว */
   const before = S.synced;
 
-  S.asking = true; S.askMsg = 'ส่งคำขอแล้ว รอ StarSync มาเก็บไปทำ'; render();
+  S.asking = true;
+  S.askMsg = quiet ? 'อัปเดตเบื้องหลัง · ของที่เห็นอยู่ใช้ได้ตามปกติ'
+                   : 'ส่งคำขอแล้ว รอ StarSync มาเก็บไปทำ';
+  render();
   try { await db.request(lot); }
   catch(e){
-    S.asking = false; S.askMsg = '';
-    S.err = 'ส่งคำขอไม่สำเร็จ · ' + e.message; render(); return;
+    S.asking = false;
+    S.askMsg = quiet ? 'อัปเดตเบื้องหลังไม่สำเร็จ · ข้อมูลที่เห็นเป็นของเดิม' : '';
+    if(!quiet) S.err = 'ส่งคำขอไม่สำเร็จ · ' + e.message;
+    render(); return;
   }
 
   /* StarSync วิ่งทุก 1-3 นาที · ให้เวลา 5 นาทีแล้วยอมแพ้
@@ -1567,7 +1639,9 @@ async function askForLot(){
   while(Date.now() - t0 < 300000){
     await new Promise(r => setTimeout(r, 5000));
     if(S.lot !== lot){ S.asking = false; return; }   /* เปลี่ยนลอตระหว่างรอ ก็เลิกรอ */
-    S.askMsg = 'กำลังรอ StarSync ดึงข้อมูล · ' + Math.round((Date.now()-t0)/1000) + ' วินาที';
+    const sec = Math.round((Date.now() - t0) / 1000);
+    S.askMsg = quiet ? 'อัปเดตเบื้องหลัง · ' + sec + ' วินาที'
+                     : 'กำลังรอ StarSync ดึงข้อมูล · ' + sec + ' วินาที';
     render();
     try {
       /* ดูที่ lot_part ก่อน · ลอตนี้อาจมาจากรอบเติมอัตโนมัติ ไม่ใช่จากคำขอเรา
@@ -1584,14 +1658,18 @@ async function askForLot(){
       const q = await db.requestState(lot);
       if(q && q.done_at){
         S.asking = false; S.askMsg = '';
-        if(q.rows_synced > 0) await selectLot(lot);
-        else { S.err = 'AX ไม่มีชิ้นของลอตนี้ · ' + (q.error || ''); render(); }
-        return;
+        if(q.rows_synced > 0){ await selectLot(lot); return; }
+        /* AX ไม่มีชิ้นของลอตนี้ · ลอตที่จอว่างต้องบอกให้ชัด
+           แต่ลอตที่มีของอยู่ห้ามล้างจอทิ้ง แค่บอกว่าอัปเดตไม่ได้ */
+        if(quiet || S.rows.length) S.askMsg = 'AX ไม่มีชิ้นของลอตนี้ · ข้อมูลที่เห็นเป็นของเดิม';
+        else S.err = 'AX ไม่มีชิ้นของลอตนี้ · ' + (q.error || '');
+        render(); return;
       }
     } catch(e){ /* อ่านไม่ได้ก็รอรอบหน้า ไม่ต้องล้มทั้งกระบวนการ */ }
   }
   S.asking = false;
-  S.askMsg = 'รอเกิน 5 นาทีแล้วยังไม่มา · StarSync อาจไม่ได้รันอยู่';
+  S.askMsg = quiet ? 'อัปเดตเบื้องหลังไม่สำเร็จใน 5 นาที · StarSync อาจไม่ได้รันอยู่'
+                   : 'รอเกิน 5 นาทีแล้วยังไม่มา · StarSync อาจไม่ได้รันอยู่';
   render();
 }
 
