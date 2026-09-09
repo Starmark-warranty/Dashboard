@@ -553,13 +553,12 @@ thead th.tick-col .th-s:empty{display:none}
   .lotmodal .pc{min-height:260px;max-height:400px}
 }
 #grid td.state-fixed{position:sticky;z-index:21;background:var(--stbg)}
-#grid tbody tr:nth-child(even) td.state-fixed{background:var(--stbg2)}
-#grid tbody tr:hover td.state-fixed{background:var(--stbg2)}
+#grid tbody tr:nth-child(even) td.state-fixed,#grid tbody tr:hover td.state-fixed{background:var(--stbg2)}
 #grid thead tr.cols th.state-fixed{z-index:41;background:var(--hd)}
 #grid thead tr.flt th.state-fixed{z-index:40;background:var(--flt)}
 #grid thead tr.band th.state-fixed{z-index:42;background:var(--band)}
 #grid thead th.idx{z-index:45}
-.state-filter{display:block;width:100%;min-width:0;max-width:100%;height:22px;padding:0 1px;font:10px var(--font);color:var(--tx);background:var(--card);border:1px solid var(--line);border-radius:4px;cursor:pointer}
+.state-filter{display:block;box-sizing:border-box;width:100%;min-width:0;max-width:100%;height:24px;padding:0 1px;font:17px "Segoe UI Symbol","Segoe UI",sans-serif;color:var(--tx);background:var(--card);border:1px solid var(--line);border-radius:4px;cursor:pointer}
 .state-filter:focus{outline:2px solid var(--brand);outline-offset:1px}
 </style>
 </head>
@@ -1092,8 +1091,8 @@ function renderGrid(){
   h += '</tr><tr class="flt"><th class="idx"></th>';
   cols.forEach(c => {
     if(TICKS.has(c.k)){
-      h += '<th class="tick-col"><select class="state-filter" data-state-filter="' + esc(c.k) + '" aria-label="กรอง ' + esc(lbl(c.k)) + '">' +
-        [['','ทั้งหมด'],['1','ติ๊กแล้ว'],['0','ยังไม่ติ๊ก']].map(([value,label]) =>
+      h += '<th class="tick-col"><select class="state-filter" title="— ทั้งหมด · ☑ ติ๊กแล้ว · ☐ ยังไม่ติ๊ก" data-state-filter="' + esc(c.k) + '" aria-label="กรอง ' + esc(lbl(c.k)) + '">' +
+        [['','—'],['1','☑'],['0','☐']].map(([value,label]) =>
           '<option value="' + value + '"' + ((S.filters[c.k] || '') === value ? ' selected' : '') + '>' + label + '</option>').join('') + '</select></th>';
     }else{
       h += '<th><div class="fbox"><span class="fi">▼</span>' +
