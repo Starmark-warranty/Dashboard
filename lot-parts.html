@@ -552,6 +552,15 @@ thead th.tick-col .th-s:empty{display:none}
   .lotmodal .pkgrid{grid-template-columns:minmax(0,1fr);grid-template-rows:none}
   .lotmodal .pc{min-height:260px;max-height:400px}
 }
+#grid td.state-fixed{position:sticky;z-index:21;background:var(--stbg)}
+#grid tbody tr:nth-child(even) td.state-fixed{background:var(--stbg2)}
+#grid tbody tr:hover td.state-fixed{background:var(--stbg2)}
+#grid thead tr.cols th.state-fixed{z-index:41;background:var(--hd)}
+#grid thead tr.flt th.state-fixed{z-index:40;background:var(--flt)}
+#grid thead tr.band th.state-fixed{z-index:42;background:var(--band)}
+#grid thead th.idx{z-index:45}
+.state-filter{display:block;width:100%;min-width:0;max-width:100%;height:22px;padding:0 1px;font:10px var(--font);color:var(--tx);background:var(--card);border:1px solid var(--line);border-radius:4px;cursor:pointer}
+.state-filter:focus{outline:2px solid var(--brand);outline-offset:1px}
 </style>
 </head>
 <body>
@@ -729,15 +738,7 @@ function valOf(r, k){ const sk = srcKey(k); return sk ? r[sk] : undefined; }
    ไม่มีคอลัมน์ในตาราง หรือมีแต่ทุกแถวว่างหมด ก็ถือว่าไม่มี
    เก็บผลไว้ใน S.miss ตอนโหลดเสร็จ ไม่ได้คิดใหม่ทุกครั้งที่วาด
    ลอตใหญ่ ๆ สองพันแถวคูณสามสิบคอลัมน์ ถ้าคิดใหม่ทุกครั้งจะหน่วง */
-function scanMissing(){
-  const out = {};
-  AXCOLS.forEach(k => {
-    if(!srcKey(k)){ out[k] = 'ไม่มีคอลัมน์นี้ในตาราง ' + S.table; return; }
-    const any = S.rows.some(r => { const v = valOf(r, k); return v !== null && v !== undefined && v !== ''; });
-    if(!any) out[k] = 'มีคอลัมน์แต่ทุกแถวว่าง';
-  });
-  S.miss = out;
-}
+function scanMissing(){ S.miss = {}; }
 
 const DATES = new Set(['part_date','imported_at','synced_at','updated_at']);
 const NUMS  = new Set(['finish_length','finish_width','duration_sec','id','rec_id',
@@ -929,7 +930,26 @@ function buildCols(){
 function saveCols(){
   try { localStorage.setItem(colKey(), JSON.stringify({ v:COLS_VER, c:S.cols })); } catch(e){}
 }
-const onCols = () => S.cols.filter(c => c.on);
+const OPTIONAL_STATE = new Set(['st_site','st_wh_rec','st_wh_issue']);
+function showState(k){return !OPTIONAL_STATE.has(k) || S.rows.some(r => {const v=valOf(r,k);return v===true || Number(v)===1;});}
+const onCols = () => {
+  const visible=S.cols.filter(c=>c.on && showState(c.k));
+  return visible.filter(c=>TICKS.has(c.k)).concat(visible.filter(c=>!TICKS.has(c.k)));
+};
+function pinStateColumns(){
+  const grid=$('grid'), heads=grid.querySelectorAll('thead tr.cols th');
+  if(!heads.length) return;
+  const count=onCols().filter(c=>TICKS.has(c.k)).length;
+  let left=heads[0].getBoundingClientRect().width;
+  const rows=grid.querySelectorAll('thead tr.cols,thead tr.flt,tbody tr');
+  for(let i=1;i<=count;i++){
+    for(const row of rows){const cell=row.children[i];if(cell){cell.classList.add('state-fixed');cell.style.left=left+'px';}}
+    left+=heads[i].getBoundingClientRect().width;
+  }
+  const band=grid.querySelector('thead tr.band th:nth-child(2)');
+  if(count && band){band.classList.add('state-fixed');band.style.left=heads[0].getBoundingClientRect().width+'px';}
+}
+window.addEventListener('resize',()=>requestAnimationFrame(pinStateColumns));
 
 /* ══════════════════════════════════════════════════════════════
    กรอง + เรียง (ฝั่งหน้าจอ · ลอตหนึ่งไม่เกินไม่กี่พันแถว พอไหว)
@@ -943,6 +963,7 @@ function viewRows(){
   if(fk.length){
     rs = rs.filter(r => fk.every(k => {
       const raw = valOf(r, k);
+      if(TICKS.has(k)) return (raw === true || Number(raw) === 1) === (S.filters[k] === '1');
       /* ช่องติ๊กพิมพ์กรองเป็นตัวเลขหรือคำก็ได้ · เทียบกับ True/False เหมือนไฟล์ export */
       const txt = TICKS.has(k) ? (raw === true || Number(raw) === 1 ? 'true 1' : 'false 0')
                                : String(raw == null ? '' : raw);
@@ -1070,8 +1091,14 @@ function renderGrid(){
   /* ── ชั้นที่ 3: แถวกรอง ── */
   h += '</tr><tr class="flt"><th class="idx"></th>';
   cols.forEach(c => {
-    h += '<th' + (TICKS.has(c.k) ? ' class="tick-col"' : '') + '><div class="fbox"><span class="fi">▼</span>' +
-         '<input type="text" data-fk="' + esc(c.k) + '" value="' + esc(S.filters[c.k] || '') + '"></div></th>';
+    if(TICKS.has(c.k)){
+      h += '<th class="tick-col"><select class="state-filter" data-state-filter="' + esc(c.k) + '" aria-label="กรอง ' + esc(lbl(c.k)) + '">' +
+        [['','ทั้งหมด'],['1','ติ๊กแล้ว'],['0','ยังไม่ติ๊ก']].map(([value,label]) =>
+          '<option value="' + value + '"' + ((S.filters[c.k] || '') === value ? ' selected' : '') + '>' + label + '</option>').join('') + '</select></th>';
+    }else{
+      h += '<th><div class="fbox"><span class="fi">▼</span>' +
+           '<input type="text" data-fk="' + esc(c.k) + '" value="' + esc(S.filters[c.k] || '') + '"></div></th>';
+    }
   });
   h += '</tr></thead><tbody>';
 
@@ -1085,6 +1112,7 @@ function renderGrid(){
   });
   h += '</tbody>';
   $('grid').innerHTML = h;
+  pinStateColumns();
 }
 
 /* หนึ่งช่องในตาราง */
@@ -1096,6 +1124,7 @@ function cell(r, k){
     return '<td class="st"><span class="cbx' + (y ? '' : ' n') + '" title="' +
            (y ? 'ติ๊กแล้ว' : 'ยังไม่ติ๊ก') + '">✔</span></td>';
   }
+  if(k === 'rec_id') return '<td class="mono">' + esc(v == null ? '' : String(v)) + '</td>';
   if(DATES.has(k))       return '<td class="mono">' + esc(fmtTime(v)) + '</td>';
   if(k === 'duration_sec')
     return '<td class="num" title="' + esc(v == null ? '' : v) + ' วินาที">' + esc(hms(v)) + '</td>';
@@ -1157,7 +1186,7 @@ function renderSide(){
   const pack  = S.rows.length - piece.length;
 
   let h = '<div class="sh">สถานะ</div>';
-  GAUGES.forEach(g => {
+  GAUGES.filter(g => showState(g.k)).forEach(g => {
     /* ใช้คอลัมน์จริงถ้ามี ไม่มีก็ลองคอลัมน์สำรอง ไม่มีอีกก็ปล่อยว่างไว้
        ปล่อยว่างดีกว่าซ่อน เพราะคนจะได้รู้ว่าช่องนั้นมีอยู่แต่ยังไม่มีข้อมูล */
     const key = cols.includes(g.k) ? g.k : '';
@@ -1603,6 +1632,16 @@ document.addEventListener('click', ev => {
 /* ช่องกรองรายคอลัมน์
    หน่วงก่อนวาดใหม่ แล้วคืนโฟกัสกับตำแหน่งเคอร์เซอร์ให้หลังวาดเสร็จ
    ไม่งั้นช่องที่กำลังพิมพ์อยู่จะโดนลบทิ้งทุกตัวอักษร */
+document.addEventListener('change', ev => {
+  const k=ev.target.dataset && ev.target.dataset.stateFilter;
+  if(!k) return;
+  S.filters[k]=ev.target.value;
+  const wrap=$('wrap'), x=wrap.scrollLeft, y=wrap.scrollTop;
+  render();
+  wrap.scrollLeft=x;wrap.scrollTop=y;
+  const el=document.querySelector('[data-state-filter="'+CSS.escape(k)+'"]');
+  if(el) el.focus({preventScroll:true});
+});
 let fltTimer = null;
 document.addEventListener('input', ev => {
   const el = ev.target;
@@ -1648,6 +1687,7 @@ document.addEventListener('mousemove', ev => {
   if(!rz) return;
   rz.now = Math.max(40, Math.round(rz.w + ev.clientX - rz.x));
   rz.th.style.width = rz.now + 'px';
+  pinStateColumns();
 });
 document.addEventListener('mouseup', () => {
   if(!rz) return;
