@@ -5,8 +5,23 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Ax Progress · รายชิ้นในลอต</title>
 <!-- =====================================================================
-  Lot Parts · รายชิ้นในลอต        ·   VERSION 4.3
+  Lot Parts · รายชิ้นในลอต        ·   VERSION 4.4
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  4.4  2026-09-10  CHANGE ย้ายทางเข้าวัตถุดิบไปอยู่ที่แท็บ BI ตามที่เจ้าของงานสั่ง
+                   ปุ่ม ▤ วัตถุดิบ อยู่ท้ายแถวของทุกลอตในตาราง กดแล้วเด้งหน้าต่างเลย
+                   ไม่ต้องเข้าไปเปิดลอตในแท็บรายชิ้นก่อน ซึ่งเป็นขั้นตอนที่ไม่จำเป็น
+                   · หน้าต่างรับชื่อลอตเข้ามาเอง ไม่ได้อ่านจาก S.lot อีกแล้ว
+                     ถ้ายังผูกกับ S.lot จะเปิดของลอตที่ค้างอยู่ในแท็บรายชิ้น
+                     ซึ่งผิดตัวแบบเงียบ ๆ คนดูไม่มีทางรู้ว่ากำลังดูของลอตอื่น
+                   · ปุ่มอยู่ในแถวที่กดได้อยู่แล้ว · closest() คืนตัวในสุดเสมอ
+                     ปุ่มจึงชนะแถว ไม่ต้องดัก stopPropagation ให้ยุ่ง
+                   · ปุ่มบนแถบเครื่องมือของแท็บรายชิ้นยังอยู่ ใช้กับลอตที่เปิดค้างอยู่
+                   CHANGE ถอดส่วน "แผ่นที่ชิ้นงานถูกตัดออกมา" ออกทั้งก้อน
+                   ของ 4.2 ที่คิดจาก material_code ในรายชิ้น · เจ้าของงานบอกว่าไม่มีใครดู
+                   ถอดฟังก์ชัน rmParse กับ rmPartsHtml ออกด้วย ไม่ทิ้งโค้ดตายไว้
+                   ข้อมูลยังอยู่ในฐานเหมือนเดิม อยากได้กลับมาก็เขียนใหม่ได้
+                   ยังไม่ได้ทดสอบบนเครื่องจริงหน้าไลน์
+
   4.3  2026-09-10  FEAT วัตถุดิบจริงจาก AX ในหน้าต่างเดียวกับ 4.2
                    คือแท็บ Raw material ของโปรแกรม Smart Production
                    รหัส · ชื่อ · ต้องใช้ · เบิกแล้ว · ขาด · หน่วย · คลัง · วันที่ต้องการ
@@ -936,7 +951,7 @@ table.dtab td.pd{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-sp
      คิดจากแถวที่โหลดมาแล้วในเครื่อง ไม่ได้ยิงถาม Supabase เพิ่มสักครั้ง -->
 <div class="ov" id="ovRm">
   <div class="modal" style="width:min(880px,96vw)">
-    <h3>วัตถุดิบในลอต<button type="button" class="btn" data-act="rmclose" aria-label="ปิดหน้าต่างวัตถุดิบ">ปิด ×</button></h3>
+    <h3>วัตถุดิบ · <span id="rmLotTx" class="mono"></span><button type="button" class="btn" data-act="rmclose" aria-label="ปิดหน้าต่างวัตถุดิบ">ปิด ×</button></h3>
     <div class="bd"><div id="rmBody"></div></div>
   </div>
 </div>
@@ -1685,10 +1700,11 @@ function renderDash(){
     '<div class="blk"><h4>รายการลอต ' +
       '<span class="sub2">' + (rows.length > CAP ? 'แสดง ' + CAP + ' จาก ' + nf0.format(rows.length) +
         ' · กด Export เพื่อเอาครบ' : nf0.format(rows.length) + ' ลอต') +
-      ' · กดแถวเพื่อไปดูรายชิ้น</span></h4>' +
+      ' · กดแถวเพื่อไปดูรายชิ้น · กดปุ่มท้ายแถวเพื่อดูวัตถุดิบ</span></h4>' +
       '<div class="dwrap"><table class="dtab"><thead><tr>' +
         '<th>ลอต</th><th>กำหนดเสร็จ</th><th>สายผลิต</th><th>ชั้น</th>' +
         '<th>หมายเหตุลอต</th><th>หมายเหตุวางแผน</th><th>ตัด</th><th style="text-align:right">มูลค่า</th>' +
+        '<th></th>' +
       '</tr></thead><tbody>' +
       (shown.length ? shown.map(r => {
         const t = Number(r.total_all) || 0, c = cutOf(r);
@@ -1709,8 +1725,11 @@ function renderDash(){
             '<div class="pb"><i style="width:' + p + '%"></i></div>' +
             '<span class="pn">' + (t ? p + '%' : '—') + '</span></div></td>' +
           '<td class="num">' + (r.amount == null ? (lv || '—') : baht(r.amount) + ' ' + lv) + '</td>' +
+          /* ปุ่มอยู่ในแถวเดียวกัน กดปุ่ม = ดูวัตถุดิบ กดที่อื่นในแถว = ไปดูรายชิ้น */
+          '<td><button class="btn" data-act="rmlot" data-lot="' + esc(r.lot) + '"' +
+            ' title="ดูวัตถุดิบที่ต้องเบิกของลอตนี้">▤ วัตถุดิบ</button></td>' +
         '</tr>';
-      }).join('') : '<tr><td colspan="8" style="color:var(--mu2)">ไม่มีลอตในเงื่อนไขนี้</td></tr>') +
+      }).join('') : '<tr><td colspan="9" style="color:var(--mu2)">ไม่มีลอตในเงื่อนไขนี้</td></tr>') +
       '</tbody></table></div></div>';
 }
 
@@ -1762,95 +1781,6 @@ function toCsvDash(){
   a.download = 'AxProgress_BI_' + new Date().toISOString().slice(0,10) + '.csv';
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 3000);
-}
-
-/* ══════════════════════════════════════════════════════════════
-   v4.2 สรุปวัตถุดิบของลอตที่เปิดอยู่
-   คิดจาก S.rows ที่โหลดมาแล้ว ไม่ยิงถาม Supabase เพิ่ม ไม่เพิ่มตารางในฐาน
-   ══════════════════════════════════════════════════════════════ */
-
-/* รหัสวัตถุดิบเป็นรหัสประกอบ ยาว 22 ตัวเสมอ
-   ตรวจกับของจริงทั้งฐานแล้ว 702 จาก 705 รหัสยาว 22 · อีก 3 ตัวยาวไม่เท่ากัน
-   ตัวที่ผิดรูปจะไม่ถูกแยกช่อง แสดงรหัสดิบไปตรง ๆ ดีกว่าตัดมั่วแล้วอ่านผิด
-     PE 16 G01M0387Y G01M0387Y
-     ^^ ชนิดแผ่น
-        ^^ ความหนา มม.
-           ^^^^^^^^^ ผิวหน้า
-                     ^^^^^^^^^ ผิวหลัง
-   ผิวที่เป็น x ล้วนแปลว่าไม่ได้ปิดผิว = ไม้เปลือย */
-function rmParse(code){
-  const s = String(code || '');
-  if(s.length !== 22) return { raw:s, ok:false };
-  const face = f => /^x+N$/i.test(f) ? '' : f;
-  return { raw:s, ok:true, kind:s.slice(0,2), thick:s.slice(2,4),
-           front:face(s.slice(4,13)), back:face(s.slice(13,22)) };
-}
-
-function rmPartsHtml(){
-  if(!S.rows.length) return '<div class="sub">ลอตนี้ยังไม่มีรายชิ้นในฐาน จึงสรุปวัสดุที่ตัดไม่ได้</div>';
-
-  /* รวมตามรหัสวัตถุดิบ · นับเฉพาะแถวที่เป็นชิ้นงานจริง
-     ห่ออุปกรณ์ไม่มีขนาดและไม่ได้ตัดจากแผ่น เอามารวมแล้วพื้นที่จะเพี้ยน */
-  const m = new Map();
-  let noCode = 0;
-  S.rows.forEach(r => {
-    if(!isPiece(r)) return;
-    const code = String(valOf(r, 'material_code') || '').trim();
-    if(!code){ noCode++; return; }
-    const o = m.get(code) || { code, n:0, done:0, area:0 };
-    o.n++;
-    if(isDone(r)) o.done++;
-    const L = Number(valOf(r, 'finish_length')) || 0;
-    const W = Number(valOf(r, 'finish_width'))  || 0;
-    o.area += L * W / 1e6;          /* มม. x มม. -> ตร.ม. */
-    m.set(code, o);
-  });
-
-  const list = [...m.values()].sort((a,b) => b.area - a.area);
-  if(!list.length){
-    return '<div class="sub">ลอตนี้ไม่มีชิ้นที่ระบุรหัสวัตถุดิบ</div>';
-  }
-  const tN = list.reduce((a,x) => a + x.n, 0);
-  const tD = list.reduce((a,x) => a + x.done, 0);
-  const tA = list.reduce((a,x) => a + x.area, 0);
-
-  return (
-    '<div class="sub">ลอต ' + esc(S.lot) + ' · ' + list.length + ' รหัสวัตถุดิบ · ' +
-      nf0.format(tN) + ' ชิ้น · ' + nf2.format(tA) + ' ตร.ม. · ตัดแล้ว ' +
-      nf0.format(tD) + ' ชิ้น' +
-      (noCode ? ' · อีก ' + nf0.format(noCode) + ' ชิ้นไม่ได้ระบุรหัสวัตถุดิบ' : '') +
-    '</div>' +
-    '<div class="dwrap rmtab"><table class="dtab"><thead><tr>' +
-      '<th>ชนิด</th><th>หนา</th><th>ผิวหน้า</th><th>ผิวหลัง</th>' +
-      '<th style="text-align:right">ชิ้น</th><th style="text-align:right">ตร.ม.</th>' +
-      '<th>ตัดแล้ว</th><th style="text-align:right">คงเหลือ</th>' +
-    '</tr></thead><tbody>' +
-    list.map(x => {
-      const p = rmParse(x.code);
-      const pct = x.n ? Math.round(x.done / x.n * 100) : 0;
-      const cell = v => '<td class="mono">' + (v ? esc(v) : '<span style="color:var(--mu2)">—</span>') + '</td>';
-      return '<tr title="' + esc(x.code) + '">' +
-        (p.ok
-          ? cell(p.kind) + '<td class="mono">' + esc(p.thick) + ' มม.</td>' +
-            cell(p.front) + cell(p.back)
-          : '<td class="mono" colspan="4">' + esc(x.code) + '</td>') +
-        '<td class="num">' + nf0.format(x.n) + '</td>' +
-        '<td class="num">' + nf2.format(x.area) + '</td>' +
-        '<td><div class="pgw' + (x.done >= x.n ? ' done' : '') + '">' +
-          '<div class="pb"><i style="width:' + pct + '%"></i></div>' +
-          '<span class="pn">' + pct + '%</span></div></td>' +
-        '<td class="num">' + nf0.format(x.n - x.done) + '</td>' +
-      '</tr>';
-    }).join('') +
-    '<tr><td colspan="4" style="font-weight:600">รวม</td>' +
-      '<td class="num" style="font-weight:600">' + nf0.format(tN) + '</td>' +
-      '<td class="num" style="font-weight:600">' + nf2.format(tA) + '</td>' +
-      '<td></td><td class="num" style="font-weight:600">' + nf0.format(tN - tD) + '</td></tr>' +
-    '</tbody></table></div>' +
-    '<div class="sub" style="margin-top:8px">พื้นที่คิดจากขนาดสำเร็จของชิ้นงาน ' +
-      'ไม่ได้รวมเศษที่เสียไปจากการตัด จึงน้อยกว่าแผ่นที่ต้องเบิกจริงเสมอ · ' +
-      'ยอดเบิกจริงดูที่หัวข้อข้างบน</div>'
-  );
 }
 
 /* ── วัตถุดิบจาก AX ────────────────────────────────────────────────
@@ -1925,7 +1855,7 @@ async function askRm(){
 
 function renderRm(){
   const box = $('rmBody'), R = S.rm;
-  if(!S.lot){ box.innerHTML = '<div class="sub">ยังไม่ได้เลือกลอต</div>'; return; }
+  if(!R.lot){ box.innerHTML = '<div class="sub">ยังไม่ได้เลือกลอต</div>'; return; }
 
   /* ── ส่วนบน · ของจริงจาก AX ── */
   let ax;
@@ -1979,12 +1909,23 @@ function renderRm(){
          '<div style="margin-top:8px"><button class="btn pri" data-act="rmask">⤓ ดึงจาก AX</button></div>';
   }
 
-  box.innerHTML =
-    '<h4 style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;' +
-      'letter-spacing:.03em;margin-bottom:8px">วัตถุดิบที่ต้องเบิก · จาก AX</h4>' + ax +
-    '<h4 style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;' +
-      'letter-spacing:.03em;margin:16px 0 8px">แผ่นที่ชิ้นงานถูกตัดออกมา · คิดจากรายชิ้น</h4>' +
-    rmPartsHtml();
+  box.innerHTML = ax;
+}
+
+/* เปิดหน้าต่างวัตถุดิบของลอตที่ระบุ
+   v4.4 รับชื่อลอตเข้ามา ไม่ได้อ่านจาก S.lot อีกแล้ว
+   เพราะเรียกจากตารางในแท็บ BI ซึ่งลอตนั้นยังไม่ได้เปิดดูรายชิ้น
+   ถ้ายังผูกกับ S.lot จะเปิดของลอตที่ค้างอยู่ในแท็บรายชิ้นแทน ซึ่งผิดตัวเงียบ ๆ */
+function openRm(lot){
+  if(!lot) return;
+  if(S.rm.lot !== lot){
+    S.rm = { lot, rows:[], loaded:false, busy:'', err:'', asking:false, msg:'',
+             names:S.rm.names, nameErr:'' };   /* ชื่อที่ค้นมาแล้วใช้ต่อได้ ไม่ต้องถามคลังซ้ำ */
+  }
+  $('rmLotTx').textContent = lot;
+  $('ovRm').classList.add('open');
+  renderRm();
+  loadRm(lot, false);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -2495,11 +2436,6 @@ async function boot(){
 async function selectLot(lot){
   S.lot = lot;
   closePicker();
-  /* v4.3 ล้างวัตถุดิบของลอตเก่าทิ้งทันที
-     ไม่งั้นเปิดหน้าต่างวัตถุดิบของลอตใหม่แล้วจะเห็นของลอตก่อนหน้าค้างอยู่แวบหนึ่ง
-     ซึ่งอ่านแล้วเชื่อไปแล้วก่อนที่ของจริงจะมาทับ */
-  S.rm = { lot:'', rows:[], loaded:false, busy:'', err:'', asking:false, msg:'',
-           names:S.rm.names, nameErr:'' };   /* ชื่อที่ค้นมาแล้วเก็บไว้ใช้ต่อ ไม่ต้องถามซ้ำ */
   try { localStorage.setItem('lp_last_lot', lot); } catch(e){}
 
   /* ชื่อแท็บและ URL เปลี่ยนตามลอต · เปิดหลายลอตพร้อมกันแล้วยังแยกออก
@@ -2739,12 +2675,10 @@ document.addEventListener('click', ev => {
   }
 
   if(act === 'cols'){ renderColList(); $('ovCols').classList.add('open'); return; }
-  if(act === 'rm'){
-    $('ovRm').classList.add('open');
-    renderRm();
-    if(S.lot) loadRm(S.lot, false);
-    return;
-  }
+  if(act === 'rm'){ openRm(S.lot); return; }
+  /* v4.4 กดจากตารางในแท็บ BI · ปุ่มอยู่ในแถวที่มี data-act="dlot"
+     closest() คืนตัวในสุดเสมอ ปุ่มจึงชนะแถว ไม่ต้องดัก stopPropagation */
+  if(act === 'rmlot'){ openRm(t.dataset.lot); return; }
   if(act === 'rmask'){ askRm(); return; }
   if(act === 'rmclose'){ $('ovRm').classList.remove('open'); return; }
   if(act === 'colclose'){ $('ovCols').classList.remove('open'); return; }
