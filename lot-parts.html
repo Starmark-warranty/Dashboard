@@ -5,8 +5,30 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Ax Progress · รายชิ้นในลอต</title>
 <!-- =====================================================================
-  Lot Parts · รายชิ้นในลอต        ·   VERSION 4.2
+  Lot Parts · รายชิ้นในลอต        ·   VERSION 4.3
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  4.3  2026-09-10  FEAT วัตถุดิบจริงจาก AX ในหน้าต่างเดียวกับ 4.2
+                   คือแท็บ Raw material ของโปรแกรม Smart Production
+                   รหัส · ชื่อ · ต้องใช้ · เบิกแล้ว · ขาด · หน่วย · คลัง · วันที่ต้องการ
+                   ช่อง "ขาด" ไม่มีบนจอ AX · คิดจาก BOMQTY ลบ ISSUEQTY
+                   ซึ่งน่าจะเป็นสิ่งที่หน้าไลน์อยากรู้ที่สุด ขึ้นแดงเมื่อยังขาด
+                   · ดึงเฉพาะลอตที่มีคนกดดู · ต้นทางมี 1.75 ล้านแถว 52,366 lot
+                     เก็บทั้งหมดกินราว 400 MB ทั้งที่คนดูจริงวันละไม่กี่ลอต
+                     เจ้าของงานเลือกแบบนี้เอง · lot_rm จึงโตตามการใช้งาน
+                   · ไม่มีแถวไม่ได้แปลว่าไม่มีวัตถุดิบ แปลว่ายังไม่เคยดึง
+                     สองอย่างนี้คนละเรื่อง จอแยกให้ชัดและมีปุ่มให้กดดึง
+                     ถ้า StarSync ตอบว่าไม่มีจริง ๆ ก็ขึ้นข้อความบอกตรง ๆ
+                   · รอผลด้วยกลไกเดียวกับ askForLot ทุกอย่าง ยอมแพ้ที่ 5 นาที
+                   NOTE ชื่อกับหน่วยไม่ได้อยู่ใน AX และไม่ได้เก็บซ้ำในฐานนี้
+                   อ่านสดจากคลังอุปกรณ์ fitting_global ของโปรเจกต์ StarNexus
+                   ตอนแสดงผล · ชื่อจึงตรงกับคลังเสมอ และไม่กินพื้นที่เพิ่ม
+                   คีย์ที่ใช้เป็น anon key ตัวเดียวกับที่ StarNexus.html ฝังไว้อยู่แล้ว
+                   ตั้งทับได้ที่ localStorage คีย์ lp_fit_url / lp_fit_key
+                   ถ้าอ่านคลังไม่ได้ ตารางยังใช้งานได้ด้วยรหัสล้วน แค่บอกสาเหตุไว้
+                   FIX  เปลี่ยนลอตแล้ววัตถุดิบของลอตเก่าค้างอยู่แวบหนึ่ง
+                   ล้างทิ้งใน selectLot แล้ว · ชื่อที่ค้นมาแล้วยังเก็บไว้ใช้ต่อ
+                   ยังไม่ได้ทดสอบบนเครื่องจริงหน้าไลน์
+
   4.2  2026-09-10  FEAT ปุ่ม ▤ วัตถุดิบ · สรุปว่าลอตนี้ใช้แผ่นอะไรบ้าง กี่ตร.ม.
                    ไม่ได้เพิ่มตารางในฐาน ไม่ได้ยิงถาม Supabase เพิ่มสักครั้ง
                    material_code ซิงก์มานานแล้วตั้งแต่ v2.3 ของฝั่ง StarSync
@@ -1019,7 +1041,28 @@ const S = {
     year:'', pool:'', bu:'', st:'', mon:'', q:'',
     sort:'amount',           // amount | end | lot
   },
+
+  /* v4.3 วัตถุดิบของลอตที่เปิดอยู่ · โหลดตอนกดดู ไม่ได้โหลดพร้อมหน้า */
+  rm:{ lot:'', rows:[], loaded:false, busy:'', err:'', asking:false, msg:'',
+       names:{}, nameErr:'' },
 };
+
+/* ── คลังอุปกรณ์ · อยู่คนละโปรเจกต์ Supabase กับข้อมูลลอต ─────────────
+   ชื่อกับหน่วยของวัตถุดิบอยู่ที่ตาราง fitting_global ของ StarNexus
+   หน้านี้ไปอ่านตอนแสดงผล ไม่ได้ก๊อปมาเก็บไว้ฝั่ง Smart Production
+   เหตุผล: ชื่อที่เก็บสองที่จะไม่ตรงกันวันใดวันหนึ่งเสมอ และไม่กินพื้นที่เพิ่ม
+   ค่าเริ่มต้นถอดมาจาก StarNexus.html โดยตรง · เป็น anon key ที่เปิดเผยได้อยู่แล้ว
+   ตั้งทับได้ที่ localStorage คีย์ lp_fit_url / lp_fit_key ถ้าวันหลังย้ายที่ */
+const FIT_URL_DEFAULT = 'https://auohdroxlhwwoljjwxxl.supabase.co';
+const FIT_KEY_DEFAULT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF1b2hkcm94bGh3d29samp3eHhsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1ODc5MTcsImV4cCI6MjA4ODE2MzkxN30.G350ZiXgzuKmCve7DAIMuB0G2s7ZfsgQcqqtmUPw6mg';
+function fitCfg(){
+  let u = FIT_URL_DEFAULT, k = FIT_KEY_DEFAULT;
+  try {
+    u = (localStorage.getItem('lp_fit_url') || u).replace(/\/+$/,'');
+    k =  localStorage.getItem('lp_fit_key') || k;
+  } catch(e){}
+  return { u, k };
+}
 
 /* ชื่อหัวคอลัมน์ · ถอดมาจากนิยามกริดในตัว AxProgress.exe ทั้งหมด */
 const LBL = {
@@ -1224,6 +1267,46 @@ const db = {
     if(!cols.includes('lot')) cols.unshift('lot');
     return this.get('lot_progress?select=' + cols.join(',') +
                     '&order=updated_at.desc.nullslast&limit=8000');
+  },
+
+  /* ── v4.3 วัตถุดิบ ─────────────────────────────────────────────
+     lot_rm มีเฉพาะลอตที่เคยมีคนกดดู · ไม่มีแถวไม่ได้แปลว่าไม่มีวัตถุดิบ
+     แปลว่ายังไม่เคยดึง ซึ่งเป็นคนละเรื่องกัน หน้าจอต้องแยกให้ออก */
+  rmRows(lot){
+    return this.get('lot_rm?select=*&lot=eq.' + encodeURIComponent(lot) +
+                    '&order=item_id.asc&limit=2000');
+  },
+  /* คีย์ของตารางคำขอคือชื่อลอต · merge-duplicates เพื่อให้ขอซ้ำได้
+     ไม่งั้นลอตที่เคยขอแล้วจะขอใหม่ไม่ได้ตลอดกาล เพราะแถวชนคีย์ */
+  async rmRequest(lot){
+    const r = await fetch(S.url + '/rest/v1/lot_rm_request?on_conflict=lot', {
+      method:'POST',
+      headers:{ apikey:S.key, 'Content-Type':'application/json',
+                Prefer:'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify([{ lot, requested_at:new Date().toISOString(),
+                              done_at:null, rows_synced:null, error:null,
+                              requested_by:'lot-parts' }])
+    });
+    if(!r.ok) throw new Error('HTTP ' + r.status + ' · ' + (await r.text()).slice(0,200));
+  },
+  rmReqState(lot){
+    return this.get('lot_rm_request?select=done_at,rows_synced,error&lot=eq.' +
+                    encodeURIComponent(lot) + '&limit=1');
+  },
+
+  /* ชื่อกับหน่วยของวัตถุดิบ · อ่านจากคลังอุปกรณ์ซึ่งอยู่คนละโปรเจกต์
+     ยิงทีละก้อนไม่เกิน 100 รหัส ไม่งั้น URL ยาวเกินจนบางพร็อกซีตัดทิ้ง */
+  async fitNames(ids){
+    const cfg = fitCfg(), out = {};
+    for(let i = 0; i < ids.length; i += 100){
+      const part = ids.slice(i, i + 100).map(encodeURIComponent).join(',');
+      const r = await fetch(cfg.u + '/rest/v1/fitting_global' +
+                            '?select=item_number,product_name,unit&item_number=in.(' + part + ')',
+                            { headers:{ apikey:cfg.k, Authorization:'Bearer ' + cfg.k } });
+      if(!r.ok) throw new Error('HTTP ' + r.status);
+      (await r.json()).forEach(x => { out[x.item_number] = x; });
+    }
+    return out;
   },
 
   /* ลอตที่ StarSync เพิ่งดึงรายชิ้นมาล่าสุด · ใช้เป็นลอตเริ่มต้นตอนเปิดหน้า */
@@ -1703,10 +1786,8 @@ function rmParse(code){
            front:face(s.slice(4,13)), back:face(s.slice(13,22)) };
 }
 
-function renderRm(){
-  const box = $('rmBody');
-  if(!S.lot){ box.innerHTML = '<div class="sub">ยังไม่ได้เลือกลอต</div>'; return; }
-  if(!S.rows.length){ box.innerHTML = '<div class="sub">ลอตนี้ยังไม่มีรายชิ้นในฐาน</div>'; return; }
+function rmPartsHtml(){
+  if(!S.rows.length) return '<div class="sub">ลอตนี้ยังไม่มีรายชิ้นในฐาน จึงสรุปวัสดุที่ตัดไม่ได้</div>';
 
   /* รวมตามรหัสวัตถุดิบ · นับเฉพาะแถวที่เป็นชิ้นงานจริง
      ห่ออุปกรณ์ไม่มีขนาดและไม่ได้ตัดจากแผ่น เอามารวมแล้วพื้นที่จะเพี้ยน */
@@ -1727,14 +1808,13 @@ function renderRm(){
 
   const list = [...m.values()].sort((a,b) => b.area - a.area);
   if(!list.length){
-    box.innerHTML = '<div class="sub">ลอตนี้ไม่มีชิ้นที่ระบุรหัสวัตถุดิบ</div>';
-    return;
+    return '<div class="sub">ลอตนี้ไม่มีชิ้นที่ระบุรหัสวัตถุดิบ</div>';
   }
   const tN = list.reduce((a,x) => a + x.n, 0);
   const tD = list.reduce((a,x) => a + x.done, 0);
   const tA = list.reduce((a,x) => a + x.area, 0);
 
-  box.innerHTML =
+  return (
     '<div class="sub">ลอต ' + esc(S.lot) + ' · ' + list.length + ' รหัสวัตถุดิบ · ' +
       nf0.format(tN) + ' ชิ้น · ' + nf2.format(tA) + ' ตร.ม. · ตัดแล้ว ' +
       nf0.format(tD) + ' ชิ้น' +
@@ -1769,7 +1849,142 @@ function renderRm(){
     '</tbody></table></div>' +
     '<div class="sub" style="margin-top:8px">พื้นที่คิดจากขนาดสำเร็จของชิ้นงาน ' +
       'ไม่ได้รวมเศษที่เสียไปจากการตัด จึงน้อยกว่าแผ่นที่ต้องเบิกจริงเสมอ · ' +
-      'ยอดเบิกจริงอยู่ฝั่ง AX ยังไม่ได้ซิงก์มา</div>';
+      'ยอดเบิกจริงดูที่หัวข้อข้างบน</div>'
+  );
+}
+
+/* ── วัตถุดิบจาก AX ────────────────────────────────────────────────
+   lot_rm มีเฉพาะลอตที่เคยมีคนกดดู · ไม่มีแถว ≠ ไม่มีวัตถุดิบ
+   แปลว่ายังไม่เคยดึง ซึ่งเป็นคนละเรื่องกัน หน้าจอต้องแยกให้ออก
+   ไม่งั้นคนดูจะสรุปว่าลอตนี้ไม่ต้องเบิกอะไร แล้วไปยืนรอของที่ไม่มีใครสั่ง */
+async function loadRm(lot, force){
+  const R = S.rm;
+  if(R.lot === lot && R.loaded && !force) return;
+  R.lot = lot; R.rows = []; R.loaded = false; R.err = ''; R.busy = 'กำลังอ่านวัตถุดิบ';
+  renderRm();
+  try {
+    R.rows = await db.rmRows(lot);
+    R.loaded = true;
+  } catch(e){ R.err = 'อ่าน lot_rm ไม่สำเร็จ · ' + e.message; }
+  R.busy = '';
+  renderRm();
+  if(R.rows.length) void loadRmNames();
+}
+
+/* ชื่อกับหน่วยมาจากคลังอุปกรณ์คนละโปรเจกต์ · ล้มก็ไม่เป็นไร
+   ตารางยังใช้ได้ด้วยรหัสล้วน แค่บอกให้รู้ว่าชื่อหายเพราะอะไร */
+async function loadRmNames(){
+  const R = S.rm;
+  const ids = [...new Set(R.rows.map(r => r.item_id).filter(Boolean))]
+                .filter(id => !(id in R.names));
+  if(!ids.length) return;
+  try {
+    const got = await db.fitNames(ids);
+    ids.forEach(id => { R.names[id] = got[id] || null; });   /* null = ค้นแล้วไม่เจอ */
+    R.nameErr = '';
+  } catch(e){ R.nameErr = 'อ่านชื่อจากคลังอุปกรณ์ไม่ได้ · ' + e.message; }
+  renderRm();
+}
+
+/* สั่ง StarSync ไปดึงวัตถุดิบของลอตนี้ แล้วนั่งรอ
+   กลไกเดียวกับ askForLot ทุกอย่าง รวมถึงการยอมแพ้ที่ 5 นาที */
+async function askRm(){
+  const R = S.rm, lot = R.lot;
+  if(!lot || R.asking) return;
+  R.asking = true; R.msg = 'ส่งคำขอแล้ว รอ StarSync มาเก็บไปทำ'; R.err = '';
+  renderRm();
+  try { await db.rmRequest(lot); }
+  catch(e){
+    R.asking = false; R.msg = '';
+    R.err = 'ส่งคำขอไม่สำเร็จ · ' + e.message;
+    renderRm(); return;
+  }
+  const t0 = Date.now();
+  while(Date.now() - t0 < 300000){
+    await new Promise(r => setTimeout(r, 5000));
+    if(S.rm.lot !== lot){ R.asking = false; return; }   /* เปลี่ยนลอตระหว่างรอ ก็เลิกรอ */
+    R.msg = 'กำลังรอ StarSync · ' + Math.round((Date.now() - t0) / 1000) + ' วินาที';
+    renderRm();
+    try {
+      const st = await db.rmReqState(lot);
+      if(st.length && st[0].done_at){
+        R.asking = false; R.msg = '';
+        /* ปิดคำขอแล้วแต่ไม่มีแถว = ลอตนี้ไม่มีวัตถุดิบใน AX จริง ๆ
+           ต่างจาก "ยังไม่เคยดึง" · ข้อความจาก StarSync บอกเหตุผลไว้ให้แล้ว */
+        R.err = (st[0].rows_synced ? '' : (st[0].error || 'ลอตนี้ไม่มีรายการวัตถุดิบใน AX'));
+        await loadRm(lot, true);
+        return;
+      }
+    } catch(e){ /* เน็ตสะดุดระหว่างรอ ไม่ใช่เหตุให้เลิกรอ */ }
+  }
+  R.asking = false;
+  R.msg = '';
+  R.err = 'รอเกิน 5 นาทีแล้วยังไม่มา · StarSync อาจไม่ได้รันอยู่';
+  renderRm();
+}
+
+function renderRm(){
+  const box = $('rmBody'), R = S.rm;
+  if(!S.lot){ box.innerHTML = '<div class="sub">ยังไม่ได้เลือกลอต</div>'; return; }
+
+  /* ── ส่วนบน · ของจริงจาก AX ── */
+  let ax;
+  if(R.busy){
+    ax = '<div class="sub"><span class="spin sm"></span> ' + esc(R.busy) + '</div>';
+  } else if(R.asking){
+    ax = '<div class="sub"><span class="spin sm"></span> ' + esc(R.msg) + '</div>';
+  } else if(R.rows.length){
+    const nf3 = v => (v == null ? '' : nf2.format(Number(v) || 0));
+    const miss = R.rows.filter(r => (Number(r.bom_qty) || 0) > (Number(r.issue_qty) || 0)).length;
+    const nm = id => (R.names[id] && R.names[id].product_name) || '';
+    const un = r => r.unit || (R.names[r.item_id] && R.names[r.item_id].unit) || '';
+    const got = R.rows.filter(r => nm(r.item_id)).length;
+    ax =
+      '<div class="sub">' + nf0.format(R.rows.length) + ' รายการ · ' +
+        (miss ? 'ยังเบิกไม่ครบ ' + nf0.format(miss) + ' รายการ' : 'เบิกครบทุกรายการแล้ว') +
+        ' · ดึงเมื่อ ' + esc(fmtTime(R.rows[0] && R.rows[0].synced_at)) +
+        (R.nameErr ? ' · ' + esc(R.nameErr)
+                   : (got < R.rows.length ? ' · ไม่พบชื่อในคลังอุปกรณ์ ' +
+                      nf0.format(R.rows.length - got) + ' รหัส' : '')) +
+      '</div>' +
+      '<div class="dwrap rmtab"><table class="dtab"><thead><tr>' +
+        '<th>รหัส</th><th>ชื่อ</th><th style="text-align:right">ต้องใช้</th>' +
+        '<th style="text-align:right">เบิกแล้ว</th><th style="text-align:right">ขาด</th>' +
+        '<th>หน่วย</th><th>คลัง</th><th>ต้องการ</th>' +
+      '</tr></thead><tbody>' +
+      R.rows.map(r => {
+        const need = Number(r.bom_qty) || 0, iss = Number(r.issue_qty) || 0;
+        const left = need - iss;
+        return '<tr>' +
+          '<td class="mono">' + esc(r.item_id || '') + '</td>' +
+          '<td class="rm" title="' + esc(nm(r.item_id)) + '">' +
+            (nm(r.item_id) ? esc(nm(r.item_id))
+                           : '<span style="color:var(--mu2)">ไม่พบในคลังอุปกรณ์</span>') + '</td>' +
+          '<td class="num">' + nf3(need) + '</td>' +
+          '<td class="num">' + nf3(iss) + '</td>' +
+          '<td class="num"' + (left > 0 ? ' style="color:var(--bad);font-weight:600"' : '') + '>' +
+            (left > 0 ? nf3(left) : '—') + '</td>' +
+          '<td class="mono">' + esc(un(r)) + '</td>' +
+          '<td class="mono">' + esc([r.from_loc, r.to_loc].filter(Boolean).join(' → ')) + '</td>' +
+          '<td>' + esc(dayTh(r.delivery_date)) + '</td>' +
+        '</tr>';
+      }).join('') +
+      '</tbody></table></div>' +
+      '<div style="margin-top:8px"><button class="btn" data-act="rmask">⤓ ดึงใหม่จาก AX</button></div>';
+  } else {
+    ax = '<div class="sub">' +
+         (R.err ? esc(R.err) + '<br>' : '') +
+         'ยังไม่เคยดึงวัตถุดิบของลอตนี้จาก AX · ระบบดึงเฉพาะลอตที่มีคนกดดู ' +
+         'เพื่อไม่ให้เก็บของที่ไม่มีใครใช้</div>' +
+         '<div style="margin-top:8px"><button class="btn pri" data-act="rmask">⤓ ดึงจาก AX</button></div>';
+  }
+
+  box.innerHTML =
+    '<h4 style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;' +
+      'letter-spacing:.03em;margin-bottom:8px">วัตถุดิบที่ต้องเบิก · จาก AX</h4>' + ax +
+    '<h4 style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;' +
+      'letter-spacing:.03em;margin:16px 0 8px">แผ่นที่ชิ้นงานถูกตัดออกมา · คิดจากรายชิ้น</h4>' +
+    rmPartsHtml();
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -2280,6 +2495,11 @@ async function boot(){
 async function selectLot(lot){
   S.lot = lot;
   closePicker();
+  /* v4.3 ล้างวัตถุดิบของลอตเก่าทิ้งทันที
+     ไม่งั้นเปิดหน้าต่างวัตถุดิบของลอตใหม่แล้วจะเห็นของลอตก่อนหน้าค้างอยู่แวบหนึ่ง
+     ซึ่งอ่านแล้วเชื่อไปแล้วก่อนที่ของจริงจะมาทับ */
+  S.rm = { lot:'', rows:[], loaded:false, busy:'', err:'', asking:false, msg:'',
+           names:S.rm.names, nameErr:'' };   /* ชื่อที่ค้นมาแล้วเก็บไว้ใช้ต่อ ไม่ต้องถามซ้ำ */
   try { localStorage.setItem('lp_last_lot', lot); } catch(e){}
 
   /* ชื่อแท็บและ URL เปลี่ยนตามลอต · เปิดหลายลอตพร้อมกันแล้วยังแยกออก
@@ -2519,7 +2739,13 @@ document.addEventListener('click', ev => {
   }
 
   if(act === 'cols'){ renderColList(); $('ovCols').classList.add('open'); return; }
-  if(act === 'rm'){ renderRm(); $('ovRm').classList.add('open'); return; }
+  if(act === 'rm'){
+    $('ovRm').classList.add('open');
+    renderRm();
+    if(S.lot) loadRm(S.lot, false);
+    return;
+  }
+  if(act === 'rmask'){ askRm(); return; }
   if(act === 'rmclose'){ $('ovRm').classList.remove('open'); return; }
   if(act === 'colclose'){ $('ovCols').classList.remove('open'); return; }
   if(act === 'preset'){ applyPreset(t.dataset.n); return; }
