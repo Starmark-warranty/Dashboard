@@ -5,8 +5,47 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Ax Progress · รายชิ้นในลอต</title>
 <!-- =====================================================================
-  Lot Parts · รายชิ้นในลอต        ·   VERSION 4.5
+  Lot Parts · รายชิ้นในลอต        ·   VERSION 5.0
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  5.0  2026-09-10  CHANGE แท็บ BI ล้อหน้าตารายงาน PdControlRm ของเดิม
+                   เหตุผล: หน้างานดูรายงานนั้นทุกวัน ถ้าของใหม่หน้าตาคนละเรื่อง
+                   จะไม่มีใครรู้ว่ามันคือรายงานตัวเดียวกันที่ต่อ AX ตรงกว่า
+                   · กราฟเปลี่ยนจากแท่งนอนเป็นแท่งตั้ง ป้ายตัวเลขอยู่หัวแท่ง
+                     หน่วยล้านบาท เหมือนที่รายงานเดิมเขียน "94ล้าน"
+                   · เลือกปีเดียวแล้วแกนเดือนเติมให้ครบ 12 เดือน
+                     เดือนที่ยอดศูนย์ต้องเห็น ไม่งั้นอ่านผิดว่าไม่มีเดือนนั้น
+                   · หัวแท็บบอกชื่อรายงาน ที่มาของข้อมูล และอัปเดตล่าสุดเมื่อไหร่
+                   FEAT ปุ่มวัตถุดิบบอกได้ว่าลอตไหน "มีแล้ว"
+                   ลอตที่ดึงมาแล้วขึ้นเขียวพร้อมจำนวนรายการ · ที่ยังไม่มีขึ้นจางว่า ดึง
+                   กวาดตาทั้งตารางแล้วรู้ทันทีว่าอันไหนเปิดดูได้เลย อันไหนต้องรอ
+                   · อ่านจาก view lot_rm_count แถวเดียวต่อลอต
+                     ไม่ได้ลาก lot_rm ทั้งตารางมานับเองซึ่งเป็นแสนแถว
+                   ยังไม่ได้ทดสอบบนเครื่องจริงหน้าไลน์
+
+  4.7  2026-09-10  CHANGE หน้าต่างวัตถุดิบกินเกือบเต็มจอ ชื่ออุปกรณ์เห็นเต็ม
+                   ของเดิมกว้าง 880px แล้วตัดชื่อท้ายทิ้งด้วยจุดสามจุด
+                   ซึ่งอ่านไม่ออกว่าเป็นตัวไหน เพราะชื่ออุปกรณ์ต่างกันที่ท้ายชื่อ
+                   เช่น LED STRIP รุ่นเดียวกันสิบกว่ารายการ ต่างกันแค่ความยาว
+                   ตัดท้ายทิ้งแล้วทุกบรรทัดหน้าตาเหมือนกันหมด เลือกไม่ถูก
+                   · ช่องชื่อขึ้นบรรทัดใหม่แทนการตัดท้าย ไม่มีวันอ่านไม่จบ
+                   · หัวหน้าต่างกับปุ่มล่างอยู่กับที่ ตารางตรงกลางเป็นตัวเลื่อน
+                     ไม่งั้นกดปุ่มปิดต้องเลื่อนขึ้นไปหาทุกครั้ง
+                   · จอแคบกว่า 760px ไม่บังคับความกว้างช่องชื่อ
+                   ยังไม่ได้ทดสอบบนเครื่องจริงหน้าไลน์
+
+  4.6  2026-09-10  FEAT เลขสัปดาห์ · กราฟรายสัปดาห์ ตาราง และไฟล์ Export
+                   ใช้ ISO 8601 ซึ่งเป็นกติกาเดียวกับที่ AX และ Excel นับ
+                   สัปดาห์เริ่มวันจันทร์ · สัปดาห์ที่ 1 คือสัปดาห์ที่มีวันพฤหัสแรกของปี
+                   จึงมีบางปีที่ต้นมกราคมยังนับเป็นสัปดาห์ท้ายของปีก่อน
+                   และมีปีที่มี 53 สัปดาห์ · JS ไม่มีให้ในตัว เขียนเองแล้วตรวจ
+                   กับวันที่ที่รู้คำตอบอยู่แล้วหลายจุด รวมถึงวันคร่อมปี
+                   · แท่งกราฟสัปดาห์กดกรองได้แล้ว เหมือนแท่งเดือนกับสายผลิต
+                     ป้ายเป็น W38 · วันจันทร์ของสัปดาห์นั้นไปอยู่ใน tooltip
+                   · ตารางเพิ่มคอลัมน์สัปดาห์ · Export มีคอลัมน์นี้ด้วย
+                     คิดจาก end_date ตอนส่งออก ไม่ได้เก็บในฐาน
+                     เพราะคำนวณได้เสมอและจะไม่มีวันไม่ตรงกับวันที่
+                   ยังไม่ได้ทดสอบบนเครื่องจริงหน้าไลน์
+
   4.5  2026-09-10  FIX  ลอตที่ AX ไม่มีวัตถุดิบให้ ขึ้นจอเหมือนยังไม่เคยดึง
                    ที่มา: ลอต PTY_P_FL7 · StarSync ทำงานถูกทุกอย่าง
                    ปิดคำขอพร้อมข้อความว่าไม่มีรายการใน AX แต่จอไม่โชว์
@@ -833,10 +872,59 @@ thead th.tick-col .th-s:empty{display:none}
 .bar .v{font-family:var(--mono);font-size:11px;color:var(--tx);text-align:right;white-space:nowrap}
 .bars .none{font-size:11.5px;color:var(--mu2);padding:6px 2px}
 
+/* v5.0 กราฟแท่งตั้ง · ล้อหน้าตารายงาน PdControlRm ที่หน้างานดูอยู่ทุกวัน
+   คนที่เปิดมาต้องรู้ทันทีว่าเป็นรายงานตัวเดียวกัน แค่ของใหม่ที่ต่อ AX ตรง
+   ยังใช้ตัวแปรสีชุดเดิมทั้งหมด ไม่มีค่าสีดิบ */
+.vwrap{overflow-x:auto;padding-bottom:2px}
+.vbars{display:flex;align-items:flex-end;gap:6px;height:196px;min-width:100%}
+.vbar{flex:1 1 0;display:flex;flex-direction:column;justify-content:flex-end;
+  align-items:center;height:100%;cursor:pointer;border-radius:6px 6px 0 0;padding:0 1px}
+.vbar:hover{background:var(--hov)}
+.vbar.plain{cursor:default}
+.vbar.plain:hover{background:transparent}
+.vbar .vv{font-family:var(--mono);font-size:10.5px;color:var(--tx);white-space:nowrap;
+  margin-bottom:3px;line-height:1}
+.vbar .vg{width:100%;max-width:64px;background:var(--brand);border-radius:4px 4px 0 0;
+  min-height:2px;transition:height .2s}
+.vbar.on .vg{background:var(--ok)}
+.vbar.on .vv{color:var(--ok);font-weight:600}
+.vbar .vt{font-size:10px;color:var(--mu);margin-top:5px;white-space:nowrap;
+  line-height:1.2;text-align:center}
+.vbar.slim{min-width:22px}
+.vbar.wide{min-width:44px}
+
+/* หัวแท็บ · บอกให้ชัดว่านี่คือรายงานตัวไหน ข้อมูลมาจากไหน สดแค่ไหน */
+.bihead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.bihead .t1{font-size:15px;font-weight:700;color:var(--tx)}
+.bihead .t2{font-size:11.5px;color:var(--mu)}
+.bihead .t3{font-size:11px;color:var(--mu2);margin-left:auto;font-family:var(--mono)}
+
+/* ปุ่มวัตถุดิบในตาราง · ลอตที่มีของแล้วกับยังไม่มี ต้องดูออกจากระยะไกล */
+.rmbtn{padding:3px 8px;min-height:26px;border-radius:6px;border:1px solid var(--line);
+  background:var(--card);color:var(--mu2);font-family:inherit;font-size:11.5px;
+  cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+.rmbtn:hover{border-color:var(--brand);color:var(--brand);background:var(--brandbg)}
+.rmbtn.has{border-color:var(--ok);color:var(--ok);background:var(--stbg);font-weight:600}
+.rmbtn .rn{font-family:var(--mono);font-size:11px}
+
 /* ตารางลอต */
 .dwrap{max-height:460px;overflow:auto;border:1px solid var(--line);border-radius:9px}
 /* v4.2 ตารางวัตถุดิบอยู่ในหน้าต่าง กดแถวไม่ได้ อย่าให้เคอร์เซอร์หลอก */
 .rmtab table.dtab tbody tr{cursor:default}
+
+/* v4.7 หน้าต่างวัตถุดิบกินเกือบเต็มจอ · ชื่ออุปกรณ์ยาวมากจนตัดแล้วอ่านไม่รู้เรื่อง
+   ov จัดกลางด้วย flex อยู่แล้ว modal จึงแค่บอกความกว้างกับความสูงสูงสุด
+   หัวกับปุ่มล่างอยู่กับที่ ให้ตารางตรงกลางเป็นตัวเลื่อน ไม่ใช่เลื่อนทั้งหน้าต่าง
+   ไม่งั้นกดปุ่มปิดต้องเลื่อนขึ้นไปหาทุกครั้ง */
+.modal.rmmodal{width:min(1600px,97vw);max-height:94vh;display:flex;flex-direction:column}
+.modal.rmmodal > h3{flex:0 0 auto}
+.modal.rmmodal > .bd{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;padding:14px 18px}
+.modal.rmmodal #rmBody{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+.modal.rmmodal .dwrap{flex:1 1 auto;max-height:none}
+
+/* ชื่ออุปกรณ์ต้องเห็นเต็ม · ตัดคำแล้วขึ้นบรรทัดใหม่แทนการตัดท้ายทิ้ง */
+table.dtab td.nm{white-space:normal;word-break:break-word;line-height:1.5;min-width:280px}
+@media (max-width:760px){ table.dtab td.nm{min-width:0} }
 table.dtab{width:100%;border-collapse:separate;border-spacing:0;table-layout:auto}
 table.dtab th{position:sticky;top:0;z-index:2;background:var(--hd);color:var(--mu);
   font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.02em;
@@ -965,7 +1053,7 @@ table.dtab td.pd{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-sp
 <!-- ── v4.2 สรุปวัตถุดิบของลอตที่เปิดอยู่ ─────────────────────────
      คิดจากแถวที่โหลดมาแล้วในเครื่อง ไม่ได้ยิงถาม Supabase เพิ่มสักครั้ง -->
 <div class="ov" id="ovRm">
-  <div class="modal" style="width:min(880px,96vw)">
+  <div class="modal rmmodal">
     <h3>วัตถุดิบ · <span id="rmLotTx" class="mono"></span><button type="button" class="btn" data-act="rmclose" aria-label="ปิดหน้าต่างวัตถุดิบ">ปิด ×</button></h3>
     <div class="bd"><div id="rmBody"></div></div>
   </div>
@@ -1068,7 +1156,8 @@ const S = {
   tab:'parts',               // parts | dash
   dash:{
     rows:[], loaded:false, busy:'', err:'',
-    year:'', pool:'', bu:'', st:'', mon:'', q:'',
+    year:'', pool:'', bu:'', st:'', mon:'', wk:'', q:'',
+    rmHave:{},               // { ชื่อลอต: จำนวนรายการวัตถุดิบที่มีอยู่แล้ว }
     sort:'amount',           // amount | end | lot
   },
 
@@ -1319,6 +1408,9 @@ const db = {
     });
     if(!r.ok) throw new Error('HTTP ' + r.status + ' · ' + (await r.text()).slice(0,200));
   },
+  /* ลอตไหนมีวัตถุดิบอยู่ในฐานแล้วบ้าง · แถวเดียวต่อลอต ไม่ได้ลากทั้งตารางมา */
+  rmHave(){ return this.get('lot_rm_count?select=lot,n&limit=8000'); },
+
   rmReqState(lot){
     return this.get('lot_rm_request?select=done_at,rows_synced,error&lot=eq.' +
                     encodeURIComponent(lot) + '&limit=1');
@@ -1508,6 +1600,24 @@ function monTh(key){          /* key = YYYY-MM */
   if(p.length < 2) return '';
   return (THM[parseInt(p[1],10)-1] || '') + ' ' + String(beYear(p[0])).slice(2);
 }
+/* v4.6 เลขสัปดาห์แบบ ISO 8601 · มาตรฐานเดียวกับที่ AX และ Excel ใช้
+   กติกา: สัปดาห์เริ่มวันจันทร์ · สัปดาห์ที่ 1 คือสัปดาห์ที่มีวันพฤหัสแรกของปี
+   จึงมีบางปีที่ต้นเดือนมกราคมยังนับเป็นสัปดาห์ท้ายของปีก่อน และมีปีที่มี 53 สัปดาห์
+   เขียนเองไม่ได้เดา เพราะ JS ไม่มีให้ในตัว · ตรวจกับวันที่รู้คำตอบแล้วหลายจุด */
+function isoWeek(v){
+  const t = Date.parse(String(v || '').slice(0,10) + 'T00:00:00');
+  if(isNaN(t)) return null;
+  const d = new Date(t);
+  d.setHours(0,0,0,0);
+  /* เลื่อนไปวันพฤหัสของสัปดาห์เดียวกัน · ปีของวันพฤหัสคือปีของสัปดาห์นั้นเสมอ */
+  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+  const y = d.getFullYear();
+  const jan4 = new Date(y, 0, 4);
+  const w = 1 + Math.round(((d - jan4) / 86400000 - 3 + ((jan4.getDay() + 6) % 7)) / 7);
+  return { y, w };
+}
+const weekTx = v => { const k = isoWeek(v); return k ? ('W' + k.w) : ''; };
+
 /* วันจันทร์ของสัปดาห์ที่วันนั้นอยู่ · ใช้เป็นคีย์ของกราฟรายสัปดาห์ */
 function weekKey(s){
   const t = Date.parse(String(s || '').slice(0,10) + 'T00:00:00');
@@ -1562,6 +1672,7 @@ function dashFiltered(){
     const ed = String(r.end_date || '');
     if(d.year && ed.slice(0,4) !== d.year) return false;
     if(d.mon  && ed.slice(0,7) !== d.mon)  return false;
+    if(d.wk   && weekKey(ed) !== d.wk)     return false;
     if(d.pool && String(r.prod_pool || '') !== d.pool) return false;
     if(d.bu   && (buOf(r) || 'ไม่ระบุ') !== d.bu) return false;
     if(d.st   && statOf(r) !== d.st) return false;
@@ -1599,11 +1710,35 @@ function barsHtml(items, sel, act, opt){
     const on = sel && sel === i.k;
     return '<div class="' + (on ? 'bar on' : 'bar') + (act ? '' : ' plain') + '"' +
            (act ? ' data-act="' + act + '" data-k="' + esc(i.k) + '"' : '') +
-           ' title="' + esc(i.label + ' · ' + baht(i.amt) + ' บาท · ' + i.n + ' ลอต') + '">' +
+           ' title="' + esc(i.label + (i.label2 ? ' · เริ่ม ' + i.label2 : '') +
+                              ' · ' + baht(i.amt) + ' บาท · ' + i.n + ' ลอต') + '">' +
            '<div class="t' + (o.mono ? ' mono' : '') + '">' + esc(i.label) + '</div>' +
            '<div class="g"><i style="width:' + w + '%"></i></div>' +
            '<div class="v">' + mBaht(i.amt) + '</div></div>';
   }).join('') + '</div>';
+}
+
+/* v5.0 แท่งตั้ง · ป้ายตัวเลขอยู่เหนือแท่ง ชื่ออยู่ใต้แท่ง เหมือนรายงานเดิม
+   ตัวเลขบนหัวแท่งเป็นล้านบาทเสมอ ล้อของเดิมที่เขียน "94ล้าน"
+   แท่งที่ยอดเป็นศูนย์ยังต้องเห็น ไม่งั้นเดือนที่ไม่มีงานจะหายไปจากแกน
+   แล้วคนอ่านจะนึกว่าไม่มีเดือนนั้น ไม่ใช่ว่าเดือนนั้นยอดศูนย์ */
+function vbarsHtml(items, sel, act, opt){
+  const o = opt || {};
+  if(!items.length) return '<div class="bars"><div class="none">ไม่มีข้อมูลในเงื่อนไขนี้</div></div>';
+  const max = Math.max(...items.map(i => i.amt), 1);
+  return '<div class="vwrap"><div class="vbars">' + items.map(i => {
+    const pc = Math.max(0.6, i.amt / max * 100);
+    const on = sel && sel === i.k;
+    return '<div class="vbar' + (on ? ' on' : '') + (act ? '' : ' plain') +
+             (o.slim ? ' slim' : ' wide') + '"' +
+           (act ? ' data-act="' + act + '" data-k="' + esc(i.k) + '"' : '') +
+           ' title="' + esc(i.label + (i.label2 ? ' · เริ่ม ' + i.label2 : '') +
+                            ' · ' + baht(i.amt) + ' บาท · ' + i.n + ' ลอต') + '">' +
+           '<div class="vv">' + (i.amt >= 1e4 ? mBaht(i.amt) : '0') + '</div>' +
+           '<div class="vg" style="height:' + pc.toFixed(1) + '%"></div>' +
+           '<div class="vt">' + esc(i.label) + '</div>' +
+         '</div>';
+  }).join('') + '</div></div>';
 }
 
 function optHtml(list, cur, anyLabel){
@@ -1640,12 +1775,26 @@ function renderDash(){
   const pools = [...new Set(all.map(r => r.prod_pool).filter(Boolean))].sort();
   const bus   = [...new Set(all.map(r => buOf(r) || 'ไม่ระบุ'))].sort();
 
-  const byMon  = sumBy(rows, r => String(r.end_date || '').slice(0,7), monTh)
-                   .sort((a,b) => a.k < b.k ? -1 : 1);
+  let byMon = sumBy(rows, r => String(r.end_date || '').slice(0,7), monTh)
+                .sort((a,b) => a.k < b.k ? -1 : 1);
+  /* เติมเดือนที่ยอดเป็นศูนย์ให้ครบช่วง · แกนขาดเดือนแล้วอ่านผิดว่าไม่มีเดือนนั้น
+     ทำเฉพาะตอนเลือกปีเดียว ไม่งั้นช่วงข้ามปีจะยาวจนไม่มีประโยชน์ */
+  if(d.year && byMon.length){
+    const full = [];
+    for(let m = 1; m <= 12; m++){
+      const k = d.year + '-' + String(m).padStart(2,'0');
+      full.push(byMon.find(x => x.k === k) || { k, label:monTh(k), amt:0, n:0 });
+    }
+    byMon = full;
+  }
   const byPool = sumBy(rows, r => r.prod_pool || '', k => k)
                    .sort((a,b) => b.amt - a.amt).slice(0,12);
-  const byWeek = sumBy(rows, r => weekKey(r.end_date), dayTh)
+  /* ป้ายเป็นเลขสัปดาห์ · วันจันทร์ของสัปดาห์นั้นไปอยู่ใน tooltip ของแท่ง
+     ปีติดไว้ด้วยเมื่อคร่อมปี ไม่งั้น W01 ของสองปีจะดูเหมือนอันเดียวกัน */
+  const byWeek = sumBy(rows, r => weekKey(r.end_date),
+                       k => { const x = isoWeek(k); return x ? ('W' + x.w) : ''; })
                    .sort((a,b) => a.k < b.k ? -1 : 1).slice(-12);
+  byWeek.forEach(x => { x.label2 = dayTh(x.k); });
 
   /* ตาราง · จำกัดจำนวนแถวไว้ ไม่งั้นสี่พันแถวจะหน่วงตอนวาด
      คนที่อยากได้ครบกด Export เอา ซึ่งไม่ได้ตัดที่ 300 */
@@ -1664,7 +1813,15 @@ function renderDash(){
 
   const pct = tAll ? Math.round(cAll / tAll * 100) : 0;
 
+  /* ข้อมูลสดแค่ไหน · เอาเวลาซิงก์ล่าสุดที่มีในชุดนี้มาโชว์ ไม่ใช่เวลาเครื่องคนดู */
+  const fresh = all.reduce((m,r) => Math.max(m, parseUtc(r.head_at), parseUtc(r.updated_at)), 0);
+
   box.innerHTML =
+    '<div class="blk"><div class="bihead">' +
+      '<span class="t1">Lot BI · ความคืบหน้าและมูลค่างาน</span>' +
+      '<span class="t2">ข้อมูลจาก AX Progress ผ่าน StarSync · วัตถุดิบดูได้ที่ปุ่มท้ายแถว</span>' +
+      '<span class="t3">' + (fresh ? 'อัปเดต ' + esc(agoTx(fresh)) : '') + '</span>' +
+    '</div></div>' +
     /* ── ตัวกรอง ── */
     '<div class="blk"><div class="dfl">' +
       '<label>ปี</label><select class="dsel" data-dsel="year">' +
@@ -1682,6 +1839,8 @@ function renderDash(){
       '</select>' +
       '<input class="dsrch" data-dsrch="1" placeholder="ค้นหาลอต โครงการ หรือหมายเหตุ" value="' + esc(d.q) + '">' +
       (d.mon ? '<button class="btn on" data-act="dclrmon">เดือน ' + esc(monTh(d.mon)) + ' ×</button>' : '') +
+      (d.wk  ? '<button class="btn on" data-act="dclrwk">' + esc(weekTx(d.wk)) +
+               ' (' + esc(dayTh(d.wk)) + ') ×</button>' : '') +
       '<button class="btn" data-act="dreload" title="อ่านจาก Supabase ใหม่">⟳ รีเฟรช</button>' +
     '</div></div>' +
 
@@ -1701,15 +1860,18 @@ function renderDash(){
       'ห้องเดียวที่ถูกทำสองลอตจะถูกนับทั้งสองลอต <b>ยอดรวมนี้จึงไม่ใช่ยอดขาย</b> ใช้สำหรับจัดลำดับความสำคัญ' +
     '</span></div>' +
 
-    /* ── กราฟ ── */
+    /* ── กราฟ · แท่งตั้งเหมือนรายงานเดิม หน่วยเป็นล้านบาท ── */
     '<div class="charts">' +
-      '<div class="blk"><h4>ยอดตามเดือนที่กำหนดเสร็จ <span class="sub2">กดแท่งเพื่อกรอง</span></h4>' +
-        barsHtml(byMon, d.mon, 'dmon', {}) + '</div>' +
-      '<div class="blk"><h4>ยอดตามสายผลิต <span class="sub2">กดแท่งเพื่อกรอง</span></h4>' +
-        barsHtml(byPool, d.pool, 'dpool', { mono:true }) + '</div>' +
-      '<div class="blk"><h4>ยอดตามสัปดาห์ <span class="sub2">12 สัปดาห์ล่าสุดในเงื่อนไขนี้</span></h4>' +
-        barsHtml(byWeek, '', '', {}) + '</div>' +
+      '<div class="blk"><h4>ยอดรวมตามเดือนที่กำหนดเสร็จ ' +
+        '<span class="sub2">ล้านบาท · กดแท่งเพื่อกรอง</span></h4>' +
+        vbarsHtml(byMon, d.mon, 'dmon', {}) + '</div>' +
+      '<div class="blk"><h4>ยอดรวมตามสายผลิต ' +
+        '<span class="sub2">ล้านบาท · กดแท่งเพื่อกรอง</span></h4>' +
+        vbarsHtml(byPool, d.pool, 'dpool', {}) + '</div>' +
     '</div>' +
+    '<div class="blk"><h4>ยอดรวมตามสัปดาห์ ' +
+      '<span class="sub2">ล้านบาท · 12 สัปดาห์ล่าสุดในเงื่อนไขนี้ · กดแท่งเพื่อกรอง</span></h4>' +
+      vbarsHtml(byWeek, d.wk, 'dwk', { slim:true }) + '</div>' +
 
     /* ── ตาราง ── */
     '<div class="blk"><h4>รายการลอต ' +
@@ -1717,7 +1879,7 @@ function renderDash(){
         ' · กด Export เพื่อเอาครบ' : nf0.format(rows.length) + ' ลอต') +
       ' · กดแถวเพื่อไปดูรายชิ้น · กดปุ่มท้ายแถวเพื่อดูวัตถุดิบ</span></h4>' +
       '<div class="dwrap"><table class="dtab"><thead><tr>' +
-        '<th>ลอต</th><th>กำหนดเสร็จ</th><th>สายผลิต</th><th>ชั้น</th>' +
+        '<th>ลอต</th><th>กำหนดเสร็จ</th><th>สัปดาห์</th><th>สายผลิต</th><th>ชั้น</th>' +
         '<th>หมายเหตุลอต</th><th>หมายเหตุวางแผน</th><th>ตัด</th><th style="text-align:right">มูลค่า</th>' +
         '<th></th>' +
       '</tr></thead><tbody>' +
@@ -1732,6 +1894,7 @@ function renderDash(){
         return '<tr data-act="dlot" data-lot="' + esc(r.lot) + '">' +
           '<td class="mono">' + esc(r.lot) + '</td>' +
           '<td>' + esc(dayTh(r.end_date)) + '</td>' +
+          '<td class="mono">' + esc(weekTx(r.end_date)) + '</td>' +
           '<td class="mono">' + esc(r.prod_pool || '') + '</td>' +
           '<td class="mono">' + esc(r.shelf || '') + '</td>' +
           '<td class="rm" title="' + esc(r.lot_remark || '') + '">' + esc(r.lot_remark || '') + '</td>' +
@@ -1740,11 +1903,18 @@ function renderDash(){
             '<div class="pb"><i style="width:' + p + '%"></i></div>' +
             '<span class="pn">' + (t ? p + '%' : '—') + '</span></div></td>' +
           '<td class="num">' + (r.amount == null ? (lv || '—') : baht(r.amount) + ' ' + lv) + '</td>' +
-          /* ปุ่มอยู่ในแถวเดียวกัน กดปุ่ม = ดูวัตถุดิบ กดที่อื่นในแถว = ไปดูรายชิ้น */
-          '<td><button class="btn" data-act="rmlot" data-lot="' + esc(r.lot) + '"' +
-            ' title="ดูวัตถุดิบที่ต้องเบิกของลอตนี้">▤ วัตถุดิบ</button></td>' +
+          /* ปุ่มอยู่ในแถวเดียวกัน กดปุ่ม = ดูวัตถุดิบ กดที่อื่นในแถว = ไปดูรายชิ้น
+             v5.0 ลอตที่มีวัตถุดิบอยู่แล้วขึ้นเขียวพร้อมจำนวน · ตัวที่ยังไม่มีขึ้นจาง
+             จะได้กวาดตาเห็นทั้งตารางว่าอันไหนพร้อมดูเลย อันไหนต้องรอดึง */
+          '<td>' + (function(){
+            const n = d.rmHave[r.lot];
+            return '<button class="rmbtn' + (n ? ' has' : '') + '" data-act="rmlot"' +
+              ' data-lot="' + esc(r.lot) + '" title="' +
+              (n ? 'มีวัตถุดิบ ' + n + ' รายการ กดเพื่อดู' : 'ยังไม่เคยดึง กดเพื่อสั่งดึงจาก AX') +
+              '">▤ ' + (n ? '<span class="rn">' + n + '</span>' : 'ดึง') + '</button>';
+          })() + '</td>' +
         '</tr>';
-      }).join('') : '<tr><td colspan="9" style="color:var(--mu2)">ไม่มีลอตในเงื่อนไขนี้</td></tr>') +
+      }).join('') : '<tr><td colspan="10" style="color:var(--mu2)">ไม่มีลอตในเงื่อนไขนี้</td></tr>') +
       '</tbody></table></div></div>';
 }
 
@@ -1774,6 +1944,9 @@ async function loadDash(force){
   try {
     d.rows = await db.dashRows();
     d.loaded = true;
+    /* ปุ่มวัตถุดิบต้องบอกได้ว่าลอตไหนมีของอยู่แล้ว · ล้มก็ไม่เป็นไร
+       ปุ่มจะขึ้นเป็นแบบยังไม่มี ซึ่งกดแล้วก็ยังใช้งานได้ตามปกติ */
+    try { (await db.rmHave()).forEach(x => { d.rmHave[x.lot] = x.n; }); } catch(e2){}
   } catch(e){
     d.err = 'อ่าน lot_progress ไม่สำเร็จ · ' + e.message;
   }
@@ -1784,12 +1957,14 @@ async function loadDash(force){
 function toCsvDash(){
   const rows = dashFiltered();
   if(!rows.length) return;
-  const cols = ['lot','end_date','prod_pool','shelf','lot_remark','pd_remark','proj_name',
+  const cols = ['lot','end_date','week','prod_pool','shelf','lot_remark','pd_remark','proj_name',
                 'total_all','checked_all','checked_pack','checked_pick','checked_wh',
                 'amount','amount_lv','amount_lines'];
   const q = v => '"' + String(v == null ? '' : v).replace(/"/g,'""') + '"';
-  const lines = [cols.map(c => q(lbl(c))).join(',')];
-  rows.forEach(r => lines.push(cols.map(c => q(r[c])).join(',')));
+  const lines = [cols.map(c => q(c === 'week' ? 'สัปดาห์' : lbl(c))).join(',')];
+  /* week ไม่ได้อยู่ในฐาน คิดจาก end_date ตอนส่งออก จะได้เอาไปกรองใน Excel ต่อได้ */
+  rows.forEach(r => lines.push(cols.map(c =>
+    q(c === 'week' ? weekTx(r.end_date) : r[c])).join(',')));
   const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type:'text/csv;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -1919,7 +2094,7 @@ function renderRm(){
         const left = need - iss;
         return '<tr>' +
           '<td class="mono">' + esc(r.item_id || '') + '</td>' +
-          '<td class="rm" title="' + esc(nm(r.item_id)) + '">' +
+          '<td class="nm" title="' + esc(nm(r.item_id)) + '">' +
             (nm(r.item_id) ? esc(nm(r.item_id))
                            : '<span style="color:var(--mu2)">ไม่พบในคลังอุปกรณ์</span>') + '</td>' +
           '<td class="num">' + nf3(need) + '</td>' +
@@ -2682,7 +2857,9 @@ document.addEventListener('click', ev => {
   }
   if(act === 'dmon'){  S.dash.mon  = (S.dash.mon  === t.dataset.k ? '' : t.dataset.k); render(); return; }
   if(act === 'dpool'){ S.dash.pool = (S.dash.pool === t.dataset.k ? '' : t.dataset.k); render(); return; }
+  if(act === 'dwk'){   S.dash.wk   = (S.dash.wk   === t.dataset.k ? '' : t.dataset.k); render(); return; }
   if(act === 'dclrmon'){ S.dash.mon = ''; render(); return; }
+  if(act === 'dclrwk'){  S.dash.wk  = ''; render(); return; }
   if(act === 'dreload'){ loadDash(true); return; }
   if(act === 'dlot'){
     /* กดแถวในตารางภาพรวม = กระโดดไปดูรายชิ้นของลอตนั้น
@@ -2757,7 +2934,7 @@ document.addEventListener('change', ev => {
   const dk = ev.target.dataset && ev.target.dataset.dsel;
   if(dk){
     S.dash[dk] = ev.target.value;
-    if(dk === 'year') S.dash.mon = '';
+    if(dk === 'year'){ S.dash.mon = ''; S.dash.wk = ''; }
     render();
     return;
   }
