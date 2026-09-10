@@ -5,8 +5,30 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Ax Progress · รายชิ้นในลอต</title>
 <!-- =====================================================================
-  Lot Parts · รายชิ้นในลอต        ·   VERSION 4.0
+  Lot Parts · รายชิ้นในลอต        ·   VERSION 4.2
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  4.2  2026-09-10  FEAT ปุ่ม ▤ วัตถุดิบ · สรุปว่าลอตนี้ใช้แผ่นอะไรบ้าง กี่ตร.ม.
+                   ไม่ได้เพิ่มตารางในฐาน ไม่ได้ยิงถาม Supabase เพิ่มสักครั้ง
+                   material_code ซิงก์มานานแล้วตั้งแต่ v2.3 ของฝั่ง StarSync
+                   แค่ไม่เคยมีใครเอามาสรุป · คิดจากแถวที่โหลดมาแล้วในเครื่อง
+                   · แยกรหัสเป็น ชนิด/ความหนา/ผิวหน้า/ผิวหลัง
+                     รหัสยาว 22 ตัวเสมอ ตรวจกับของจริงทั้งฐานแล้ว
+                     702 จาก 705 รหัสยาว 22 · อีก 3 ตัวผิดรูป
+                     ตัวที่ผิดรูปแสดงรหัสดิบ ไม่ตัดมั่วให้อ่านผิด
+                   · นับเฉพาะชิ้นงานจริง ห่ออุปกรณ์ไม่ได้ตัดจากแผ่น
+                     เอามารวมแล้วพื้นที่จะเพี้ยน · ใช้ isPiece/isDone ชุดเดิม
+                     ยอดตัดจึงตรงกับแถบล่างและเกจของลอตเดียวกัน
+                   NOTE พื้นที่คิดจากขนาดสำเร็จ ไม่รวมเศษจากการตัด
+                   จึงน้อยกว่าแผ่นที่ต้องเบิกจริงเสมอ · เขียนกำกับไว้ในหน้าต่างแล้ว
+                   ยอดเบิกจริงอยู่ที่ STMSMARTPDRMSTM ฝั่ง AX ยังไม่ได้ซิงก์มา
+                   ยังไม่ได้ทดสอบบนเครื่องจริงหน้าไลน์
+
+  4.1  2026-09-10  CHANGE ป้ายปุ่มแท็บที่สองเป็น BI ตามที่เจ้าของงานสั่ง
+                   คำอธิบายเดิมย้ายไปอยู่ใน title ชี้เมาส์ค้างแล้วยังอ่านได้
+                   · ชื่อไฟล์ตอนกด Export เปลี่ยนตามเป็น AxProgress_BI_วันที่
+                     ภาษาไทยในชื่อไฟล์ทำให้บางเครื่องได้ชื่อเพี้ยนตอนดาวน์โหลด
+                   ยังไม่ได้ทดสอบบนเครื่องจริงหน้าไลน์
+
   4.0  2026-09-10  FEAT แท็บ "ภาพรวม" · ล้อรายงาน PdControlRm ของ Power BI
                    ที่มา: หน้าไลน์ดูรายงานนั้นอยู่ทุกวัน แต่ต้องเปิดอีกระบบ
                    ตอนนี้ StarSync v1.3 พาข้อมูลชุดเดียวกันมาไว้ที่ lot_progress
@@ -761,6 +783,8 @@ thead th.tick-col .th-s:empty{display:none}
 
 /* ตารางลอต */
 .dwrap{max-height:460px;overflow:auto;border:1px solid var(--line);border-radius:9px}
+/* v4.2 ตารางวัตถุดิบอยู่ในหน้าต่าง กดแถวไม่ได้ อย่าให้เคอร์เซอร์หลอก */
+.rmtab table.dtab tbody tr{cursor:default}
 table.dtab{width:100%;border-collapse:separate;border-spacing:0;table-layout:auto}
 table.dtab th{position:sticky;top:0;z-index:2;background:var(--hd);color:var(--mu);
   font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.02em;
@@ -816,7 +840,7 @@ table.dtab td.pd{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-sp
   <div class="ribbon">
     <div class="tabs">
       <button class="tb on" data-act="tab" data-t="parts" id="tbParts">รายชิ้น</button>
-      <button class="tb"    data-act="tab" data-t="dash"  id="tbDash">ภาพรวม</button>
+      <button class="tb"    data-act="tab" data-t="dash"  id="tbDash" title="ภาพรวมมูลค่างานและความคืบหน้า">BI</button>
     </div>
     <div class="fld po">
       <label>Lot Id</label>
@@ -837,6 +861,7 @@ table.dtab td.pd{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-sp
     <button class="btn" data-act="reload"
             title="อ่านจาก Supabase ใหม่ · ไม่ได้ไปเอาของสดจาก AX">⟳ ReLoad</button>
     <button class="btn po" data-act="cols">▦ คอลัมน์</button>
+    <button class="btn po" data-act="rm" title="สรุปวัตถุดิบของลอตที่เปิดอยู่">▤ วัตถุดิบ</button>
     <button class="btn" data-act="csv">⤓ Export</button>
     <button class="btn" data-act="cfg" title="ตั้งค่าการเชื่อมต่อ">⚙</button>
   </div>
@@ -882,6 +907,15 @@ table.dtab td.pd{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-sp
   <div class="modal lotmodal">
     <h3>เลือกลอต<button type="button" class="btn" data-act="pkclose" aria-label="ปิดหน้าต่างเลือกลอต">ปิด ×</button></h3>
     <div class="bd"><div class="pkgrid" id="pk"></div></div>
+  </div>
+</div>
+
+<!-- ── v4.2 สรุปวัตถุดิบของลอตที่เปิดอยู่ ─────────────────────────
+     คิดจากแถวที่โหลดมาแล้วในเครื่อง ไม่ได้ยิงถาม Supabase เพิ่มสักครั้ง -->
+<div class="ov" id="ovRm">
+  <div class="modal" style="width:min(880px,96vw)">
+    <h3>วัตถุดิบในลอต<button type="button" class="btn" data-act="rmclose" aria-label="ปิดหน้าต่างวัตถุดิบ">ปิด ×</button></h3>
+    <div class="bd"><div id="rmBody"></div></div>
   </div>
 </div>
 
@@ -1642,9 +1676,100 @@ function toCsvDash(){
   const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type:'text/csv;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'AxProgress_ภาพรวม_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.download = 'AxProgress_BI_' + new Date().toISOString().slice(0,10) + '.csv';
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   v4.2 สรุปวัตถุดิบของลอตที่เปิดอยู่
+   คิดจาก S.rows ที่โหลดมาแล้ว ไม่ยิงถาม Supabase เพิ่ม ไม่เพิ่มตารางในฐาน
+   ══════════════════════════════════════════════════════════════ */
+
+/* รหัสวัตถุดิบเป็นรหัสประกอบ ยาว 22 ตัวเสมอ
+   ตรวจกับของจริงทั้งฐานแล้ว 702 จาก 705 รหัสยาว 22 · อีก 3 ตัวยาวไม่เท่ากัน
+   ตัวที่ผิดรูปจะไม่ถูกแยกช่อง แสดงรหัสดิบไปตรง ๆ ดีกว่าตัดมั่วแล้วอ่านผิด
+     PE 16 G01M0387Y G01M0387Y
+     ^^ ชนิดแผ่น
+        ^^ ความหนา มม.
+           ^^^^^^^^^ ผิวหน้า
+                     ^^^^^^^^^ ผิวหลัง
+   ผิวที่เป็น x ล้วนแปลว่าไม่ได้ปิดผิว = ไม้เปลือย */
+function rmParse(code){
+  const s = String(code || '');
+  if(s.length !== 22) return { raw:s, ok:false };
+  const face = f => /^x+N$/i.test(f) ? '' : f;
+  return { raw:s, ok:true, kind:s.slice(0,2), thick:s.slice(2,4),
+           front:face(s.slice(4,13)), back:face(s.slice(13,22)) };
+}
+
+function renderRm(){
+  const box = $('rmBody');
+  if(!S.lot){ box.innerHTML = '<div class="sub">ยังไม่ได้เลือกลอต</div>'; return; }
+  if(!S.rows.length){ box.innerHTML = '<div class="sub">ลอตนี้ยังไม่มีรายชิ้นในฐาน</div>'; return; }
+
+  /* รวมตามรหัสวัตถุดิบ · นับเฉพาะแถวที่เป็นชิ้นงานจริง
+     ห่ออุปกรณ์ไม่มีขนาดและไม่ได้ตัดจากแผ่น เอามารวมแล้วพื้นที่จะเพี้ยน */
+  const m = new Map();
+  let noCode = 0;
+  S.rows.forEach(r => {
+    if(!isPiece(r)) return;
+    const code = String(valOf(r, 'material_code') || '').trim();
+    if(!code){ noCode++; return; }
+    const o = m.get(code) || { code, n:0, done:0, area:0 };
+    o.n++;
+    if(isDone(r)) o.done++;
+    const L = Number(valOf(r, 'finish_length')) || 0;
+    const W = Number(valOf(r, 'finish_width'))  || 0;
+    o.area += L * W / 1e6;          /* มม. x มม. -> ตร.ม. */
+    m.set(code, o);
+  });
+
+  const list = [...m.values()].sort((a,b) => b.area - a.area);
+  if(!list.length){
+    box.innerHTML = '<div class="sub">ลอตนี้ไม่มีชิ้นที่ระบุรหัสวัตถุดิบ</div>';
+    return;
+  }
+  const tN = list.reduce((a,x) => a + x.n, 0);
+  const tD = list.reduce((a,x) => a + x.done, 0);
+  const tA = list.reduce((a,x) => a + x.area, 0);
+
+  box.innerHTML =
+    '<div class="sub">ลอต ' + esc(S.lot) + ' · ' + list.length + ' รหัสวัตถุดิบ · ' +
+      nf0.format(tN) + ' ชิ้น · ' + nf2.format(tA) + ' ตร.ม. · ตัดแล้ว ' +
+      nf0.format(tD) + ' ชิ้น' +
+      (noCode ? ' · อีก ' + nf0.format(noCode) + ' ชิ้นไม่ได้ระบุรหัสวัตถุดิบ' : '') +
+    '</div>' +
+    '<div class="dwrap rmtab"><table class="dtab"><thead><tr>' +
+      '<th>ชนิด</th><th>หนา</th><th>ผิวหน้า</th><th>ผิวหลัง</th>' +
+      '<th style="text-align:right">ชิ้น</th><th style="text-align:right">ตร.ม.</th>' +
+      '<th>ตัดแล้ว</th><th style="text-align:right">คงเหลือ</th>' +
+    '</tr></thead><tbody>' +
+    list.map(x => {
+      const p = rmParse(x.code);
+      const pct = x.n ? Math.round(x.done / x.n * 100) : 0;
+      const cell = v => '<td class="mono">' + (v ? esc(v) : '<span style="color:var(--mu2)">—</span>') + '</td>';
+      return '<tr title="' + esc(x.code) + '">' +
+        (p.ok
+          ? cell(p.kind) + '<td class="mono">' + esc(p.thick) + ' มม.</td>' +
+            cell(p.front) + cell(p.back)
+          : '<td class="mono" colspan="4">' + esc(x.code) + '</td>') +
+        '<td class="num">' + nf0.format(x.n) + '</td>' +
+        '<td class="num">' + nf2.format(x.area) + '</td>' +
+        '<td><div class="pgw' + (x.done >= x.n ? ' done' : '') + '">' +
+          '<div class="pb"><i style="width:' + pct + '%"></i></div>' +
+          '<span class="pn">' + pct + '%</span></div></td>' +
+        '<td class="num">' + nf0.format(x.n - x.done) + '</td>' +
+      '</tr>';
+    }).join('') +
+    '<tr><td colspan="4" style="font-weight:600">รวม</td>' +
+      '<td class="num" style="font-weight:600">' + nf0.format(tN) + '</td>' +
+      '<td class="num" style="font-weight:600">' + nf2.format(tA) + '</td>' +
+      '<td></td><td class="num" style="font-weight:600">' + nf0.format(tN - tD) + '</td></tr>' +
+    '</tbody></table></div>' +
+    '<div class="sub" style="margin-top:8px">พื้นที่คิดจากขนาดสำเร็จของชิ้นงาน ' +
+      'ไม่ได้รวมเศษที่เสียไปจากการตัด จึงน้อยกว่าแผ่นที่ต้องเบิกจริงเสมอ · ' +
+      'ยอดเบิกจริงอยู่ฝั่ง AX ยังไม่ได้ซิงก์มา</div>';
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -2394,6 +2519,8 @@ document.addEventListener('click', ev => {
   }
 
   if(act === 'cols'){ renderColList(); $('ovCols').classList.add('open'); return; }
+  if(act === 'rm'){ renderRm(); $('ovRm').classList.add('open'); return; }
+  if(act === 'rmclose'){ $('ovRm').classList.remove('open'); return; }
   if(act === 'colclose'){ $('ovCols').classList.remove('open'); return; }
   if(act === 'preset'){ applyPreset(t.dataset.n); return; }
   if(act === 'coltog'){ const c = S.cols[+t.dataset.i];
