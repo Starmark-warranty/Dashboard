@@ -7,6 +7,21 @@
 <!-- =====================================================================
   Lot Parts · รายชิ้นในลอต        ·   VERSION 4.5
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  4.5  2026-09-10  FIX  ลอตที่ AX ไม่มีวัตถุดิบให้ ขึ้นจอเหมือนยังไม่เคยดึง
+                   ที่มา: ลอต PTY_P_FL7 · StarSync ทำงานถูกทุกอย่าง
+                   ปิดคำขอพร้อมข้อความว่าไม่มีรายการใน AX แต่จอไม่โชว์
+                   กลับไปขึ้นปุ่ม "ดึงจาก AX" เหมือนไม่เคยทำอะไร
+                   ชวนให้กดซ้ำวนไปเรื่อย ๆ ทั้งที่ดึงแล้วและไม่มีให้จริง
+                   ต้นเหตุสองชั้น
+                   1. askRm เซ็ต R.err ก่อนเรียก loadRm แต่ loadRm
+                      ล้าง R.err ตอนเริ่มเสมอ ข้อความจึงถูกลบทุกครั้ง
+                      ย้ายไปเซ็ตหลัง loadRm เสร็จ
+                   2. ต่อให้ไม่ถูกลบ มันก็อยู่แค่ในหน่วยความจำ
+                      ปิดหน้าต่างแล้วเปิดใหม่ก็หายอยู่ดี
+                      loadRm จึงไปอ่านสถานะคำขอเองเมื่อไม่มีแถว
+                      แยก "ยังไม่เคยขอ" กับ "ขอแล้วแต่ AX ไม่มีให้" ได้ถาวร
+                   ยังไม่ได้ทดสอบบนเครื่องจริงหน้าไลน์
+
   4.4  2026-09-10  CHANGE ย้ายทางเข้าวัตถุดิบไปอยู่ที่แท็บ BI ตามที่เจ้าของงานสั่ง
                    ปุ่ม ▤ วัตถุดิบ อยู่ท้ายแถวของทุกลอตในตาราง กดแล้วเด้งหน้าต่างเลย
                    ไม่ต้องเข้าไปเปิดลอตในแท็บรายชิ้นก่อน ซึ่งเป็นขั้นตอนที่ไม่จำเป็น
@@ -1795,6 +1810,19 @@ async function loadRm(lot, force){
   try {
     R.rows = await db.rmRows(lot);
     R.loaded = true;
+    /* v4.5 ไม่มีแถวได้สองความหมาย ต้องแยกให้ออกทุกครั้งที่เปิด ไม่ใช่แค่ตอนเพิ่งกดดึง
+         ยังไม่เคยขอ      -> ไม่มีแถวในตารางคำขอ = ขึ้นปุ่มให้กดดึง
+         ขอแล้ว AX ไม่มีให้ -> คำขอปิดแล้วแต่ได้ 0 แถว = ต้องบอกว่าไม่มีจริง ๆ
+       ของเดิมดูจากตัวแปรในหน่วยความจำอย่างเดียว ปิดหน้าต่างแล้วเปิดใหม่
+       ข้อความจะหายไป กลายเป็นชวนให้กดดึงซ้ำทั้งที่ดึงไปแล้วและไม่มีจริง */
+    if(!R.rows.length){
+      try {
+        const st = await db.rmReqState(lot);
+        if(st.length && st[0].done_at && !st[0].rows_synced){
+          R.err = st[0].error || 'ลอตนี้ไม่มีรายการวัตถุดิบใน AX';
+        }
+      } catch(e){ /* อ่านสถานะคำขอไม่ได้ ก็ถือว่ายังไม่เคยดึง */ }
+    }
   } catch(e){ R.err = 'อ่าน lot_rm ไม่สำเร็จ · ' + e.message; }
   R.busy = '';
   renderRm();
@@ -1840,9 +1868,13 @@ async function askRm(){
       if(st.length && st[0].done_at){
         R.asking = false; R.msg = '';
         /* ปิดคำขอแล้วแต่ไม่มีแถว = ลอตนี้ไม่มีวัตถุดิบใน AX จริง ๆ
-           ต่างจาก "ยังไม่เคยดึง" · ข้อความจาก StarSync บอกเหตุผลไว้ให้แล้ว */
-        R.err = (st[0].rows_synced ? '' : (st[0].error || 'ลอตนี้ไม่มีรายการวัตถุดิบใน AX'));
+           ต่างจาก "ยังไม่เคยดึง" · ข้อความจาก StarSync บอกเหตุผลไว้ให้แล้ว
+           v4.5 ต้องเซ็ตหลัง loadRm ไม่ใช่ก่อน · loadRm ล้าง R.err ตอนเริ่มเสมอ
+           ของเดิมข้อความจึงถูกลบทิ้งทุกครั้ง แล้วจอกลับไปขึ้นว่ายังไม่เคยดึง
+           ซึ่งชวนให้กดซ้ำวนไปเรื่อย ๆ ทั้งที่ดึงแล้วและ AX ไม่มีให้ */
+        const why = st[0].rows_synced ? '' : (st[0].error || 'ลอตนี้ไม่มีรายการวัตถุดิบใน AX');
         await loadRm(lot, true);
+        if(why){ R.err = why; renderRm(); }
         return;
       }
     } catch(e){ /* เน็ตสะดุดระหว่างรอ ไม่ใช่เหตุให้เลิกรอ */ }
@@ -2229,7 +2261,7 @@ function renderStatus(){
   const st    = partStats();
   const pack  = S.rows.length - S.rows.filter(isPiece).length;
   const todo  = Math.max(0, st.total - st.done);
-  const pct   = st.total ? cuttingPercent(st.done, st.total) : 0;
+  const pct   = st.total ? Math.round(st.done / st.total * 100) : 0;
   const nf    = Object.keys(S.filters).filter(k => S.filters[k]).length;
 
   /* กรอง "ยังไม่ตัด" ได้เฉพาะตารางที่มีแถวของชิ้นที่ยังไม่ตัดจริง
@@ -2284,27 +2316,8 @@ function mark(text, q){
 /* จัดลอตเข้ากลุ่มตามความคืบหน้าการตัด · ใช้ยอดจาก AX ไม่ใช่จำนวนแถวที่โหลด
    total_parts = ชิ้นที่ต้องตัดจริง ไม่รวมห่อ จึงเทียบตรงได้เลย */
 /* Verify empty summaries using the same Part flags shown in the table.
-   Persist verified corrections locally and recheck on startup; never write aggregates to Supabase. */
+   Keep these corrections in memory; never write aggregate data to Supabase. */
 const pickerStats = new Map();
-const pickerCacheKey = () => 'lp_picker_stats_v1:' + S.url;
-function savePickerStats(){
-  try { localStorage.setItem(pickerCacheKey(), JSON.stringify([...pickerStats])); } catch(e){}
-}
-function loadPickerStats(){
-  pickerStats.clear();
-  try {
-    const saved = JSON.parse(localStorage.getItem(pickerCacheKey()) || '[]');
-    const lots = new Set(S.lots.map(l => l.lot));
-    for(const [lot, n] of saved){
-      if(lots.has(lot) && n && Number.isInteger(n.total) && Number.isInteger(n.done) &&
-         n.total > 0 && n.done >= 0 && n.done <= n.total) pickerStats.set(lot, n);
-    }
-  } catch(e){}
-}
-// Reserve 100% for an actually complete lot.
-function cuttingPercent(done, total){
-  return total > 0 ? (done >= total ? 100 : Math.min(99, Math.round(done / total * 100))) : 0;
-}
 
 /* v3.7 เปิดลอตแล้วของเก่ากว่านี้ (นาที) = สั่งดึงจาก AX ให้เอง
    5 นาทีเพราะ StarSync วิ่งทุก 1 นาที และหน่วงต่อลอต 15 นาทีอยู่แล้ว
@@ -2323,7 +2336,6 @@ function rememberPickerStats(lot, rows){
     total: counted.length,
     done: counted.filter(isDone).length
   });
-  savePickerStats();
 }
 function pickerCounts(l){
   return pickerStats.get(l.lot) || {
@@ -2335,14 +2347,11 @@ async function verifyEmptyLotSummaries(){
   const lots = S.lots;
   for(const l of lots){
     if(S.lots !== lots) return;
-    const total = Number(l.total_parts) || 0, done = Number(l.checked_parts) || 0;
-    // Recheck saved corrections and near-complete summaries against Part OR Pack.
-    if(total > 0 && !pickerStats.has(l.lot) && !(done < total && done / total >= 0.98)) continue;
+    if(Number(l.total_parts) > 0 || pickerStats.has(l.lot)) continue;
     try {
       const rows = await db.rowsOfLot('lot_part', l.lot);
       if(S.lots !== lots) return;
       rememberPickerStats(l.lot, rows);
-      if($('ovLot').classList.contains('open')) renderPicker();
     } catch(e){ /* Keep original summary when verification is unavailable. */ }
   }
   if($('ovLot').classList.contains('open')) renderPicker();
@@ -2353,7 +2362,7 @@ function bucketOf(l){
   if(c > 0)           return 'wip';
   return 'todo';
 }
-const pctOf = l => { const n = pickerCounts(l); return cuttingPercent(n.done, n.total); };
+const pctOf = l => { const n = pickerCounts(l); return n.total > 0 ? Math.min(100, Math.round(n.done / n.total * 100)) : 0; };
 
 const BUCKETS = [
   { id:'todo', label:'ยังไม่ตัด',   cls:'todo' },
@@ -2442,7 +2451,6 @@ async function boot(){
   S.busy = 'กำลังอ่านรายชื่อลอต'; render();
   pickerStats.clear();
   try { S.lots = await db.lots(); } catch(e){ S.lots = []; }
-  loadPickerStats();
   void verifyEmptyLotSummaries();
 
   S.busy = ''; render();
