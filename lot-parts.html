@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Ax Progress · รายชิ้นในลอต</title>
 <!-- =====================================================================
-  Lot Parts · รายชิ้นในลอต        ·   VERSION 4.4
+  Lot Parts · รายชิ้นในลอต        ·   VERSION 4.5
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
   4.4  2026-09-10  CHANGE ย้ายทางเข้าวัตถุดิบไปอยู่ที่แท็บ BI ตามที่เจ้าของงานสั่ง
                    ปุ่ม ▤ วัตถุดิบ อยู่ท้ายแถวของทุกลอตในตาราง กดแล้วเด้งหน้าต่างเลย
@@ -2229,7 +2229,7 @@ function renderStatus(){
   const st    = partStats();
   const pack  = S.rows.length - S.rows.filter(isPiece).length;
   const todo  = Math.max(0, st.total - st.done);
-  const pct   = st.total ? Math.round(st.done / st.total * 100) : 0;
+  const pct   = st.total ? cuttingPercent(st.done, st.total) : 0;
   const nf    = Object.keys(S.filters).filter(k => S.filters[k]).length;
 
   /* กรอง "ยังไม่ตัด" ได้เฉพาะตารางที่มีแถวของชิ้นที่ยังไม่ตัดจริง
@@ -2284,8 +2284,27 @@ function mark(text, q){
 /* จัดลอตเข้ากลุ่มตามความคืบหน้าการตัด · ใช้ยอดจาก AX ไม่ใช่จำนวนแถวที่โหลด
    total_parts = ชิ้นที่ต้องตัดจริง ไม่รวมห่อ จึงเทียบตรงได้เลย */
 /* Verify empty summaries using the same Part flags shown in the table.
-   Keep these corrections in memory; never write aggregate data to Supabase. */
+   Persist verified corrections locally and recheck on startup; never write aggregates to Supabase. */
 const pickerStats = new Map();
+const pickerCacheKey = () => 'lp_picker_stats_v1:' + S.url;
+function savePickerStats(){
+  try { localStorage.setItem(pickerCacheKey(), JSON.stringify([...pickerStats])); } catch(e){}
+}
+function loadPickerStats(){
+  pickerStats.clear();
+  try {
+    const saved = JSON.parse(localStorage.getItem(pickerCacheKey()) || '[]');
+    const lots = new Set(S.lots.map(l => l.lot));
+    for(const [lot, n] of saved){
+      if(lots.has(lot) && n && Number.isInteger(n.total) && Number.isInteger(n.done) &&
+         n.total > 0 && n.done >= 0 && n.done <= n.total) pickerStats.set(lot, n);
+    }
+  } catch(e){}
+}
+// Reserve 100% for an actually complete lot.
+function cuttingPercent(done, total){
+  return total > 0 ? (done >= total ? 100 : Math.min(99, Math.round(done / total * 100))) : 0;
+}
 
 /* v3.7 เปิดลอตแล้วของเก่ากว่านี้ (นาที) = สั่งดึงจาก AX ให้เอง
    5 นาทีเพราะ StarSync วิ่งทุก 1 นาที และหน่วงต่อลอต 15 นาทีอยู่แล้ว
@@ -2304,6 +2323,7 @@ function rememberPickerStats(lot, rows){
     total: counted.length,
     done: counted.filter(isDone).length
   });
+  savePickerStats();
 }
 function pickerCounts(l){
   return pickerStats.get(l.lot) || {
@@ -2315,11 +2335,14 @@ async function verifyEmptyLotSummaries(){
   const lots = S.lots;
   for(const l of lots){
     if(S.lots !== lots) return;
-    if(Number(l.total_parts) > 0 || pickerStats.has(l.lot)) continue;
+    const total = Number(l.total_parts) || 0, done = Number(l.checked_parts) || 0;
+    // Recheck saved corrections and near-complete summaries against Part OR Pack.
+    if(total > 0 && !pickerStats.has(l.lot) && !(done < total && done / total >= 0.98)) continue;
     try {
       const rows = await db.rowsOfLot('lot_part', l.lot);
       if(S.lots !== lots) return;
       rememberPickerStats(l.lot, rows);
+      if($('ovLot').classList.contains('open')) renderPicker();
     } catch(e){ /* Keep original summary when verification is unavailable. */ }
   }
   if($('ovLot').classList.contains('open')) renderPicker();
@@ -2330,7 +2353,7 @@ function bucketOf(l){
   if(c > 0)           return 'wip';
   return 'todo';
 }
-const pctOf = l => { const n = pickerCounts(l); return n.total > 0 ? Math.min(100, Math.round(n.done / n.total * 100)) : 0; };
+const pctOf = l => { const n = pickerCounts(l); return cuttingPercent(n.done, n.total); };
 
 const BUCKETS = [
   { id:'todo', label:'ยังไม่ตัด',   cls:'todo' },
@@ -2419,6 +2442,7 @@ async function boot(){
   S.busy = 'กำลังอ่านรายชื่อลอต'; render();
   pickerStats.clear();
   try { S.lots = await db.lots(); } catch(e){ S.lots = []; }
+  loadPickerStats();
   void verifyEmptyLotSummaries();
 
   S.busy = ''; render();
