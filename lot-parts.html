@@ -5,8 +5,38 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Ax Progress · รายชิ้นในลอต</title>
 <!-- =====================================================================
-  Lot Parts · รายชิ้นในลอต        ·   VERSION 3.9
+  Lot Parts · รายชิ้นในลอต        ·   VERSION 4.0
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  4.0  2026-09-10  FEAT แท็บ "ภาพรวม" · ล้อรายงาน PdControlRm ของ Power BI
+                   ที่มา: หน้าไลน์ดูรายงานนั้นอยู่ทุกวัน แต่ต้องเปิดอีกระบบ
+                   ตอนนี้ StarSync v1.3 พาข้อมูลชุดเดียวกันมาไว้ที่ lot_progress
+                   แล้ว จึงวาดเองได้ ใช้ธีมเดียวกับหน้านี้ ไม่ต้องสลับที่ดู
+                   · KPI ยอดรวม · จำนวนลอต · ความคืบหน้ารวม
+                   · กราฟยอดตามเดือน ตามสัปดาห์ ตามสายผลิต · กดแท่งเพื่อกรอง
+                   · ตารางลอตพร้อมหมายเหตุวางแผน กดแถวเพื่อกระโดดไปดูรายชิ้น
+                   · ตัวกรอง ปี · สายผลิต · BU · สถานะ · ค้นหา
+                   BU ไม่มีเป็นคอลัมน์ใน AX แกะจากต้นข้อความ lot_remark
+                   ซึ่งขึ้นต้นด้วย BUx.x เป็นแบบแผนที่ใช้กันอยู่แล้ว
+                   ถ้าลอตไหนไม่ได้ขึ้นต้นแบบนั้นจะไปกอง "ไม่ระบุ" ไม่ใช่หายไป
+                   · เงินมีป้ายบอกความแม่นกำกับเสมอ ตรงห้อง/ตรงตึก/ใบขายใบเดียว
+                     และป้าย "ยันไม่ได้" สำหรับลอตที่รหัสสินค้าเป็นของมาตรฐาน
+                     ซึ่งใบขายมีหลายใบจนบอกไม่ได้ว่าใบไหนเป็นของลอตนี้
+                     ช่องนั้นเว้นว่างโดยตั้งใจ ไม่ใช่ข้อมูลหาย
+                     (StarSync v1.4 เป็นคนตัดออก · ก่อนหน้านั้นตัวเลขเกินจริง)
+                   · ยอดตัดใช้กฎเดียวกับหน้ารายชิ้น คือห่อแล้วถือว่าตัดแล้ว
+                     แท็บนี้มีแต่ยอดรวม บอกไม่ได้ว่าสองช่องซ้อนกันแค่ไหน
+                     จึงใช้ค่าที่มากกว่าเป็นตัวแทน · ไม่เป๊ะทุกกรณี แต่ไม่ขัดกันเอง
+                     ระหว่างสองแท็บของลอตเดียวกัน ซึ่งเป็นอาการที่แย่กว่า
+                   · โหลดข้อมูลแท็บนี้ตอนกดเข้าครั้งแรก ไม่ได้โหลดพร้อมหน้า
+                     หน้ารายชิ้นจึงเปิดเร็วเท่าเดิม
+                   NOTE ยอดรวมของทุกลอตไม่เท่ากับยอดขาย · ห้องเดียวถูกทำสองลอต
+                   เช่นมีลอตแจ้งซ่อมตามมา บรรทัดขายเดิมถูกนับทั้งสองลอต
+                   ใช้จัดลำดับความสำคัญได้ ใช้เป็นยอดขายไม่ได้ · เขียนกำกับไว้บนจอแล้ว
+                   NOTE จำนวนลอตกับยอดเงินจะไม่ตรงกับรายงาน PdControlRm
+                   เพราะรายงานนั้นกรองลอตมาชุดหนึ่ง (550 lot) ซึ่งยังไม่รู้เงื่อนไข
+                   ส่วนหน้านี้เอาทุกลอตในช่วงที่ StarSync ดึงมา (ราวสี่พัน)
+                   ทดสอบด้วย jsdom แล้ว: สลับแท็บ กรอง กดแท่งกราฟ กดแถวไปดูรายชิ้น
+                   ทำงานครบทุกเส้น · ยังไม่ได้ทดสอบบนเครื่องจริงหน้าไลน์
   3.9  2026-09-09  CHANGE ยิง Pack แต่ไม่ได้ยิง Part = ถือว่าตัดแล้ว · ตามระบบเก่า
                    3.8 ผมเดาว่า 27 แถวนั้นเป็นของหลุดที่ควรตามไล่
                    เจ้าของงานยืนยันแล้วว่าไม่ใช่ · เป็นกฎที่ตั้งใจใส่ไว้
@@ -673,33 +703,140 @@ thead th.tick-col .th-s:empty{display:none}
 #grid thead th.idx{z-index:45}
 .state-filter{position:absolute;left:2px;top:3px;box-sizing:border-box;width:calc(100% - 4px);min-width:0;height:23px;padding:0;font:16px "Segoe UI Symbol","Segoe UI",sans-serif;color:var(--tx);background:var(--card);border:1px solid var(--line);border-radius:4px;cursor:pointer}
 .state-filter:focus{outline:2px solid var(--brand)}
+
+/* ══ v4.0 แท็บภาพรวม ══════════════════════════════════════════════
+   ใช้ตัวแปรสีชุดเดิมทั้งหมด ไม่มีค่าสีดิบสักตัว
+   ตัวเลขทุกที่เป็น mono · ข้อความไทยเป็น sans เสมอ ห้ามสลับ */
+.tabs{display:flex;gap:4px;margin-right:4px}
+.tabs .tb{padding:5px 13px;min-height:28px;border:1px solid var(--line);border-radius:7px;
+  background:var(--card);color:var(--mu);cursor:pointer;font-size:12.5px;font-weight:600;
+  font-family:inherit;white-space:nowrap;transition:background .12s,color .12s,border-color .12s}
+.tabs .tb:hover{background:var(--pg);color:var(--tx)}
+.tabs .tb.on{background:var(--brand);border-color:var(--brand);color:#fff}
+/* ของที่เป็นของหน้ารายชิ้นล้วน ๆ · ซ่อนตอนดูภาพรวม ไม่ได้ย้ายตำแหน่ง */
+#app[data-tab="dash"] .po{display:none}
+
+.dash{flex:1 1 auto;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:8px}
+.dash .blk{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+  box-shadow:var(--sh);padding:10px 12px}
+.dash h4{font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;
+  letter-spacing:.03em;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.dash h4 .sub2{font-size:10.5px;font-weight:500;color:var(--mu2);text-transform:none;letter-spacing:0}
+
+/* แถวตัวกรอง */
+.dfl{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.dfl label{color:var(--mu);font-size:11.5px;font-weight:500;white-space:nowrap}
+.dsel,.dsrch{border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--tx);
+  font-family:inherit;font-size:12px;padding:4px 8px;min-height:28px;cursor:pointer}
+.dsel:focus,.dsrch:focus{outline:2px solid var(--brand);border-color:var(--brand)}
+.dsrch{cursor:text;min-width:180px}
+
+/* การ์ดตัวเลขสรุป */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:8px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+  box-shadow:var(--sh);padding:10px 12px}
+.kpi .k{font-size:10.5px;color:var(--mu);text-transform:uppercase;letter-spacing:.03em;font-weight:600}
+.kpi .v{font-family:var(--mono);font-size:21px;font-weight:600;color:var(--tx);
+  line-height:1.25;margin-top:3px}
+.kpi .v .u{font-family:var(--sans);font-size:12px;font-weight:500;color:var(--mu);margin-left:3px}
+.kpi .s{font-size:11px;color:var(--mu2);margin-top:2px}
+.kpi.hi{border-color:var(--brand)}
+.kpi.hi .v{color:var(--brand)}
+
+/* กราฟแท่ง · ทำด้วย div ล้วน ไม่มี library */
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:8px}
+.bars{display:flex;flex-direction:column;gap:5px}
+.bar{display:grid;grid-template-columns:62px minmax(0,1fr) 74px;gap:8px;align-items:center;
+  cursor:pointer;border-radius:6px;padding:2px 3px;min-height:26px}
+.bar:hover{background:var(--hov)}
+.bar.on{background:var(--brandbg)}
+.bar .t{font-size:11.5px;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .t.mono{font-family:var(--mono);font-size:11px}
+.bar .g{height:15px;background:var(--band);border-radius:5px;overflow:hidden}
+.bar .g i{display:block;height:100%;background:var(--brand);border-radius:5px;
+  transition:width .2s}
+.bar.on .g i{background:var(--ok)}
+.bar .v{font-family:var(--mono);font-size:11px;color:var(--tx);text-align:right;white-space:nowrap}
+.bars .none{font-size:11.5px;color:var(--mu2);padding:6px 2px}
+
+/* ตารางลอต */
+.dwrap{max-height:460px;overflow:auto;border:1px solid var(--line);border-radius:9px}
+table.dtab{width:100%;border-collapse:separate;border-spacing:0;table-layout:auto}
+table.dtab th{position:sticky;top:0;z-index:2;background:var(--hd);color:var(--mu);
+  font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.02em;
+  text-align:left;padding:7px 9px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.dtab td{padding:6px 9px;border-bottom:1px solid var(--line2);font-size:12px;
+  color:var(--tx);vertical-align:middle}
+table.dtab tbody tr{cursor:pointer}
+table.dtab tbody tr:nth-child(even) td{background:var(--row2)}
+table.dtab tbody tr:hover td{background:var(--hov)}
+table.dtab td.num{font-family:var(--mono);text-align:right;white-space:nowrap}
+table.dtab td.mono{font-family:var(--mono);font-size:11.5px;white-space:nowrap}
+table.dtab td.rm{max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+table.dtab td.pd{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--warn)}
+
+/* แถบความคืบหน้าในตาราง */
+.pgw{display:flex;align-items:center;gap:6px;min-width:96px}
+.pgw .pb{flex:1 1 auto;height:6px;background:var(--band);border-radius:4px;overflow:hidden}
+.pgw .pb i{display:block;height:100%;background:var(--brand);border-radius:4px}
+.pgw.done .pb i{background:var(--ok)}
+.pgw .pn{font-family:var(--mono);font-size:10.5px;color:var(--mu);white-space:nowrap}
+
+/* ป้ายความแม่นของตัวเลขเงิน */
+.lvp{display:inline-block;font-size:9.5px;font-weight:600;border-radius:4px;
+  padding:1px 5px;border:1px solid var(--line);color:var(--mu);background:var(--pg);
+  white-space:nowrap;vertical-align:middle}
+.lvp.room{color:var(--ok);border-color:var(--ok);background:var(--stbg)}
+.lvp.build{color:var(--brand);border-color:var(--brand);background:var(--brandbg)}
+.lvp.item,.lvp.mixed{color:var(--warn);border-color:var(--warnbd);background:var(--warnbg)}
+
+/* คำเตือนเรื่องการเอาตัวเลขไปใช้ · ต้องอ่านออกโดยไม่ต้องตั้งใจหา */
+.dwarn{display:flex;gap:7px;align-items:flex-start;background:var(--warnbg);
+  border:1px solid var(--warnbd);border-radius:9px;padding:7px 10px;
+  font-size:11.5px;color:var(--warn);line-height:1.5}
+
+/* จอแคบ · การ์ดเรียงเป็นแถวเดียว ปุ่มโตขึ้นให้นิ้วกดได้ */
+@media (max-width:760px){
+  .charts{grid-template-columns:1fr}
+  .bar{grid-template-columns:54px minmax(0,1fr) 66px;min-height:32px}
+  .tabs .tb{min-height:36px;padding:7px 14px}
+  .dsel,.dsrch{min-height:36px}
+  .dwrap{max-height:none}
+}
 </style>
 </head>
 <body>
 
 <div id="app">
 
-  <!-- แถบเครื่องมือ · ปุ่มอยู่ตำแหน่งเดิมทุกตัว -->
+  <!-- แถบเครื่องมือ · ปุ่มอยู่ตำแหน่งเดิมทุกตัว
+       v4.0 มีสองแท็บแล้ว · ของที่เป็นของหน้ารายชิ้นติดคลาส po ไว้
+       แล้วซ่อนด้วย CSS ตอนอยู่แท็บภาพรวม ไม่ได้ย้ายปุ่มไปไหน
+       คนที่ชินตำแหน่งเดิมอยู่แล้วจะไม่ต้องหาใหม่ -->
   <div class="ribbon">
-    <div class="fld">
+    <div class="tabs">
+      <button class="tb on" data-act="tab" data-t="parts" id="tbParts">รายชิ้น</button>
+      <button class="tb"    data-act="tab" data-t="dash"  id="tbDash">ภาพรวม</button>
+    </div>
+    <div class="fld po">
       <label>Lot Id</label>
       <button class="lotbtn" data-act="drop" id="q" title="กดเพื่อเลือกลอต">
         <span id="qtx">เลือกลอต</span><span class="ar">▼</span>
       </button>
     </div>
-    <div class="fld"><label>Name</label><div class="ro empty" id="fName">—</div></div>
-    <div class="fld"><label>หมวดงาน</label><div class="ro empty" id="fCat">—</div></div>
+    <div class="fld po"><label>Name</label><div class="ro empty" id="fName">—</div></div>
+    <div class="fld po"><label>หมวดงาน</label><div class="ro empty" id="fCat">—</div></div>
     <!-- v3.6 ของที่ดูอยู่เก่าแค่ไหน · แยก "ยังไม่ตัด" ออกจาก "ตัดแล้วแต่ยังไม่ซิงก์"
          v3.7 กดได้ด้วย · ถอดปุ่มแยกออกไปแล้ว หน้าสั่งดึงให้เองตอนเลือกลอต
          ที่ยังเหลือให้กดไว้ เผื่อกรณีอยากบังคับดึงเดี๋ยวนั้นโดยไม่ต้องรอ -->
-    <div class="fld"><label>ดึงจาก AX</label>
+    <div class="fld po"><label>ดึงจาก AX</label>
       <button class="ro empty" id="fSync" data-act="ask"
               title="กดเพื่อสั่งดึงของสดจาก AX ทันที">—</button>
     </div>
 
     <button class="btn" data-act="reload"
             title="อ่านจาก Supabase ใหม่ · ไม่ได้ไปเอาของสดจาก AX">⟳ ReLoad</button>
-    <button class="btn" data-act="cols">▦ คอลัมน์</button>
+    <button class="btn po" data-act="cols">▦ คอลัมน์</button>
     <button class="btn" data-act="csv">⤓ Export</button>
     <button class="btn" data-act="cfg" title="ตั้งค่าการเชื่อมต่อ">⚙</button>
   </div>
@@ -708,7 +845,7 @@ thead th.tick-col .th-s:empty{display:none}
   <div class="note" id="note" style="display:none"><span>⚠</span><span id="noteTx"></span></div>
 
   <!-- ตาราง + แถบเกจสถานะทางขวา -->
-  <div class="main">
+  <div class="main" id="viewParts">
     <div class="tcard">
       <div class="wrap" id="wrap" style="display:none"><table id="grid"></table></div>
       <div class="mid" id="mid"></div>
@@ -717,6 +854,10 @@ thead th.tick-col .th-s:empty{display:none}
     <!-- เกจครบทั้ง 6 ช่องในแถบ State ของโปรแกรม -->
     <div class="side" id="side"></div>
   </div>
+
+  <!-- v4.0 ภาพรวม · วาดทั้งก้อนจาก renderDash() ตัวเดียว
+       ไม่มีใครไปยุ่ง innerHTML ของส่วนนี้จากที่อื่น -->
+  <div class="dash" id="viewDash" style="display:none"></div>
 </div>
 
 <!-- ── จัดคอลัมน์ ─────────────────────────────────────────────── -->
@@ -835,6 +976,15 @@ const S = {
   busy:'', err:'', needReq:false,
   asking:false, askMsg:'',   // กำลังรอ StarSync มาดึงลอตนี้ให้
   synced:0,                  // v3.6 synced_at ล่าสุดของลอตที่เปิดอยู่ (มิลลิวินาที)
+
+  /* v4.0 แท็บภาพรวม · เก็บแยกก้อนของตัวเอง ไม่ปนกับของหน้ารายชิ้น
+     rows โหลดครั้งแรกตอนกดเข้าแท็บ ไม่ได้โหลดพร้อมหน้า */
+  tab:'parts',               // parts | dash
+  dash:{
+    rows:[], loaded:false, busy:'', err:'',
+    year:'', pool:'', bu:'', st:'', mon:'', q:'',
+    sort:'amount',           // amount | end | lot
+  },
 };
 
 /* ชื่อหัวคอลัมน์ · ถอดมาจากนิยามกริดในตัว AxProgress.exe ทั้งหมด */
@@ -854,7 +1004,15 @@ const LBL = {
   id:'ID', part_date:'เวลาที่ยิง', duration_sec:'เวลาสะสม', computer:'เครื่อง',
   app_user:'ผู้ใช้', barcode:'Barcode', imported_at:'นำเข้าเมื่อ',
   total_parts:'ชิ้นที่ต้องตัด', checked_parts:'ตัดแล้ว',
-  total_all:'ทุกแถว', checked_all:'ยิงแล้วทุกแถว', updated_at:'อัปเดตเมื่อ'
+  total_all:'ทุกแถว', checked_all:'ยิงแล้วทุกแถว', updated_at:'อัปเดตเมื่อ',
+  /* v4.0 หัวลอตกับเงิน · StarSync v1.2/v1.3 เป็นคนพามา */
+  prod_pool:'สายผลิต', end_date:'กำหนดเสร็จ', shelf:'ชั้นวาง',
+  lot_remark:'หมายเหตุลอต', pd_remark:'หมายเหตุวางแผน',
+  lot_status:'สถานะลอต', lead_time:'Lead Time',
+  loc_pd:'คลังผลิต', loc_fg:'คลังสำเร็จ', ax_created_at:'AX สร้างเมื่อ',
+  amount:'มูลค่างาน', amount_lv:'ความแม่นของมูลค่า', amount_lines:'บรรทัดขายที่จับคู่ได้',
+  amount_at:'คิดมูลค่าเมื่อ', head_at:'ซิงก์หัวลอตเมื่อ',
+  checked_pack:'ห่อแล้ว', checked_pick:'จัดของแล้ว', checked_wh:'เข้าคลังแล้ว'
 };
 const lbl = k => LBL[k] || k;
 
@@ -1018,6 +1176,22 @@ const db = {
                     '&order=updated_at.desc.nullslast&limit=8000');
   },
 
+  /* v4.0 ข้อมูลของแท็บภาพรวม · lot_progress ตารางเดียวจบ
+     ขอเฉพาะคอลัมน์ที่ตารางมีจริง ถ้าขอคอลัมน์ที่ยังไม่มี PostgREST ตอบ 400
+     แล้วทั้งแท็บจะจอเปล่าโดยไม่บอกว่าเพราะอะไร · เครื่องที่ยังไม่ได้อัป
+     StarSync จะเห็นแท็บนี้แบบไม่มีเงินกับกำหนดเสร็จ ซึ่งดีกว่าไม่เห็นอะไรเลย */
+  dashRows(){
+    const want = ['lot','proj_name','prod_pool','end_date','shelf','lot_remark','pd_remark',
+                  'amount','amount_lv','amount_lines','amount_skip','lot_status',
+                  'total_parts','checked_parts','total_all','checked_all',
+                  'checked_pack','checked_pick','checked_wh','updated_at','head_at'];
+    const have = S.schema['lot_progress'] || [];
+    const cols = want.filter(c => have.includes(c));
+    if(!cols.includes('lot')) cols.unshift('lot');
+    return this.get('lot_progress?select=' + cols.join(',') +
+                    '&order=updated_at.desc.nullslast&limit=8000');
+  },
+
   /* ลอตที่ StarSync เพิ่งดึงรายชิ้นมาล่าสุด · ใช้เป็นลอตเริ่มต้นตอนเปิดหน้า */
   async latestPartsLot(){
     const j = await this.get('lot_part?select=lot&order=synced_at.desc&limit=1');
@@ -1165,11 +1339,330 @@ function viewRows(){
 }
 
 /* ══════════════════════════════════════════════════════════════
+   v4.0 แท็บภาพรวม
+   ══════════════════════════════════════════════════════════════ */
+
+/* เดือนไทยแบบย่อ · ใช้กับป้ายกราฟและตาราง
+   ข้อความไทยทั้งหมดในแท็บนี้เป็น sans ห้ามใส่ mono ฟอนต์ไม่มีตัวอักษรไทย */
+const THM = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.',
+             'ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+
+/* AX เก็บกำหนดเสร็จเป็น ค.ศ. · หน้างานอ่านเป็น พ.ศ. กันทั้งโรงงาน
+   แปลงตอนแสดงผลอย่างเดียว ในฐานยังเป็น ค.ศ. เหมือนเดิม */
+function beYear(y){ return (parseInt(y,10) || 0) + 543; }
+function dayTh(s){
+  const p = String(s || '').slice(0,10).split('-');
+  if(p.length !== 3) return '';
+  return parseInt(p[2],10) + ' ' + (THM[parseInt(p[1],10)-1] || '') + ' ' +
+         String(beYear(p[0])).slice(2);
+}
+function monTh(key){          /* key = YYYY-MM */
+  const p = String(key || '').split('-');
+  if(p.length < 2) return '';
+  return (THM[parseInt(p[1],10)-1] || '') + ' ' + String(beYear(p[0])).slice(2);
+}
+/* วันจันทร์ของสัปดาห์ที่วันนั้นอยู่ · ใช้เป็นคีย์ของกราฟรายสัปดาห์ */
+function weekKey(s){
+  const t = Date.parse(String(s || '').slice(0,10) + 'T00:00:00');
+  if(isNaN(t)) return '';
+  const d = new Date(t);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' +
+         String(d.getDate()).padStart(2,'0');
+}
+
+/* เงิน · ยอดรวมอ่านเป็นล้าน ยอดรายลอตอ่านเป็นบาทเต็ม */
+const nfM = new Intl.NumberFormat('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+function baht(v){ return v == null ? '' : nf0.format(Math.round(Number(v) || 0)); }
+function mBaht(v){ return nfM.format((Number(v) || 0) / 1e6); }
+
+/* BU ไม่มีเป็นคอลัมน์ใน AX · หมายเหตุลอตขึ้นต้นด้วย BUx.x เป็นแบบแผนอยู่แล้ว
+   แกะจากตรงนั้น ลอตที่ไม่ได้ขึ้นต้นแบบนั้นไปกอง "ไม่ระบุ" ไม่ใช่หายไปเฉย ๆ */
+function buOf(r){
+  const m = /BU\s*(\d+(?:\.\d+)?)/i.exec(String(r.lot_remark || ''));
+  return m ? ('BU' + m[1]) : '';
+}
+/* ยอดที่ถือว่าตัดแล้วของลอตหนึ่ง
+   v3.9 ตั้งกฎไว้ว่า "ห่อแล้วแต่ไม่ได้ยิงตัด ถือว่าตัดแล้ว" ซึ่งเป็นกฎของระบบเก่า
+   หน้ารายชิ้นนับกฎนั้นทีละแถวได้เพราะมีข้อมูลรายชิ้นอยู่ในมือ
+   แท็บนี้มีแต่ยอดรวม จึงบอกไม่ได้ว่าชิ้นที่ห่อกับชิ้นที่ตัดซ้อนกันแค่ไหน
+   ใช้ค่าที่มากกว่าเป็นตัวแทน · ไม่ตรงเป๊ะทุกกรณี แต่ใกล้กว่าการนับ
+   เฉพาะช่องตัด ซึ่งจะทำให้ลอตที่ห่อครบแล้วขึ้นว่ายังไม่เสร็จ
+   ขัดกับตัวเลขบนหน้ารายชิ้นของลอตเดียวกัน */
+function cutOf(r){
+  const t = Number(r.total_all) || 0;
+  const c = Math.max(Number(r.checked_all) || 0, Number(r.checked_pack) || 0);
+  return Math.min(c, t);
+}
+/* สถานะจากยอดที่มีอยู่แล้ว ไม่ได้ไปตีความ lot_status ของ AX
+   ซึ่งยังไม่รู้ว่าเลขไหนแปลว่าอะไร · เก็บค่าดิบไว้ในฐานรอดูสถิติต่อ */
+function statOf(r){
+  const t = Number(r.total_all) || 0, c = cutOf(r);
+  if(!t) return 'ไม่มีรายชิ้น';
+  if(c >= t) return 'ตัดครบ';
+  if(c > 0)  return 'กำลังทำ';
+  return 'ยังไม่เริ่ม';
+}
+const DASH_ST = ['ยังไม่เริ่ม','กำลังทำ','ตัดครบ','ไม่มีรายชิ้น'];
+
+/* กรองตามตัวเลือกบนจอ · ตัวเดียวที่ตัดสินว่าอะไรถูกนับบ้าง
+   ทั้ง KPI กราฟ และตาราง อ่านจากผลของฟังก์ชันนี้ชุดเดียวกัน
+   จะได้ไม่มีทางที่ตัวเลขบนจอเดียวกันจะขัดกันเอง */
+function dashFiltered(){
+  const d = S.dash;
+  const q = d.q.trim().toLowerCase();
+  return d.rows.filter(r => {
+    const ed = String(r.end_date || '');
+    if(d.year && ed.slice(0,4) !== d.year) return false;
+    if(d.mon  && ed.slice(0,7) !== d.mon)  return false;
+    if(d.pool && String(r.prod_pool || '') !== d.pool) return false;
+    if(d.bu   && (buOf(r) || 'ไม่ระบุ') !== d.bu) return false;
+    if(d.st   && statOf(r) !== d.st) return false;
+    if(q){
+      const hay = (r.lot + ' ' + (r.lot_remark || '') + ' ' + (r.pd_remark || '') + ' ' +
+                   (r.proj_name || '')).toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+/* รวมยอดตามคีย์ · คืนเป็น [{k,label,amt,n}] เรียงตามที่สั่ง */
+function sumBy(rows, keyFn, labelFn){
+  const m = new Map();
+  rows.forEach(r => {
+    const k = keyFn(r);
+    if(k === '' || k == null) return;
+    const o = m.get(k) || { k, label:labelFn(k), amt:0, n:0 };
+    o.amt += Number(r.amount) || 0;
+    o.n++;
+    m.set(k, o);
+  });
+  return [...m.values()];
+}
+
+/* กราฟแท่ง · div ล้วน ไม่มี library ไม่มี canvas
+   sel = คีย์ที่กรองอยู่ · act ว่างไว้ = แท่งกดไม่ได้ */
+function barsHtml(items, sel, act, opt){
+  const o = opt || {};
+  if(!items.length) return '<div class="none">ไม่มีข้อมูลในเงื่อนไขนี้</div>';
+  const max = Math.max(...items.map(i => i.amt), 1);
+  return '<div class="bars">' + items.map(i => {
+    const w = Math.max(1, Math.round(i.amt / max * 100));
+    const on = sel && sel === i.k;
+    return '<div class="' + (on ? 'bar on' : 'bar') + (act ? '' : ' plain') + '"' +
+           (act ? ' data-act="' + act + '" data-k="' + esc(i.k) + '"' : '') +
+           ' title="' + esc(i.label + ' · ' + baht(i.amt) + ' บาท · ' + i.n + ' ลอต') + '">' +
+           '<div class="t' + (o.mono ? ' mono' : '') + '">' + esc(i.label) + '</div>' +
+           '<div class="g"><i style="width:' + w + '%"></i></div>' +
+           '<div class="v">' + mBaht(i.amt) + '</div></div>';
+  }).join('') + '</div>';
+}
+
+function optHtml(list, cur, anyLabel){
+  return '<option value="">' + esc(anyLabel) + '</option>' +
+         list.map(v => '<option value="' + esc(v) + '"' +
+                       (String(cur) === String(v) ? ' selected' : '') + '>' +
+                       esc(v) + '</option>').join('');
+}
+
+function renderDash(){
+  const box = $('viewDash'), d = S.dash;
+
+  if(d.busy){ box.innerHTML = '<div class="blk"><span class="spin"></span> ' + esc(d.busy) + '</div>'; return; }
+  if(d.err){  box.innerHTML = '<div class="blk dwarn"><span>⚠</span><span>' + esc(d.err) + '</span></div>'; return; }
+  if(!d.loaded){ box.innerHTML = '<div class="blk">ยังไม่ได้โหลดข้อมูล</div>'; return; }
+
+  const rows = dashFiltered();
+  const amt  = rows.reduce((a,r) => a + (Number(r.amount) || 0), 0);
+  const withAmt = rows.filter(r => r.amount != null).length;
+  const tAll = rows.reduce((a,r) => a + (Number(r.total_all)   || 0), 0);
+  const cAll = rows.reduce((a,r) => a + cutOf(r), 0);
+  const today = new Date().toISOString().slice(0,10);
+  const late = rows.filter(r => r.end_date && String(r.end_date) < today && statOf(r) !== 'ตัดครบ');
+  const lateAmt = late.reduce((a,r) => a + (Number(r.amount) || 0), 0);
+  /* ลอตที่จับใบขายได้ แต่ยันไม่ได้ว่าใบไหนเป็นของลอตนี้ · ต้องนับให้เห็น
+     ไม่ใช่ปล่อยให้เงียบไปกับช่องว่าง คนดูจะได้รู้ว่ายอดรวมยังไม่ครบแค่ไหน */
+  const amb  = rows.filter(r => r.amount_lv === 'ambiguous').length;
+  const skip = rows.reduce((a,r) => a + (Number(r.amount_skip) || 0), 0);
+
+  /* รายการตัวเลือกของช่องกรอง · สร้างจากข้อมูลทั้งหมด ไม่ใช่จากที่กรองแล้ว
+     ไม่งั้นพอเลือกอันหนึ่งแล้ว ตัวเลือกอื่นจะหายไปจนกลับไปเลือกใหม่ไม่ได้ */
+  const all   = d.rows;
+  const years = [...new Set(all.map(r => String(r.end_date || '').slice(0,4)).filter(Boolean))].sort();
+  const pools = [...new Set(all.map(r => r.prod_pool).filter(Boolean))].sort();
+  const bus   = [...new Set(all.map(r => buOf(r) || 'ไม่ระบุ'))].sort();
+
+  const byMon  = sumBy(rows, r => String(r.end_date || '').slice(0,7), monTh)
+                   .sort((a,b) => a.k < b.k ? -1 : 1);
+  const byPool = sumBy(rows, r => r.prod_pool || '', k => k)
+                   .sort((a,b) => b.amt - a.amt).slice(0,12);
+  const byWeek = sumBy(rows, r => weekKey(r.end_date), dayTh)
+                   .sort((a,b) => a.k < b.k ? -1 : 1).slice(-12);
+
+  /* ตาราง · จำกัดจำนวนแถวไว้ ไม่งั้นสี่พันแถวจะหน่วงตอนวาด
+     คนที่อยากได้ครบกด Export เอา ซึ่งไม่ได้ตัดที่ 300 */
+  const CAP = 300;
+  const sorted = rows.slice().sort((a,b) => {
+    if(d.sort === 'end')  return String(a.end_date || '9999') < String(b.end_date || '9999') ? -1 : 1;
+    if(d.sort === 'lot')  return String(a.lot).localeCompare(String(b.lot), 'th');
+    return (Number(b.amount) || 0) - (Number(a.amount) || 0);
+  });
+  const shown = sorted.slice(0, CAP);
+
+  const kpi = (k, v, u, s, hi) =>
+    '<div class="kpi' + (hi ? ' hi' : '') + '"><div class="k">' + esc(k) + '</div>' +
+    '<div class="v">' + esc(v) + (u ? '<span class="u">' + esc(u) + '</span>' : '') + '</div>' +
+    (s ? '<div class="s">' + esc(s) + '</div>' : '') + '</div>';
+
+  const pct = tAll ? Math.round(cAll / tAll * 100) : 0;
+
+  box.innerHTML =
+    /* ── ตัวกรอง ── */
+    '<div class="blk"><div class="dfl">' +
+      '<label>ปี</label><select class="dsel" data-dsel="year">' +
+        '<option value="">ทั้งหมด</option>' +
+        years.map(y => '<option value="' + esc(y) + '"' + (d.year === y ? ' selected' : '') +
+                       '>' + beYear(y) + '</option>').join('') +
+      '</select>' +
+      '<label>สายผลิต</label><select class="dsel" data-dsel="pool">' + optHtml(pools, d.pool, 'ทั้งหมด') + '</select>' +
+      '<label>BU</label><select class="dsel" data-dsel="bu">' + optHtml(bus, d.bu, 'ทั้งหมด') + '</select>' +
+      '<label>สถานะ</label><select class="dsel" data-dsel="st">' + optHtml(DASH_ST, d.st, 'ทั้งหมด') + '</select>' +
+      '<label>เรียงตาม</label><select class="dsel" data-dsel="sort">' +
+        '<option value="amount"' + (d.sort==='amount'?' selected':'') + '>มูลค่ามากไปน้อย</option>' +
+        '<option value="end"'    + (d.sort==='end'   ?' selected':'') + '>กำหนดเสร็จใกล้สุด</option>' +
+        '<option value="lot"'    + (d.sort==='lot'   ?' selected':'') + '>ชื่อลอต</option>' +
+      '</select>' +
+      '<input class="dsrch" data-dsrch="1" placeholder="ค้นหาลอต โครงการ หรือหมายเหตุ" value="' + esc(d.q) + '">' +
+      (d.mon ? '<button class="btn on" data-act="dclrmon">เดือน ' + esc(monTh(d.mon)) + ' ×</button>' : '') +
+      '<button class="btn" data-act="dreload" title="อ่านจาก Supabase ใหม่">⟳ รีเฟรช</button>' +
+    '</div></div>' +
+
+    /* ── ตัวเลขสรุป ── */
+    '<div class="kpis">' +
+      kpi('มูลค่างานรวม', mBaht(amt), 'ล้านบาท', withAmt + ' จาก ' + rows.length + ' ลอตที่มีตัวเลข', true) +
+      kpi('จำนวนลอต', nf0.format(rows.length), '', 'จากทั้งหมด ' + nf0.format(all.length) + ' ลอต') +
+      kpi('ตัดแล้ว', pct + '%', '', nf0.format(cAll) + ' จาก ' + nf0.format(tAll) + ' ชิ้น') +
+      kpi('เลยกำหนดแล้ว', nf0.format(late.length), 'ลอต', mBaht(lateAmt) + ' ล้านบาท') +
+      kpi('ยันมูลค่าไม่ได้', nf0.format(amb), 'ลอต',
+          skip ? 'อีก ' + nf0.format(skip) + ' รหัสสินค้าที่ไม่ได้นับรวม' : 'รหัสสินค้าใช้ร่วมกันหลายโครงการ') +
+    '</div>' +
+
+    /* ── คำเตือน · ต้องอ่านออกโดยไม่ต้องตั้งใจหา ── */
+    '<div class="blk dwarn"><span>⚠</span><span>' +
+      'มูลค่างานจับคู่จากใบขายด้วยรหัสสินค้ากับสถานที่ เพราะ AX ไม่มีช่องที่ผูกลอตกับใบขายไว้ตรง ๆ · ' +
+      'ห้องเดียวที่ถูกทำสองลอตจะถูกนับทั้งสองลอต <b>ยอดรวมนี้จึงไม่ใช่ยอดขาย</b> ใช้สำหรับจัดลำดับความสำคัญ' +
+    '</span></div>' +
+
+    /* ── กราฟ ── */
+    '<div class="charts">' +
+      '<div class="blk"><h4>ยอดตามเดือนที่กำหนดเสร็จ <span class="sub2">กดแท่งเพื่อกรอง</span></h4>' +
+        barsHtml(byMon, d.mon, 'dmon', {}) + '</div>' +
+      '<div class="blk"><h4>ยอดตามสายผลิต <span class="sub2">กดแท่งเพื่อกรอง</span></h4>' +
+        barsHtml(byPool, d.pool, 'dpool', { mono:true }) + '</div>' +
+      '<div class="blk"><h4>ยอดตามสัปดาห์ <span class="sub2">12 สัปดาห์ล่าสุดในเงื่อนไขนี้</span></h4>' +
+        barsHtml(byWeek, '', '', {}) + '</div>' +
+    '</div>' +
+
+    /* ── ตาราง ── */
+    '<div class="blk"><h4>รายการลอต ' +
+      '<span class="sub2">' + (rows.length > CAP ? 'แสดง ' + CAP + ' จาก ' + nf0.format(rows.length) +
+        ' · กด Export เพื่อเอาครบ' : nf0.format(rows.length) + ' ลอต') +
+      ' · กดแถวเพื่อไปดูรายชิ้น</span></h4>' +
+      '<div class="dwrap"><table class="dtab"><thead><tr>' +
+        '<th>ลอต</th><th>กำหนดเสร็จ</th><th>สายผลิต</th><th>ชั้น</th>' +
+        '<th>หมายเหตุลอต</th><th>หมายเหตุวางแผน</th><th>ตัด</th><th style="text-align:right">มูลค่า</th>' +
+      '</tr></thead><tbody>' +
+      (shown.length ? shown.map(r => {
+        const t = Number(r.total_all) || 0, c = cutOf(r);
+        const p = t ? Math.round(c / t * 100) : 0;
+        /* ป้ายติดทั้งตอนมีเลขและตอนไม่มี · ตอนไม่มีสำคัญกว่า
+           เพราะต้องแยกให้ออกระหว่าง "ยังไม่ได้คิด" กับ "คิดแล้วแต่ยันไม่ได้" */
+        const lvv = lvTx(r.amount_lv);
+        const lv  = lvv ? '<span class="lvp ' + esc(r.amount_lv) + '" title="' +
+                          esc(lvTip(r.amount_lv)) + '">' + esc(lvv) + '</span>' : '';
+        return '<tr data-act="dlot" data-lot="' + esc(r.lot) + '">' +
+          '<td class="mono">' + esc(r.lot) + '</td>' +
+          '<td>' + esc(dayTh(r.end_date)) + '</td>' +
+          '<td class="mono">' + esc(r.prod_pool || '') + '</td>' +
+          '<td class="mono">' + esc(r.shelf || '') + '</td>' +
+          '<td class="rm" title="' + esc(r.lot_remark || '') + '">' + esc(r.lot_remark || '') + '</td>' +
+          '<td class="pd" title="' + esc(r.pd_remark || '') + '">' + esc(r.pd_remark || '') + '</td>' +
+          '<td><div class="pgw' + (t && c >= t ? ' done' : '') + '">' +
+            '<div class="pb"><i style="width:' + p + '%"></i></div>' +
+            '<span class="pn">' + (t ? p + '%' : '—') + '</span></div></td>' +
+          '<td class="num">' + (r.amount == null ? (lv || '—') : baht(r.amount) + ' ' + lv) + '</td>' +
+        '</tr>';
+      }).join('') : '<tr><td colspan="8" style="color:var(--mu2)">ไม่มีลอตในเงื่อนไขนี้</td></tr>') +
+      '</tbody></table></div></div>';
+}
+
+/* ป้ายความแม่นของตัวเลขเงิน · คนอ่านต้องรู้ว่าเลขนี้ยันได้แค่ไหน */
+function lvTx(v){
+  return v === 'room'      ? 'ตรงห้อง'
+       : v === 'build'     ? 'ตรงตึก'
+       : v === 'item'      ? 'ใบขายใบเดียว'
+       : v === 'mixed'     ? 'ปนกัน'
+       : v === 'ambiguous' ? 'ยันไม่ได้' : '';
+}
+function lvTip(v){
+  return v === 'room'      ? 'จับคู่ใบขายได้ถึงระดับเลขห้อง แม่นที่สุด'
+       : v === 'build'     ? 'จับคู่ได้ถึงระดับตึก ใบขายไม่ได้ระบุห้อง'
+       : v === 'item'      ? 'ใบขายไม่มีสถานที่ให้ยัน แต่รหัสนี้มีใบขายใบเดียว จึงไม่มีทางหยิบผิดใบ'
+       : v === 'mixed'     ? 'ลอตเดียวจับคู่ได้หลายระดับปนกัน'
+       : v === 'ambiguous' ? 'รหัสสินค้าเป็นของมาตรฐานที่ขายทั้งโรงงาน และใบขายไม่มีสถานที่ให้ยัน ' +
+                             'จึงไม่รู้ว่าใบไหนเป็นของลอตนี้ · เว้นว่างไว้ ดีกว่าใส่เลขที่ผิด' : '';
+}
+
+/* โหลดข้อมูลของแท็บนี้ · เรียกตอนกดเข้าครั้งแรกและตอนกดรีเฟรช */
+async function loadDash(force){
+  const d = S.dash;
+  if(d.loaded && !force) return;
+  if(!S.url || !S.key){ d.err = 'ยังไม่ได้ตั้งค่าการเชื่อมต่อ'; render(); return; }
+  d.busy = 'กำลังอ่านข้อมูลภาพรวม'; d.err = ''; render();
+  try {
+    d.rows = await db.dashRows();
+    d.loaded = true;
+  } catch(e){
+    d.err = 'อ่าน lot_progress ไม่สำเร็จ · ' + e.message;
+  }
+  d.busy = ''; render();
+}
+
+/* Export ของแท็บนี้ · เอาทุกแถวที่ผ่านตัวกรอง ไม่ได้ตัดที่ 300 เหมือนบนจอ */
+function toCsvDash(){
+  const rows = dashFiltered();
+  if(!rows.length) return;
+  const cols = ['lot','end_date','prod_pool','shelf','lot_remark','pd_remark','proj_name',
+                'total_all','checked_all','checked_pack','checked_pick','checked_wh',
+                'amount','amount_lv','amount_lines'];
+  const q = v => '"' + String(v == null ? '' : v).replace(/"/g,'""') + '"';
+  const lines = [cols.map(c => q(lbl(c))).join(',')];
+  rows.forEach(r => lines.push(cols.map(c => q(r[c])).join(',')));
+  const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type:'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'AxProgress_ภาพรวม_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+}
+
+/* ══════════════════════════════════════════════════════════════
    วาดหน้าจอ
    ══════════════════════════════════════════════════════════════ */
 function render(){
+  /* v4.0 สลับแท็บที่จุดเดียว · ตัววาดของอีกฝั่งไม่ต้องรู้ว่ามีแท็บอยู่
+     ไม่วาดกริดตอนอยู่แท็บภาพรวม ลอตใหญ่สามพันแถววาดทิ้งเปล่า ๆ ทุกครั้งไม่ไหว */
+  const app = $('app');
+  if(app) app.dataset.tab = S.tab;
+  $('viewParts').style.display = S.tab === 'parts' ? '' : 'none';
+  $('viewDash').style.display  = S.tab === 'dash'  ? '' : 'none';
+  $('tbParts').className = 'tb' + (S.tab === 'parts' ? ' on' : '');
+  $('tbDash').className  = 'tb' + (S.tab === 'dash'  ? ' on' : '');
+
   renderHead();
   renderNote();
+  if(S.tab === 'dash'){ renderDash(); return; }
   renderGrid();
   renderSide();
   renderStatus();
@@ -1865,6 +2358,25 @@ document.addEventListener('click', ev => {
   if(!t) return;
   const act = t.dataset.act;
 
+  /* ── v4.0 แท็บภาพรวม ── */
+  if(act === 'tab'){
+    const to = t.dataset.t;
+    if(to === S.tab) return;
+    S.tab = to;
+    render();
+    if(to === 'dash') loadDash(false);
+    return;
+  }
+  if(act === 'dmon'){  S.dash.mon  = (S.dash.mon  === t.dataset.k ? '' : t.dataset.k); render(); return; }
+  if(act === 'dpool'){ S.dash.pool = (S.dash.pool === t.dataset.k ? '' : t.dataset.k); render(); return; }
+  if(act === 'dclrmon'){ S.dash.mon = ''; render(); return; }
+  if(act === 'dreload'){ loadDash(true); return; }
+  if(act === 'dlot'){
+    /* กดแถวในตารางภาพรวม = กระโดดไปดูรายชิ้นของลอตนั้น
+       selectLot สั่งดึงจาก AX ให้เองอยู่แล้วถ้ายังไม่มีรายชิ้น */
+    S.tab = 'parts'; render(); selectLot(t.dataset.lot); return;
+  }
+
   if(act === 'drop'){ openPicker(); return; }
   if(act === 'pkclose'){ closePicker(); return; }
   if(act === 'pkmore'){ S.pkOpen = (S.pkOpen === t.dataset.b ? '' : t.dataset.b); renderPicker(); return; }
@@ -1897,8 +2409,11 @@ document.addEventListener('click', ev => {
     buildCols(); renderColList(); render(); return;
   }
 
-  if(act === 'csv'){ toCsv(); return; }
-  if(act === 'reload'){ if(S.lot) selectLot(S.lot); else boot(); return; }
+  if(act === 'csv'){ if(S.tab === 'dash') toCsvDash(); else toCsv(); return; }
+  if(act === 'reload'){
+    if(S.tab === 'dash'){ loadDash(true); return; }
+    if(S.lot) selectLot(S.lot); else boot(); return;
+  }
   if(act === 'fltclear'){ S.filters = {}; render(); return; }
 
   if(act === 'cfg'){ $('cfgUrl').value = S.url; $('cfgKey').value = S.key;
@@ -1918,6 +2433,16 @@ document.addEventListener('click', ev => {
    หน่วงก่อนวาดใหม่ แล้วคืนโฟกัสกับตำแหน่งเคอร์เซอร์ให้หลังวาดเสร็จ
    ไม่งั้นช่องที่กำลังพิมพ์อยู่จะโดนลบทิ้งทุกตัวอักษร */
 document.addEventListener('change', ev => {
+  /* v4.0 ช่องเลือกของแท็บภาพรวม · เปลี่ยนปีหรือสายผลิตแล้วเดือนที่กรองค้างอยู่
+     อาจไม่มีอยู่จริงในชุดใหม่ ล้างทิ้งด้วย ไม่งั้นจอจะว่างโดยไม่รู้สาเหตุ */
+  const dk = ev.target.dataset && ev.target.dataset.dsel;
+  if(dk){
+    S.dash[dk] = ev.target.value;
+    if(dk === 'year') S.dash.mon = '';
+    render();
+    return;
+  }
+
   const k=ev.target.dataset && ev.target.dataset.stateFilter;
   if(!k) return;
   S.filters[k]=ev.target.value;
@@ -1930,6 +2455,23 @@ document.addEventListener('change', ev => {
 let fltTimer = null;
 document.addEventListener('input', ev => {
   const el = ev.target;
+
+  /* v4.0 ช่องค้นหาของแท็บภาพรวม · บทเรียนเดียวกับสองช่องข้างล่าง
+     renderDash() เขียน innerHTML ทั้งก้อน ช่องที่กำลังพิมพ์จะหายไปทุกตัวอักษร
+     ต้องจดตำแหน่งเคอร์เซอร์ไว้ก่อนวาด แล้วคืนให้หลังวาดเสร็จ
+     ใครมาแก้ส่วนนี้ อย่าทำให้กลไกนี้หาย */
+  if(el.dataset && el.dataset.dsrch){
+    const pos = el.selectionStart;
+    S.dash.q = el.value;
+    clearTimeout(fltTimer);
+    fltTimer = setTimeout(() => {
+      render();
+      const again = document.querySelector('[data-dsrch]');
+      if(again){ again.focus(); try { again.setSelectionRange(pos, pos); } catch(e){} }
+    }, 220);
+    return;
+  }
+
   /* วาดใหม่แล้วช่องที่พิมพ์อยู่จะหายไป ต้องคืนโฟกัสกับตำแหน่งเคอร์เซอร์ให้ */
   if(el.id === 'pq'){
     const pos = el.selectionStart;
