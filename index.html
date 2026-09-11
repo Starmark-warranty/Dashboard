@@ -5,8 +5,28 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=5.0,user-scalable=yes">
 <title>Cutting Center Dashboard</title>
 <!-- =====================================================================
-  Cutting Center Dashboard   ·   VERSION 13.22
+  Cutting Center Dashboard   ·   VERSION 13.23
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  13.23 2026-09-11  CHANGE กล่อง lot อ่านแล้วขัดกันเอง เลยจัดใหม่เป็น 3 ตัวเลข
+                    RE-0069-0752-MU34 ขึ้น "ตัดไปแล้ว 0 จาก 251 · 0% · เหลืออีก 251"
+                    แต่บรรทัดถัดมาบอกว่าเครื่องนี้ยิงไป 98 ชิ้นวันเดียวกัน
+                    เลขสองตัวในการ์ดเดียวกันเถียงกันเอง คนหน้างานเชื่อตัวไหนไม่ถูก
+                    · เรื่องหน้าตา: ยุบบรรทัดยาวเป็นกล่องเดียว 3 ช่องใหญ่
+                      ทั้งหมด / ตัดแล้ว / เหลืออีก + % + แถบ อยู่ในกรอบเดียวกัน
+                      ของเดิมสามค่านี้ปนอยู่ในประโยคเดียว ต้องอ่านทั้งบรรทัดถึงจะเจอ
+                    · เรื่องตัวเลข: "ตัดแล้ว" เอาตัวที่มากกว่าระหว่าง AX กับที่ยิงจริง
+                      AX ครบตั้งแต่เริ่ม lot แต่อัปเดตเป็นรอบและค้างได้
+                      check_part ทันเวลาแต่มีเฉพาะช่วงที่โหลดมา
+                      เอาตัวมากกว่าจึงถูกทั้ง lot เก่าและ lot ที่กำลังตัดอยู่
+                      ตรงกับที่ 13.7 เขียนไว้ว่าอย่าโชว์ 0% ให้ดูเหมือนยังไม่เริ่ม
+                    · ไม่ยุบจนไม่รู้ที่มา · ถ้าเลขมาจากที่ยิงจริงจะเขียนกำกับว่า
+                      "นับจากที่เครื่องยิงจริง · AX ยังค้างอยู่ที่ N"
+                    · ตัดยอดไม่ให้เกินตัวหาร ยิงชิ้นเดิมซ้ำข้ามวันจะเห็น 104% ได้
+                    · ย้ายการคิดไปไว้ที่ lotStat() ตัวเดียว แล้วให้กล่อง lot
+                      กับหน้าค้นหา lot เรียกร่วมกัน ไม่งั้นสองจอจะให้เลขคนละตัว
+                    · "เครื่องนี้ยิง" ยังแยกบรรทัดเหมือนเดิม ไม่ยุบรวมกับยอดทั้ง lot
+                      ตามที่ 13.7 เตือนไว้
+                    ยังไม่ได้ทดสอบจริง
   13.22 2026-09-11  FIX กล่อง lot ขึ้น "AX ไม่มีข้อมูลของ lot นี้" ทั้งที่ฐานข้อมูลมี
                     fetchLotProgress() ขอ limit=5000 มาทีเดียว แต่ PostgREST ของ
                     Supabase ตั้ง max-rows ไว้ 1000 · limit ที่ขอเกินไม่มีผล
@@ -3778,7 +3798,8 @@ function lfRun(){
 
   const cnt = $('lfCount');
   if(cnt){
-    const nDone = list.filter(e=>{ const p=lotProg[e.lot]; return p && p.total_parts>0 && p.checked_parts>=p.total_parts; }).length;
+    const scanAllCnt = buildScanAll();
+    const nDone = list.filter(e => lotStat(e.lot, scanAllCnt).fin).length;
     cnt.innerHTML = q
       ? `พบ <b style="color:#fff">${list.length}</b> lot จากทั้งหมด ${all.length} · ตัดจบแล้ว <b style="color:#4ade80">${nDone}</b>`
       : `ทั้งหมด <b style="color:#fff">${all.length}</b> lot · ตัดจบแล้ว <b style="color:#4ade80">${nDone}</b>`;
@@ -3791,12 +3812,14 @@ function lfRun(){
     return;
   }
 
+  const scanAllLf = buildScanAll();
   body.innerHTML = list.slice(0,200).map(e=>{
-    const p    = lotProg[e.lot] || null;
-    const tot  = p ? (p.total_parts   || 0) : 0;
-    const done = p ? (p.checked_parts || 0) : 0;
-    const pct  = tot ? Math.min(100, Math.round(done/tot*100)) : null;
-    const fin  = tot > 0 && done >= tot;
+    const st   = lotStat(e.lot, scanAllLf);
+    const p    = st.p;
+    const tot  = st.tot;
+    const done = st.done;
+    const pct  = st.pct;
+    const fin  = st.fin;
     const proj = (p && p.proj_name) || '';
     const badge = fin ? '<span class="lf-badge done">✓ ตัดจบแล้ว</span>'
                 : tot ? '<span class="lf-badge wip">กำลังทำ ' + pct + '%</span>'
@@ -3816,9 +3839,12 @@ function lfRun(){
              ${e.ot>0?`<span style="color:#fca5a5">(OT ${n(e.ot)})</span>`:''}
              <span style="color:#334155">·</span> <b>${e.days.size}</b> วัน
              <span style="color:#334155">·</span> <b>${mcs.length}</b> เครื่อง</div>
-        ${tot ? `<div><span style="color:#64748b">ทั้ง lot สะสมทุกวัน (AX)</span> <b>${n(done)}</b> / <b>${n(tot)}</b> ชิ้น
+        ${tot ? `<div><span style="color:#64748b">ทั้ง lot นี้</span>
+             ทั้งหมด <b>${n(tot)}</b>
+             <span style="color:#334155">·</span> ตัดแล้ว <b style="color:#4ade80">${n(done)}</b>
+             <span style="color:#334155">·</span> เหลืออีก <b style="color:${st.left?'#fbbf24':'#4ade80'}">${n(st.left)}</b> ชิ้น
              <b style="color:${fin?'#4ade80':'#fbbf24'}">${pct}%</b>
-             ${fin?'':`<span style="color:#64748b">เหลืออีก ${n(tot-done)}</span>`}</div>` : ''}
+             ${st.src === 'scan' ? `<span style="color:#475569;font-size:11px">· นับจากที่ยิงจริง AX ค้างที่ ${n(st.ax)}</span>` : ''}</div>` : ''}
         ${edge ? `<span class="lf-warn">⚠️ อาจเริ่มตัดก่อน ${fmtDate(from)} — ข้อมูลที่มีเริ่มตรงขอบช่วงพอดี ลองขยายช่วงวันที่ดู</span>` : ''}
       </div>
       <div class="lf-mcs">
@@ -3838,6 +3864,46 @@ function openLotBox(name, ev){
   lotBoxMc = name;
   renderLotBox();
   openModal('ov-lot');
+}
+
+/* ── v13.22 ยอด "ตัดไปแล้ว" ของทั้ง lot ──────────────────────────────────
+   ปัญหาที่เจอ: RE-0069-0752-MU34 ขึ้น "ตัดไปแล้ว 0 จาก 251 · 0%"
+   แต่บรรทัดถัดมาบอกว่าเครื่องนี้ยิงไป 98 ชิ้นในวันเดียวกัน อ่านแล้วขัดกันเอง
+   ต้นเหตุคือ lot_progress.checked_parts มาจาก AX ซึ่งอัปเดตเป็นรอบ
+   รอบล่าสุดค้างตั้งแต่ 09/09 ยอดจึงเป็น 0 ทั้งที่หน้างานตัดไปครึ่ง lot แล้ว
+   ซึ่งเป็นอาการเดียวกับที่ 13.7 เขียนกันไว้ว่า "อย่าโชว์ 0% ให้ดูเหมือนยังไม่เริ่ม"
+
+   ทางแก้: เอาตัวที่มากกว่าระหว่างสองแหล่ง
+     AX (checked_parts)  ครบตั้งแต่เริ่ม lot แต่ช้าและค้างได้
+     ที่ยิงจริง (check_part) ทันเวลา แต่มีเฉพาะช่วงวันที่โหลดมา
+   lot เก่าที่เริ่มก่อนช่วงที่โหลด AX จะมากกว่า · lot ใหม่ที่ AX ยังไม่ตาม
+   ที่ยิงจริงจะมากกว่า · เอาตัวมากกว่าจึงถูกทั้งสองทาง
+   แล้วเขียนกำกับไว้ด้วยว่าเลขที่โชว์มาจากไหน ไม่ยุบรวมจนไม่รู้ที่มา ── */
+function buildScanAll(){
+  // รวมทุกเครื่อง ทุกวัน เท่าที่โหลดไว้ · ไม่กรองตามช่วงบนหน้าจอ
+  // เพราะบรรทัดนี้เป็นฐาน "ทั้ง lot สะสมทุกวัน" คนละฐานกับ "ช่วงที่เลือก"
+  const m = {};
+  supaLotRows.forEach(r => { if(r.lot) m[r.lot] = (m[r.lot] || 0) + (r.n || 0); });
+  return m;
+}
+
+function lotStat(lot, scanAll){
+  const p    = lotProg[lot] || null;
+  const tot  = p ? (p.total_parts   || 0) : 0;
+  const ax   = p ? (p.checked_parts || 0) : 0;
+  const scan = scanAll ? (scanAll[lot] || 0) : 0;
+  let done = Math.max(ax, scan);
+  // ยิงชิ้นเดิมซ้ำข้ามวันทำให้ยอดรวมเกินตัวหารได้ ตัดไม่ให้เกิน ไม่งั้นจะเห็น 104%
+  if(tot) done = Math.min(done, tot);
+  const pct = tot ? Math.min(100, Math.round(done/tot*100)) : null;
+  return {
+    p, tot, ax, scan, done, pct,
+    left : Math.max(0, tot - done),
+    fin  : tot > 0 && done >= tot,
+    src  : scan > ax ? 'scan' : 'ax',
+    // v13.9 แถวที่ไม่มีขนาด = ห่ออุปกรณ์ที่ส่งเฉย ๆ ไม่ได้ตัด ไม่นับเป็นตัวหาร
+    skip : p ? Math.max(0, (p.total_all || 0) - tot) : 0
+  };
 }
 
 function renderLotBox(){
@@ -3864,16 +3930,12 @@ function renderLotBox(){
     if(r.date > agg[r.lot].last) agg[r.lot].last = r.date;
   });
 
+  const scanAll = buildScanAll();
   const list = Object.keys(agg).map(lot => {
-    const p    = lotProg[lot] || null;
-    const tot  = p ? (p.total_parts   || 0) : 0;
-    const done = p ? (p.checked_parts || 0) : 0;
-    const pct  = tot ? Math.min(100, Math.round(done/tot*100)) : null;
-    // v13.9 แถวที่ไม่มีขนาด = ห่ออุปกรณ์ที่ส่งเฉย ๆ ไม่ได้ตัด ไม่นับเป็นตัวหาร
-    // โชว์ไว้ด้วยว่าตัดออกกี่แถว ถ้าวันไหนตัวกรองพลาดจะได้เห็นเลขผิดปกติ
-    const skip = p ? Math.max(0, (p.total_all || 0) - tot) : 0;
-    return { lot, proj:(p && p.proj_name) || '', mine:agg[lot].n, days:agg[lot].days.size,
-             last:agg[lot].last, tot, done, pct, skip, fin:(tot>0 && done>=tot) };
+    const st = lotStat(lot, scanAll);
+    return { lot, proj:(st.p && st.p.proj_name) || '', mine:agg[lot].n, days:agg[lot].days.size,
+             last:agg[lot].last, tot:st.tot, done:st.done, pct:st.pct, left:st.left,
+             skip:st.skip, fin:st.fin, src:st.src, ax:st.ax };
   }).sort((a,b) => (a.fin - b.fin) || (b.last > a.last ? 1 : b.last < a.last ? -1 : 0));
 
   const nFin   = list.filter(x => x.fin).length;
@@ -3914,24 +3976,42 @@ function renderLotBox(){
         ${chip}
       </div>
       <div style="font-size:10px;color:#64748b;font-family:monospace;margin-bottom:8px">${esc13(x.lot)}</div>
-      ${x.tot ? `<div style="font-size:12px;color:#94a3b8;margin-bottom:5px">
-        <span style="color:#64748b;font-size:11px">ทั้ง lot · สะสมทุกวัน</span>
-        ตัดไปแล้ว <b style="color:#e2e8f0;font-size:15px">${n(x.done)}</b>
-        จาก <b style="color:#e2e8f0;font-size:15px">${n(x.tot)}</b> ชิ้น
-        <b style="color:${barCol};font-size:14px">${x.pct}%</b>
-        ${x.fin ? '' : `<span style="color:#64748b">· เหลืออีก ${n(x.tot - x.done)} ชิ้น</span>`}
-        ${x.skip ? `<span style="color:#64748b;font-size:11px"
-             title="แถวที่ไม่มีขนาดกว้าง-ยาว เช่น Fitting_Pack / Accessory_Pack เป็นของที่ส่งไปเฉย ๆ ไม่ได้ตัด จึงไม่นับเป็นตัวหาร"
-             >· ไม่นับห่ออุปกรณ์ ${n(x.skip)}</span>` : ''}
+      ${x.tot ? `<div style="background:#0b1220;border:1px solid #1e293b;border-radius:8px;padding:8px 10px;margin-bottom:6px">
+        <div style="font-size:10px;color:#64748b;margin-bottom:5px">ทั้ง lot นี้ · รวมทุกเครื่อง ทุกวัน</div>
+        <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end;margin-bottom:7px">
+          <div>
+            <div style="font-size:10px;color:#64748b;line-height:1.3">ทั้งหมด</div>
+            <b style="font-size:20px;color:#e2e8f0;font-variant-numeric:tabular-nums">${n(x.tot)}</b><span style="font-size:11px;color:#475569"> ชิ้น</span>
+          </div>
+          <div>
+            <div style="font-size:10px;color:#64748b;line-height:1.3">ตัดแล้ว</div>
+            <b style="font-size:20px;color:#4ade80;font-variant-numeric:tabular-nums">${n(x.done)}</b><span style="font-size:11px;color:#475569"> ชิ้น</span>
+          </div>
+          <div>
+            <div style="font-size:10px;color:#64748b;line-height:1.3">เหลืออีก</div>
+            <b style="font-size:20px;color:${x.left ? '#fbbf24' : '#4ade80'};font-variant-numeric:tabular-nums">${n(x.left)}</b><span style="font-size:11px;color:#475569"> ชิ้น</span>
+          </div>
+          <div style="margin-left:auto">
+            <b style="font-size:17px;color:${barCol};font-variant-numeric:tabular-nums">${x.pct}%</b>
+          </div>
+        </div>
+        <div style="height:7px;background:#1e293b;border-radius:4px;overflow:hidden">
+          <div style="height:100%;width:${x.pct}%;background:${barCol}"></div>
+        </div>
+        <div style="font-size:10px;color:#475569;margin-top:5px">
+          ${x.src === 'scan'
+            ? `นับจากที่เครื่องยิงจริง · AX ยังค้างอยู่ที่ ${n(x.ax)}`
+            : 'ยอดสะสมจาก AX'}
+          ${x.skip ? `<span title="แถวที่ไม่มีขนาดกว้าง-ยาว เช่น Fitting_Pack / Accessory_Pack เป็นของที่ส่งไปเฉย ๆ ไม่ได้ตัด จึงไม่นับเป็นตัวหาร"
+               > · ไม่นับห่ออุปกรณ์ ${n(x.skip)}</span>` : ''}
+        </div>
       </div>` : `<div style="font-size:12px;color:#64748b;margin-bottom:5px">
         ทั้ง lot มีกี่ชิ้น — AX ไม่มีข้อมูลของ lot นี้</div>`}
-      <div style="font-size:12px;color:#60a5fa;margin-bottom:6px">
+      <div style="font-size:12px;color:#60a5fa">
         <span style="color:#64748b;font-size:11px">ช่วงที่เลือก</span>
         เครื่องนี้ยิง <b style="color:#93c5fd;font-size:14px">${n(x.mine)}</b> ชิ้น
         <span style="color:#475569">· ${x.days} วัน · ล่าสุด ${fmtDate(x.last)}</span>
       </div>
-      ${x.tot ? `<div style="height:6px;background:#1e293b;border-radius:4px;overflow:hidden">
-        <div style="height:100%;width:${x.pct}%;background:${barCol}"></div></div>` : ''}
     </div>`;
   }).join('');
 }
