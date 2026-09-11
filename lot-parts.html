@@ -5,8 +5,39 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Ax Progress · รายชิ้นในลอต</title>
 <!-- =====================================================================
-  Lot Parts · รายชิ้นในลอต        ·   VERSION 5.8
+  Lot Parts · รายชิ้นในลอต        ·   VERSION 5.9
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  5.9  2026-09-11  CHANGE ตารางรายการลอตขึ้นก่อนมูลค่าและกราฟ ตามที่สั่ง
+                   คนเปิดแท็บนี้มาหา "ลอตไหนต้องทำ" ก่อนเสมอ
+                   ตัวเลขเงินกับกราฟเป็นของที่ดูเป็นครั้งคราว ไม่ใช่ทุกวัน
+                   ของเดิมต้องเลื่อนผ่านการ์ดห้าใบกับกราฟสามอันถึงจะเจอตาราง
+                   · สรุปรายสัปดาห์ยังอยู่เหนือตาราง เพราะเป็นตัวช่วยกรอง
+                     ไม่ใช่ของที่มาอ่านเอาเนื้อหา
+                   FIX  แท็บนี้เห็นแค่ 1,000 จาก 4,855 ลอตมาตลอด
+                   ที่มา: เจ้าของงานส่งภาพมาแล้วเห็นตัวเลข "จากทั้งหมด 1,000 ลอต"
+                   ซึ่งบังเอิญพอดีกับเพดานของ PostgREST เป๊ะ ๆ
+                   ต้นเหตุ: dashRows สั่ง limit=8000 แต่ PostgREST ที่นี่
+                   คืนสูงสุด 1,000 แถวต่อครั้ง และไม่มีสัญญาณบอกว่าโดนตัด
+                   ทุกอย่างในแท็บนี้จึงคิดจากข้อมูลไม่ครบมาตลอด
+                   ทั้ง KPI กราฟ สรุปรายสัปดาห์ และเลขเลยกำหนด
+                   · ทำ getAll() เป็นตัวไล่หน้ากลาง แล้วไล่แก้ทุกจุดที่มีโอกาสเกินพัน
+                     dashRows  4,855 ลอต   เห็นแค่ 1,000  ← ที่เจ้าของงานเจอ
+                     lots      4,855 ลอต   ช่องเลือกลอตเห็นแค่ 1,000 เหมือนกัน
+                     rmHave    ราย lot     ป้ายเขียวบอกว่ามีวัตถุดิบ ขึ้นแค่พันแรก
+                     rmRows    ราย lot     สั่ง limit=2000 ซึ่งไม่มีผล เพดานคือ 1,000
+                                           ลอตใหญ่สุดที่เจอ 578 แถว ยังไม่เคยชน
+                                           แต่ถ้าชนจะเงียบสนิท วัตถุดิบหายโดยไม่มีใครรู้
+                     rowsOfLot ไล่หน้าถูกอยู่แล้วตั้งแต่แรก ไม่ต้องแก้
+                   · เรียงตาม lot ไม่ใช่ updated_at · updated_at ขยับตลอดเวลา
+                     ระหว่างที่ไล่หน้าอยู่ แถวจะสลับที่กันเอง
+                     แล้วได้ของซ้ำบ้างหายบ้างโดยไม่มีใครรู้
+                   NOTE เป็นบั๊กตระกูลเดียวกับที่เพิ่งเจอใน StarSync v1.11
+                   คือ "ขอมาเยอะแต่ได้กลับมาแค่หน้าแรกโดยไม่มีใครบอก"
+                   ที่นั่นเกิดจาก Invoke-RestMethod ที่นี่เกิดจากเพดานของ PostgREST
+                   คนละสาเหตุแต่เป็นอาการเดียวกัน · ไล่ดูทั้งไฟล์แล้ว
+                   ที่เหลือไล่หน้าครบทุกจุด
+                   ยังไม่ได้ทดสอบบนเครื่องจริงหน้าไลน์
+
   5.8  2026-09-11  FIX  ขั้น "ตัด" ไม่มีวันถึง 100% เพราะนับห่ออุปกรณ์เป็นตัวหาร
                    ที่มา: เจ้าของงานทักว่าเป็นเรื่องเดียวกับที่เคยเจอตอน 4.2
                    ห่ออุปกรณ์ไม่ได้ถูกตัดจากแผ่น เอามารวมแล้วยอดเพี้ยน
@@ -1664,6 +1695,22 @@ const db = {
   head(){ return S.key.startsWith('sb_publishable_') ? { apikey:S.key } : { apikey:S.key, Authorization:'Bearer ' + S.key }; },
   base(){ return S.url.replace(/\/+$/,'') + '/rest/v1/'; },
 
+  /* v5.9 ไล่หน้าจนหมด · PostgREST ที่นี่คืนสูงสุด 1,000 แถวต่อครั้ง
+     สั่ง limit สูงกว่านั้นก็ได้กลับมาพันเดียว และไม่มีสัญญาณบอกว่าโดนตัด
+     ทุกคำขอที่มีโอกาสเกินพันแถวต้องผ่านตัวนี้ ไม่ใช่ get() ตรง ๆ
+     ต้องสั่ง order ที่นิ่งเสมอ · เรียงตามคอลัมน์ที่ขยับได้อย่าง updated_at
+     แถวจะสลับที่กันเองระหว่างไล่หน้า แล้วได้ของซ้ำบ้างหายบ้างโดยไม่มีใครรู้ */
+  async getAll(path, order){
+    const PAGE = 1000, out = [];
+    for(let off = 0; off < 60000; off += PAGE){
+      const page = await this.get(path + '&order=' + order +
+                                  '&limit=' + PAGE + '&offset=' + off);
+      out.push(...page);
+      if(page.length < PAGE) break;
+    }
+    return out;
+  },
+
   async get(path){
     const r = await fetch(this.base() + path, { headers:this.head() });
     if(!r.ok){
@@ -1703,19 +1750,24 @@ const db = {
     return out;
   },
 
-  lots(){
+  async lots(){
     /* เรียงตามเวลาที่อัปเดตล่าสุด ลอตที่เพิ่งขยับจะอยู่บนสุดของทุกคอลัมน์
        เรียงตามรหัสลอตแบบเดิมทำให้ของเก่าปี 2024 ลอยขึ้นมาก่อน */
-    return this.get('lot_progress?select=lot,proj_name,proj_id,total_parts,' +
-                    'checked_parts,total_all,checked_all,updated_at' +
-                    '&order=updated_at.desc.nullslast&limit=8000');
+    /* v5.9 ไล่หน้า · ของเดิมได้แค่ 1,000 ลอตแรก ที่เหลือหายไปจากช่องเลือกลอต
+       และเรียงตาม lot ตอนไล่หน้า แล้วค่อยมาเรียงใหม่ในเครื่อง
+       เรียงด้วยคอลัมน์ที่ขยับตลอดระหว่างไล่หน้าไม่ได้ จะได้ของซ้ำบ้างหายบ้าง */
+    const rows = await this.getAll(
+      'lot_progress?select=lot,proj_name,proj_id,total_parts,' +
+      'checked_parts,total_all,checked_all,updated_at', 'lot.asc');
+    return rows.sort((a,b) =>
+      String(b.updated_at || '').localeCompare(String(a.updated_at || '')));
   },
 
   /* v4.0 ข้อมูลของแท็บภาพรวม · lot_progress ตารางเดียวจบ
      ขอเฉพาะคอลัมน์ที่ตารางมีจริง ถ้าขอคอลัมน์ที่ยังไม่มี PostgREST ตอบ 400
      แล้วทั้งแท็บจะจอเปล่าโดยไม่บอกว่าเพราะอะไร · เครื่องที่ยังไม่ได้อัป
      StarSync จะเห็นแท็บนี้แบบไม่มีเงินกับกำหนดเสร็จ ซึ่งดีกว่าไม่เห็นอะไรเลย */
-  dashRows(){
+  async dashRows(){
     const want = ['lot','proj_name','prod_pool','end_date','shelf','lot_remark','pd_remark',
                   'amount','amount_lv','amount_lines','amount_skip','lot_status',
                   'total_parts','checked_parts','total_all','checked_all',
@@ -1723,16 +1775,20 @@ const db = {
     const have = S.schema['lot_progress'] || [];
     const cols = want.filter(c => have.includes(c));
     if(!cols.includes('lot')) cols.unshift('lot');
-    return this.get('lot_progress?select=' + cols.join(',') +
-                    '&order=updated_at.desc.nullslast&limit=8000');
+    /* v5.9 ของเดิมสั่ง limit=8000 แล้วได้กลับมา 1,000 แท็บนี้จึงคิดจาก
+       ข้อมูลไม่ครบมาตลอด · จับได้จากตัวเลข "จากทั้งหมด 1,000 ลอต" บนจอ
+       ซึ่งบังเอิญพอดีกับเพดานของ PostgREST เป๊ะ ๆ */
+    return this.getAll('lot_progress?select=' + cols.join(','), 'lot.asc');
   },
 
   /* ── v4.3 วัตถุดิบ ─────────────────────────────────────────────
      lot_rm มีเฉพาะลอตที่เคยมีคนกดดู · ไม่มีแถวไม่ได้แปลว่าไม่มีวัตถุดิบ
      แปลว่ายังไม่เคยดึง ซึ่งเป็นคนละเรื่องกัน หน้าจอต้องแยกให้ออก */
   rmRows(lot){
-    return this.get('lot_rm?select=*&lot=eq.' + encodeURIComponent(lot) +
-                    '&order=item_id.asc&limit=2000');
+    /* v5.9 ของเดิมสั่ง limit=2000 ซึ่งไม่มีผล · เพดานจริงคือ 1,000
+       ลอตที่เจอมามากสุด 578 แถว ยังไม่เคยชน แต่ไม่มีอะไรรับประกันว่าจะไม่ชน
+       และถ้าชนจะเงียบสนิท วัตถุดิบหายไปโดยไม่มีใครรู้ */
+    return this.getAll('lot_rm?select=*&lot=eq.' + encodeURIComponent(lot), 'item_id.asc');
   },
   /* คีย์ของตารางคำขอคือชื่อลอต · merge-duplicates เพื่อให้ขอซ้ำได้
      ไม่งั้นลอตที่เคยขอแล้วจะขอใหม่ไม่ได้ตลอดกาล เพราะแถวชนคีย์ */
@@ -1748,7 +1804,7 @@ const db = {
     if(!r.ok) throw new Error('HTTP ' + r.status + ' · ' + (await r.text()).slice(0,200));
   },
   /* ลอตไหนมีวัตถุดิบอยู่ในฐานแล้วบ้าง · แถวเดียวต่อลอต ไม่ได้ลากทั้งตารางมา */
-  rmHave(){ return this.get('lot_rm_count?select=lot,n&limit=8000'); },
+  rmHave(){ return this.getAll('lot_rm_count?select=lot,n', 'lot.asc'); },   /* v5.9 ไล่หน้า */
 
   rmReqState(lot){
     return this.get('lot_rm_request?select=done_at,rows_synced,error&lot=eq.' +
@@ -2390,35 +2446,10 @@ function renderDash(){
         '<b>ไม่มีรายชิ้น</b> คือ AX ยังไม่มีรายชิ้นให้ ไม่ใช่งานเสร็จ' +
       '</div></div>' : '') +
 
-    /* ── ตัวเลขสรุป ── */
-    '<div class="kpis">' +
-      kpi('มูลค่างานรวม', mBaht(amt), 'ล้านบาท', withAmt + ' จาก ' + rows.length + ' ลอตที่มีตัวเลข', true) +
-      kpi('จำนวนลอต', nf0.format(rows.length), '', 'จากทั้งหมด ' + nf0.format(all.length) + ' ลอต') +
-      kpi('ตัดแล้ว', pct + '%', '', nf0.format(cAll) + ' จาก ' + nf0.format(tAll) + ' ชิ้น') +
-      kpi('เลยกำหนดแล้ว', nf0.format(late.length), 'ลอต', mBaht(lateAmt) + ' ล้านบาท') +
-      kpi('ยันมูลค่าไม่ได้', nf0.format(amb), 'ลอต',
-          skip ? 'อีก ' + nf0.format(skip) + ' รหัสสินค้าที่ไม่ได้นับรวม' : 'รหัสสินค้าใช้ร่วมกันหลายโครงการ') +
-    '</div>' +
-
-    /* ── คำเตือน · ต้องอ่านออกโดยไม่ต้องตั้งใจหา ── */
-    '<div class="blk dwarn"><span>⚠</span><span>' +
-      'มูลค่างานจับคู่จากใบขายด้วยรหัสสินค้ากับสถานที่ เพราะ AX ไม่มีช่องที่ผูกลอตกับใบขายไว้ตรง ๆ · ' +
-      'ห้องเดียวที่ถูกทำสองลอตจะถูกนับทั้งสองลอต <b>ยอดรวมนี้จึงไม่ใช่ยอดขาย</b> ใช้สำหรับจัดลำดับความสำคัญ' +
-    '</span></div>' +
-
-    /* ── กราฟ · แท่งตั้งเหมือนรายงานเดิม หน่วยเป็นล้านบาท ── */
-    '<div class="charts">' +
-      '<div class="blk"><h4>ยอดรวมตามเดือนที่กำหนดเสร็จ ' +
-        '<span class="sub2">ล้านบาท · กดแท่งเพื่อกรอง</span></h4>' +
-        vbarsHtml(byMon, d.mon, 'dmon', {}) + '</div>' +
-      '<div class="blk"><h4>ยอดรวมตามสายผลิต ' +
-        '<span class="sub2">ล้านบาท · กดแท่งเพื่อกรอง</span></h4>' +
-        vbarsHtml(byPool, d.pool, 'dpool', {}) + '</div>' +
-    '</div>' +
-    '<div class="blk"><h4>ยอดรวมตามสัปดาห์ ' +
-      '<span class="sub2">ล้านบาท · 12 สัปดาห์ล่าสุดในเงื่อนไขนี้ · กดแท่งเพื่อกรอง</span></h4>' +
-      vbarsHtml(byWeek, d.wk, 'dwk', { slim:true }) + '</div>' +
-
+    /* ── v5.9 ตารางขึ้นก่อนมูลค่า ตามที่เจ้าของงานสั่ง ──
+       เหตุผล: คนเปิดแท็บนี้มาหา "ลอตไหนต้องทำ" ก่อนเสมอ
+       ส่วนตัวเลขเงินกับกราฟเป็นของที่ดูเป็นครั้งคราว ไม่ใช่ทุกวัน
+       ของเดิมต้องเลื่อนผ่านการ์ดห้าใบกับกราฟสามอันถึงจะเจอตาราง */
     /* ── ตาราง ── */
     '<div class="blk"><h4>รายการลอต ' +
       '<span class="sub2">' + (rows.length > CAP ? 'แสดง ' + CAP + ' จาก ' + nf0.format(rows.length) +
@@ -2504,7 +2535,36 @@ function renderDash(){
           })() + '</td>' +
         '</tr>';
       }).join('') : '<tr><td colspan="10" style="color:var(--mu2)">ไม่มีลอตในเงื่อนไขนี้</td></tr>') +
-      '</tbody></table></div></div>';
+      '</tbody></table></div></div>' +
+    /* ── ตัวเลขสรุป ── */
+    '<div class="kpis">' +
+      kpi('มูลค่างานรวม', mBaht(amt), 'ล้านบาท', withAmt + ' จาก ' + rows.length + ' ลอตที่มีตัวเลข', true) +
+      kpi('จำนวนลอต', nf0.format(rows.length), '', 'จากทั้งหมด ' + nf0.format(all.length) + ' ลอต') +
+      kpi('ตัดแล้ว', pct + '%', '', nf0.format(cAll) + ' จาก ' + nf0.format(tAll) + ' ชิ้น') +
+      kpi('เลยกำหนดแล้ว', nf0.format(late.length), 'ลอต', mBaht(lateAmt) + ' ล้านบาท') +
+      kpi('ยันมูลค่าไม่ได้', nf0.format(amb), 'ลอต',
+          skip ? 'อีก ' + nf0.format(skip) + ' รหัสสินค้าที่ไม่ได้นับรวม' : 'รหัสสินค้าใช้ร่วมกันหลายโครงการ') +
+    '</div>' +
+
+    /* ── คำเตือน · ต้องอ่านออกโดยไม่ต้องตั้งใจหา ── */
+    '<div class="blk dwarn"><span>⚠</span><span>' +
+      'มูลค่างานจับคู่จากใบขายด้วยรหัสสินค้ากับสถานที่ เพราะ AX ไม่มีช่องที่ผูกลอตกับใบขายไว้ตรง ๆ · ' +
+      'ห้องเดียวที่ถูกทำสองลอตจะถูกนับทั้งสองลอต <b>ยอดรวมนี้จึงไม่ใช่ยอดขาย</b> ใช้สำหรับจัดลำดับความสำคัญ' +
+    '</span></div>' +
+
+    /* ── กราฟ · แท่งตั้งเหมือนรายงานเดิม หน่วยเป็นล้านบาท ── */
+    '<div class="charts">' +
+      '<div class="blk"><h4>ยอดรวมตามเดือนที่กำหนดเสร็จ ' +
+        '<span class="sub2">ล้านบาท · กดแท่งเพื่อกรอง</span></h4>' +
+        vbarsHtml(byMon, d.mon, 'dmon', {}) + '</div>' +
+      '<div class="blk"><h4>ยอดรวมตามสายผลิต ' +
+        '<span class="sub2">ล้านบาท · กดแท่งเพื่อกรอง</span></h4>' +
+        vbarsHtml(byPool, d.pool, 'dpool', {}) + '</div>' +
+    '</div>' +
+    '<div class="blk"><h4>ยอดรวมตามสัปดาห์ ' +
+      '<span class="sub2">ล้านบาท · 12 สัปดาห์ล่าสุดในเงื่อนไขนี้ · กดแท่งเพื่อกรอง</span></h4>' +
+      vbarsHtml(byWeek, d.wk, 'dwk', { slim:true }) + '</div>';
+
 }
 
 /* v5.7 ค่าที่ใช้เรียงของแต่ละคอลัมน์
