@@ -7,6 +7,24 @@
 <!-- =====================================================================
   Lot Parts · รายชิ้นในลอต        ·   VERSION 5.5
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  5.5  2026-09-11  CHANGE ตัวกรองรายคอลัมน์เป็นลูกศรสี่ช่อง ตามที่เจ้าของงานสั่ง
+                   ไม่ได้ทำลูกศรทั้งเจ็ดช่อง เพราะนับค่าที่ไม่ซ้ำในฐานแล้ว
+                     ลูกศรได้   สายผลิต 19 · สัปดาห์ 47 · กำหนดเสร็จ 229 · ชั้น 1,467
+                     ลูกศรไม่ไหว ลอต 4,857 · หมายเหตุลอต 4,140 · วางแผน 2,381
+                   สามช่องหลังยังเป็นช่องพิมพ์ ทำลูกศรแล้วเลื่อนหาไม่ไหวจริง ๆ
+                   · ชั้นมี 1,467 ค่าก็จริง แต่พอเลือกสายผลิตหรือสัปดาห์ก่อน
+                     รายการจะสั้นลงมาก เพราะตัวเลือกสร้างจากของที่เหลืออยู่จริง
+                     ไม่ใช่จากทั้งตาราง
+                   · ตัวเลือกของแต่ละช่องสร้างจากแถวที่ผ่านตัวกรองอื่นทั้งหมด
+                     ยกเว้นตัวมันเอง ไม่งั้นพอเลือกค่าหนึ่งแล้วรายการจะเหลือค่าเดียว
+                     กลับไปเลือกอย่างอื่นไม่ได้ · บทเรียนเดียวกับช่องกรองข้างบน
+                   · ค่าที่เลือกค้างอยู่ถูกใส่กลับเข้ารายการเสมอ แม้จะไม่เหลือแถว
+                     ไม่งั้นช่องจะเด้งกลับเป็น "ทั้งหมด" เอง แล้วสิ่งที่เห็นในช่อง
+                     จะไม่ตรงกับผลบนจอ
+                   · ช่องลูกศรเทียบตรงตัว ไม่ใช่แบบมีข้อความอยู่ข้างใน
+                     ไม่งั้นเลือก W1 แล้วจะติด W10 W11 W12 มาด้วย
+                   · ตัวเลือกสัปดาห์เรียงตามวันจันทร์ ไม่ใช่ตามตัวอักษร
+                     เรียงตัวอักษรจะได้ W1 W10 W11 W2 ซึ่งไม่ใช่ลำดับเวลา
   5.5  2026-09-11  FEAT ตารางวัตถุดิบแยก "แผ่นที่ต้องตัด" ออกจาก "อุปกรณ์"
                    ที่มา: เจ้าของงานอยากรู้ว่าแผ่นพร้อมตัดหรือยัง ติดแค่อุปกรณ์
                    ของเดิมสองอย่างปนกัน 49 บรรทัด ต้องไล่อ่านรหัสทีละตัว
@@ -960,6 +978,10 @@ tr.rmgrp .s{font-family:var(--sans);font-weight:400;font-size:11.5px;color:var(-
 .dcf{width:100%;box-sizing:border-box;min-width:56px;
   border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--tx);
   font-family:var(--sans);font-size:11.5px;font-weight:400;padding:3px 6px}
+.dcs{width:100%;box-sizing:border-box;min-width:64px;max-width:200px;
+  border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--tx);
+  font-family:var(--sans);font-size:11.5px;font-weight:400;padding:2px 4px;cursor:pointer}
+.dcs:focus{outline:2px solid var(--brand);border-color:var(--brand)}
 .dcf::placeholder{color:var(--mu2);font-weight:400}
 .dcf:focus{outline:2px solid var(--brand);border-color:var(--brand)}
 @media(max-width:640px){ .dcf{min-height:32px;font-size:12px} }
@@ -1908,14 +1930,25 @@ function statOf(r){
 const DASH_ST = ['ยังไม่เริ่ม','กำลังตัด','ตัดครบ รอเข้าคลัง','เข้าคลังครบ','ไม่มีรายชิ้น'];
 const ST_DONE = 'เข้าคลังครบ';   /* ที่เดียวที่นิยามคำว่า "จบ" · จะเปลี่ยนก็เปลี่ยนตรงนี้ */
 
-/* v5.4 ค่าที่ใช้เทียบของแต่ละคอลัมน์ในตารางรายการลอต
-   ต้องเทียบกับสิ่งที่ตาเห็นบนจอ ไม่ใช่ค่าดิบในฐาน
-   ไม่งั้นพิมพ์ "ก.ย." แล้วไม่เจอ ทั้งที่บนจอเขียนว่า ก.ย. ชัด ๆ
-   ช่องกำหนดเสร็จเอาทั้งสองแบบ คนที่ชินกับ 2026-09-16 ก็ต้องพิมพ์ได้ */
-function dColVal(r, k){
+/* ── v5.4 ตัวกรองรายคอลัมน์ของตารางรายการลอต ────────────────────
+   v5.5 แยกสองแบบตามลักษณะของข้อมูล ไม่ได้เลือกตามความชอบ
+     ลูกศร  ใช้กับคอลัมน์ที่ค่าเป็นชุดจำกัด เลือกแล้วเทียบตรงตัว
+            สัปดาห์ 47 ค่า · สายผลิต 19 ค่า · กำหนดเสร็จ 229 ค่า · ชั้น 1,467 ค่า
+            ชั้นเยอะจริง แต่พอเลือกสายผลิตหรือสัปดาห์ก่อน รายการจะสั้นลงมาก
+            เพราะตัวเลือกสร้างจากของที่เหลืออยู่จริง ไม่ใช่จากทั้งตาราง
+     พิมพ์  ใช้กับคอลัมน์ที่ค่าเกือบไม่ซ้ำกันเลย ทำลูกศรแล้วเลื่อนหาไม่ไหว
+            ลอต 4,857 ค่า · หมายเหตุลอต 4,140 ค่า · หมายเหตุวางแผน 2,381 ค่า
+            เทียบแบบมีข้อความอยู่ข้างใน เพราะหมายเหตุเป็นประโยคยาว */
+const DCOL_SEL = ['end','wk','pool','shelf'];
+const DCOL_TXT = ['lot','rm','pd'];
+const DCOLS    = ['lot','end','wk','pool','shelf','rm','pd'];   /* ลำดับบนจอ */
+
+/* ป้ายที่ตาเห็นในคอลัมน์นั้น · ใช้ทั้งเป็นตัวเลือกในลูกศรและเป็นตัวเทียบ
+   สองอย่างนี้ต้องมาจากฟังก์ชันเดียวกัน ไม่งั้นเลือกแล้วไม่เจอสักแถว */
+function dColLabel(r, k){
   switch(k){
     case 'lot':   return String(r.lot || '');
-    case 'end':   return dayTh(r.end_date) + ' ' + String(r.end_date || '');
+    case 'end':   return dayTh(r.end_date);
     case 'wk':    return weekTx(r.end_date);
     case 'pool':  return String(r.prod_pool || '');
     case 'shelf': return String(r.shelf || '');
@@ -1924,13 +1957,18 @@ function dColVal(r, k){
     default:      return '';
   }
 }
-/* คอลัมน์ที่กรองได้ · เรียงตามที่อยู่บนจอ ใช้สร้างทั้งช่องกรองและการเทียบ */
-const DCOLS = ['lot','end','wk','pool','shelf','rm','pd'];
+/* ค่าที่ใช้เรียงตัวเลือกในลูกศร · ป้ายเรียงตามตัวอักษรแล้วผิดลำดับเวลา
+   W1 W10 W11 W2 ไม่ใช่ลำดับสัปดาห์ · วันที่ไทยก็เรียงตามตัวอักษรไม่ได้ */
+function dColSort(r, k){
+  if(k === 'end') return String(r.end_date || '');
+  if(k === 'wk')  return weekKey(r.end_date);
+  return dColLabel(r, k);
+}
 
 /* กรองตามตัวเลือกบนจอ · ตัวเดียวที่ตัดสินว่าอะไรถูกนับบ้าง
    ทั้ง KPI กราฟ และตาราง อ่านจากผลของฟังก์ชันนี้ชุดเดียวกัน
    จะได้ไม่มีทางที่ตัวเลขบนจอเดียวกันจะขัดกันเอง */
-function dashFiltered(){
+function dashFiltered(skipCol){
   const d = S.dash;
   const q = d.q.trim().toLowerCase();
   return d.rows.filter(r => {
@@ -1943,10 +1981,21 @@ function dashFiltered(){
     if(d.st   && statOf(r) !== d.st) return false;
     if(d.late && !isLate(r)) return false;   /* v5.2 */
     /* v5.4 ตัวกรองรายคอลัมน์ · ทุกช่องที่กรอกต้องผ่านหมด ไม่ใช่ผ่านช่องใดช่องหนึ่ง
-       เป็นแบบมีข้อความอยู่ข้างใน ไม่ใช่ตรงเป๊ะ เพราะหมายเหตุเป็นประโยคยาว */
+       v5.5 ช่องลูกศรเทียบตรงตัว ช่องพิมพ์เทียบแบบมีข้อความอยู่ข้างใน
+       ช่องลูกศรต้องตรงตัว ไม่งั้นเลือก W1 แล้วจะติด W10 W11 W12 มาด้วย
+
+       skipCol = ข้ามคอลัมน์นั้นตอนสร้างรายการตัวเลือกของมันเอง
+       ถ้าไม่ข้าม พอเลือกค่าหนึ่งแล้วรายการจะเหลือค่าเดียว กลับไปเลือกอย่างอื่นไม่ได้
+       บทเรียนเดียวกับที่ตัวเลือกของช่องกรองข้างบนสร้างจาก all ไม่ใช่ rows */
     for(const ck of DCOLS){
-      const cv = String((d.col && d.col[ck]) || '').trim().toLowerCase();
-      if(cv && !dColVal(r, ck).toLowerCase().includes(cv)) return false;
+      if(ck === skipCol) continue;
+      const cv = String((d.col && d.col[ck]) || '').trim();
+      if(!cv) continue;
+      if(DCOL_SEL.indexOf(ck) >= 0){
+        if(dColLabel(r, ck) !== cv) return false;
+      } else {
+        if(!dColLabel(r, ck).toLowerCase().includes(cv.toLowerCase())) return false;
+      }
     }
     if(q){
       const hay = (r.lot + ' ' + (r.lot_remark || '') + ' ' + (r.pd_remark || '') + ' ' +
@@ -2245,10 +2294,35 @@ function renderDash(){
       '</tr>' +
       /* v5.4 แถวช่องกรองรายคอลัมน์ · เว้นสามช่องท้ายไว้
          ตัดเป็นเปอร์เซ็นต์ มูลค่าเป็นตัวเลข สองอันนั้นกรองด้วยข้อความไม่ได้ความ
-         ใครอยากกรองตามความคืบหน้าให้ใช้ช่องสถานะข้างบน ซึ่งตรงกว่า */
+         ใครอยากกรองตามความคืบหน้าให้ใช้ช่องสถานะข้างบน ซึ่งตรงกว่า
+         v5.5 ช่องลูกศรสี่ช่อง ช่องพิมพ์สามช่อง · ดู DCOL_SEL / DCOL_TXT */
       '<tr class="dflt">' +
-        DCOLS.map(k => '<th><input class="dcf" data-dcol="' + k + '" placeholder="กรอง"' +
-                       ' value="' + esc((d.col && d.col[k]) || '') + '"></th>').join('') +
+        DCOLS.map(k => {
+          const cur = (d.col && d.col[k]) || '';
+          if(DCOL_TXT.indexOf(k) >= 0){
+            return '<th><input class="dcf" data-dcol="' + k + '" placeholder="กรอง"' +
+                   ' value="' + esc(cur) + '"></th>';
+          }
+          /* ตัวเลือกสร้างจากแถวที่ผ่านตัวกรองอื่นทั้งหมด ยกเว้นตัวมันเอง
+             จะได้ไม่เหลือตัวเลือกเดียวจนกลับไปเลือกอย่างอื่นไม่ได้ */
+          const seen = new Map();
+          dashFiltered(k).forEach(r => {
+            const lb = dColLabel(r, k);
+            if(lb && !seen.has(lb)) seen.set(lb, dColSort(r, k));
+          });
+          const opts = [...seen.keys()].sort((a,b) => {
+            const x = seen.get(a), y = seen.get(b);
+            return x < y ? -1 : x > y ? 1 : 0;
+          });
+          /* ค่าที่เลือกค้างอยู่ต้องมีในรายการเสมอ แม้ตัวกรองอื่นจะทำให้มันไม่เหลือแถว
+             ไม่งั้นช่องจะเด้งกลับเป็น "ทั้งหมด" เอง แล้วผลบนจอไม่ตรงกับที่เห็นในช่อง */
+          if(cur && opts.indexOf(cur) < 0) opts.unshift(cur);
+          return '<th><select class="dcs" data-dcol="' + k + '">' +
+            '<option value="">ทั้งหมด</option>' +
+            opts.map(o => '<option value="' + esc(o) + '"' +
+                          (o === cur ? ' selected' : '') + '>' + esc(o) + '</option>').join('') +
+            '</select></th>';
+        }).join('') +
         '<th></th><th></th><th></th>' +
       '</tr></thead><tbody>' +
       (shown.length ? shown.map(r => {
@@ -3452,6 +3526,16 @@ document.addEventListener('click', ev => {
 document.addEventListener('change', ev => {
   /* v4.0 ช่องเลือกของแท็บภาพรวม · เปลี่ยนปีหรือสายผลิตแล้วเดือนที่กรองค้างอยู่
      อาจไม่มีอยู่จริงในชุดใหม่ ล้างทิ้งด้วย ไม่งั้นจอจะว่างโดยไม่รู้สาเหตุ */
+  /* v5.5 ลูกศรของช่องกรองรายคอลัมน์ · เลือกแล้ววาดใหม่ทันที ไม่ต้องหน่วง
+     ไม่มีเคอร์เซอร์ให้คืน ต่างจากช่องพิมพ์ซึ่งไปจัดการที่ตัวจับ input */
+  const dcol = ev.target.dataset && ev.target.dataset.dcol;
+  if(dcol && ev.target.tagName === 'SELECT'){
+    if(!S.dash.col) S.dash.col = {};
+    S.dash.col[dcol] = ev.target.value;
+    render();
+    return;
+  }
+
   const dk = ev.target.dataset && ev.target.dataset.dsel;
   if(dk){
     S.dash[dk] = ev.target.value;
@@ -3493,7 +3577,7 @@ document.addEventListener('input', ev => {
      กลไกเดียวกับช่องค้นหาข้างบนเป๊ะ · renderDash() เขียน innerHTML ทั้งก้อน
      ช่องที่กำลังพิมพ์จะหายไปทุกตัวอักษรถ้าไม่จดตำแหน่งเคอร์เซอร์ไว้
      ต้องหาช่องเดิมด้วย data-dcol ไม่ใช่หยิบช่องแรกที่เจอ ไม่งั้นโฟกัสจะกระโดดข้ามคอลัมน์ */
-  if(el.dataset && el.dataset.dcol){
+  if(el.dataset && el.dataset.dcol && el.tagName === 'INPUT'){
     const k = el.dataset.dcol, pos = el.selectionStart;
     if(!S.dash.col) S.dash.col = {};
     S.dash.col[k] = el.value;
