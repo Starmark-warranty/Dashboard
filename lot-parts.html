@@ -5,8 +5,53 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Ax Progress · รายชิ้นในลอต</title>
 <!-- =====================================================================
-  Lot Parts · รายชิ้นในลอต        ·   VERSION 5.3
+  Lot Parts · รายชิ้นในลอต        ·   VERSION 5.5
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  5.5  2026-09-11  FEAT ตารางวัตถุดิบแยก "แผ่นที่ต้องตัด" ออกจาก "อุปกรณ์"
+                   ที่มา: เจ้าของงานอยากรู้ว่าแผ่นพร้อมตัดหรือยัง ติดแค่อุปกรณ์
+                   ของเดิมสองอย่างปนกัน 49 บรรทัด ต้องไล่อ่านรหัสทีละตัว
+                   · หัวกลุ่มบอกจำนวนรายการ ยังเบิกไม่ครบกี่ตัว
+                     และของในคลังไม่พอกี่ตัว แยกกันคนละกลุ่ม
+                     เห็นทีเดียวว่า "แผ่นเบิกครบแล้ว · อุปกรณ์ไม่พอ 3"
+                   · ไม่ได้ดูจากคลังต้นทางเป็นตัวตัดสิน ทั้งที่ดูเผิน ๆ
+                     เหมือน RM01 คือแผ่น RM02 คืออุปกรณ์ · ตรวจแล้วไม่จริง
+                     รหัส 81019000 อยู่ RM01 เหมือนกันแต่เป็นเอจ ABS ไม่ใช่แผ่น
+                   · ใช้รูปรหัสแทน · สองตัวอักษร ตามด้วยสองตัวเลข ยาว 22 หรือ 25
+                     ตรวจกับ lot_rm ทั้งตารางแล้ว เข้าเงื่อนไข 54 รหัส
+                     เป็น ME PE PB MD PW MV FJ ทั้งหมดมาจาก RM01 กับ PD01
+                     ไม่มีของจาก RM02 หลุดเข้ามาสักตัว
+                   NOTE ถ้าวันหน้า AX เพิ่มรหัสแผ่นรูปแบบใหม่ที่ไม่เข้าเงื่อนไข
+                   มันจะไปโผล่ฝั่งอุปกรณ์ ไม่ได้หายไปไหน · สังเกตเห็นได้ทันที
+                   เพราะสองกลุ่มอยู่บนจอเดียวกัน · ตั้งใจให้พลาดแบบเห็นได้
+                   ดีกว่าพลาดแบบเงียบ
+                   · เรียงลำดับเดิมภายในกลุ่ม ไม่ได้จัดเรียงใหม่
+                     คนที่ชินลำดับเดิมยังหาของเจอที่เดิมในกลุ่มของมัน
+                   · แถวสร้างจากฟังก์ชันตัวเดียวเรียกสองครั้ง ไม่ได้ก๊อปโค้ดสองชุด
+                   ยังไม่ได้ทดสอบบนเครื่องจริงหน้าไลน์
+
+  5.4  2026-09-11  FEAT กรองรายคอลัมน์ในตารางรายการลอต
+                   ช่องกรองอยู่ใต้หัวตาราง เจ็ดคอลัมน์
+                   ลอต · กำหนดเสร็จ · สัปดาห์ · สายผลิต · ชั้น · หมายเหตุสองช่อง
+                   · เป็นแบบ "มีข้อความนี้อยู่ข้างใน" ไม่ใช่ตรงเป๊ะ
+                     เพราะหมายเหตุเป็นประโยคยาว ตรงเป๊ะจะไม่มีวันเจอ
+                   · ทุกช่องที่กรอกต้องผ่านหมด ไม่ใช่ผ่านช่องใดช่องหนึ่ง
+                   · เทียบกับสิ่งที่ตาเห็นบนจอ ไม่ใช่ค่าดิบในฐาน
+                     พิมพ์ "ก.ย." ต้องเจอ ทั้งที่ในฐานเก็บเป็น 2026-09-16
+                     ช่องกำหนดเสร็จรับทั้งสองแบบ คนที่ชินเลขดิบก็พิมพ์ได้
+                   · ไม่ทำช่องกรองให้คอลัมน์ตัดกับมูลค่า สองอันนั้นเป็นตัวเลข
+                     กรองด้วยข้อความไม่ได้ความ · อยากกรองความคืบหน้า
+                     ให้ใช้ช่องสถานะข้างบนซึ่งตรงกว่า
+                   · ปุ่มล้างโผล่บนแถบกรองข้างบนเมื่อมีการกรองค้างอยู่
+                     เพราะช่องกรองอยู่ในตารางซึ่งต้องเลื่อนลงไปถึงจะเห็น
+                     กรองค้างแล้วเลื่อนขึ้นมา จะงงว่าทำไมลอตหายไปหมด
+                   · ตัวกรองอยู่ในเส้นทางเดียวกับ KPI กราฟ และ Export
+                     กรองแล้วกด Export ได้เฉพาะที่กรอง ไม่ใช่ทั้งหมด
+                   NOTE กลไกคืนตำแหน่งเคอร์เซอร์ · renderDash เขียน innerHTML
+                   ทั้งก้อน ช่องที่กำลังพิมพ์จะหายไปทุกตัวอักษรถ้าไม่จดไว้ก่อน
+                   และต้องหาช่องเดิมด้วย data-dcol ไม่ใช่หยิบช่องแรกที่เจอ
+                   ไม่งั้นโฟกัสจะกระโดดข้ามคอลัมน์ · ใครมาแก้ อย่าทำให้กลไกนี้หาย
+                   ยังไม่ได้ทดสอบบนเครื่องจริงหน้าไลน์
+
   5.3  2026-09-11  FEAT ป้ายสัปดาห์ปัจจุบันมุมขวาของแถบเครื่องมือ
                    เห็นจากทุกแท็บ · W37 ตัวใหญ่ ตามด้วยช่วงวันจันทร์ถึงอาทิตย์
                    หน้างานเรียกงานกันด้วยเลขสัปดาห์อยู่แล้ว แต่ต้องเปิดปฏิทิน
@@ -899,6 +944,26 @@ thead th.tick-col .th-s:empty{display:none}
 .state-filter{position:absolute;left:2px;top:3px;box-sizing:border-box;width:calc(100% - 4px);min-width:0;height:23px;padding:0;font:16px "Segoe UI Symbol","Segoe UI",sans-serif;color:var(--tx);background:var(--card);border:1px solid var(--line);border-radius:4px;cursor:pointer}
 .state-filter:focus{outline:2px solid var(--brand)}
 
+/* v5.5 หัวกลุ่มในตารางวัตถุดิบ · แผ่นที่ต้องตัด กับ อุปกรณ์
+   ไม่ใช่แถวข้อมูล กดไม่ได้ ทำให้ต่างจากแถวปกติชัด ๆ ด้วยพื้นกับเส้นหนา */
+tr.rmgrp td{background:var(--band);border-top:2px solid var(--line);
+  border-bottom:1px solid var(--line);font-weight:700;font-size:12px;color:var(--tx);
+  padding:7px 9px !important}
+tr.rmgrp .n{font-family:var(--mono);font-weight:600;font-size:11.5px;color:var(--mu);margin-left:6px}
+tr.rmgrp .s{font-family:var(--sans);font-weight:400;font-size:11.5px;color:var(--mu);margin-left:8px}
+
+/* v5.4 แถวช่องกรองใต้หัวตารางรายการลอต · ใช้สีแถวกรองชุดเดียวกับตารางรายชิ้น */
+.dtab thead tr.dflt th{background:var(--flt);padding:3px 4px;position:sticky;top:28px;z-index:19}
+/* 28px = ความสูงของแถวหัวตาราง (ตัวอักษร 10.5px + padding 7px บนล่าง + เส้น 1px)
+   ถ้าไปแก้ padding หรือขนาดตัวอักษรของ table.dtab th ต้องมาแก้เลขนี้ด้วย
+   ไม่งั้นแถวกรองจะทับหัวตารางหรือลอยห่างออกมาเวลาเลื่อน */
+.dcf{width:100%;box-sizing:border-box;min-width:56px;
+  border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--tx);
+  font-family:var(--sans);font-size:11.5px;font-weight:400;padding:3px 6px}
+.dcf::placeholder{color:var(--mu2);font-weight:400}
+.dcf:focus{outline:2px solid var(--brand);border-color:var(--brand)}
+@media(max-width:640px){ .dcf{min-height:32px;font-size:12px} }
+
 /* v5.3 ป้ายสัปดาห์ปัจจุบัน · ดันไปขวาสุดของแถบด้วย margin-left:auto
    ตัวเลขสัปดาห์เป็น mono · ช่วงวันที่มีชื่อเดือนไทยจึงต้องเป็น sans
    ฟอนต์ mono ไม่มีตัวอักษรไทย ใส่แล้วบรรทัดจะเพี้ยน */
@@ -1278,6 +1343,7 @@ const S = {
     rows:[], loaded:false, busy:'', err:'',
     year:'', pool:'', bu:'', st:'', mon:'', wk:'', q:'',
     late:false,              // v5.2 เอาเฉพาะลอตที่เลยกำหนดแล้วยังไม่จบ
+    col:{},                  // v5.4 ตัวกรองรายคอลัมน์ของตารางรายการลอต { คีย์: ข้อความ }
     rmHave:{},               // { ชื่อลอต: จำนวนรายการวัตถุดิบที่มีอยู่แล้ว }
     sort:'amount',           // amount | end | lot
   },
@@ -1842,6 +1908,25 @@ function statOf(r){
 const DASH_ST = ['ยังไม่เริ่ม','กำลังตัด','ตัดครบ รอเข้าคลัง','เข้าคลังครบ','ไม่มีรายชิ้น'];
 const ST_DONE = 'เข้าคลังครบ';   /* ที่เดียวที่นิยามคำว่า "จบ" · จะเปลี่ยนก็เปลี่ยนตรงนี้ */
 
+/* v5.4 ค่าที่ใช้เทียบของแต่ละคอลัมน์ในตารางรายการลอต
+   ต้องเทียบกับสิ่งที่ตาเห็นบนจอ ไม่ใช่ค่าดิบในฐาน
+   ไม่งั้นพิมพ์ "ก.ย." แล้วไม่เจอ ทั้งที่บนจอเขียนว่า ก.ย. ชัด ๆ
+   ช่องกำหนดเสร็จเอาทั้งสองแบบ คนที่ชินกับ 2026-09-16 ก็ต้องพิมพ์ได้ */
+function dColVal(r, k){
+  switch(k){
+    case 'lot':   return String(r.lot || '');
+    case 'end':   return dayTh(r.end_date) + ' ' + String(r.end_date || '');
+    case 'wk':    return weekTx(r.end_date);
+    case 'pool':  return String(r.prod_pool || '');
+    case 'shelf': return String(r.shelf || '');
+    case 'rm':    return String(r.lot_remark || '');
+    case 'pd':    return String(r.pd_remark || '');
+    default:      return '';
+  }
+}
+/* คอลัมน์ที่กรองได้ · เรียงตามที่อยู่บนจอ ใช้สร้างทั้งช่องกรองและการเทียบ */
+const DCOLS = ['lot','end','wk','pool','shelf','rm','pd'];
+
 /* กรองตามตัวเลือกบนจอ · ตัวเดียวที่ตัดสินว่าอะไรถูกนับบ้าง
    ทั้ง KPI กราฟ และตาราง อ่านจากผลของฟังก์ชันนี้ชุดเดียวกัน
    จะได้ไม่มีทางที่ตัวเลขบนจอเดียวกันจะขัดกันเอง */
@@ -1857,6 +1942,12 @@ function dashFiltered(){
     if(d.bu   && (buOf(r) || 'ไม่ระบุ') !== d.bu) return false;
     if(d.st   && statOf(r) !== d.st) return false;
     if(d.late && !isLate(r)) return false;   /* v5.2 */
+    /* v5.4 ตัวกรองรายคอลัมน์ · ทุกช่องที่กรอกต้องผ่านหมด ไม่ใช่ผ่านช่องใดช่องหนึ่ง
+       เป็นแบบมีข้อความอยู่ข้างใน ไม่ใช่ตรงเป๊ะ เพราะหมายเหตุเป็นประโยคยาว */
+    for(const ck of DCOLS){
+      const cv = String((d.col && d.col[ck]) || '').trim().toLowerCase();
+      if(cv && !dColVal(r, ck).toLowerCase().includes(cv)) return false;
+    }
     if(q){
       const hay = (r.lot + ' ' + (r.lot_remark || '') + ' ' + (r.pd_remark || '') + ' ' +
                    (r.proj_name || '')).toLowerCase();
@@ -2018,6 +2109,8 @@ function renderDash(){
     .sort((a,b) => a.k < b.k ? -1 : 1)
     .slice(0, 6);
   const lateAll = wkBase.filter(r => isLate(r, today)).length;
+  /* v5.4 กรองคอลัมน์อยู่กี่ช่อง · ใช้ตัดสินว่าจะโชว์ปุ่มล้างไหม */
+  const nCol = DCOLS.filter(k => String((d.col && d.col[k]) || '').trim()).length;
 
   /* ตาราง · จำกัดจำนวนแถวไว้ ไม่งั้นสี่พันแถวจะหน่วงตอนวาด
      คนที่อยากได้ครบกด Export เอา ซึ่งไม่ได้ตัดที่ 300 */
@@ -2066,6 +2159,9 @@ function renderDash(){
       '<button class="btn' + (d.late ? ' on' : '') + '" data-act="dlate"' +
         ' title="ลอตที่เลยกำหนดเสร็จแล้วแต่ยังไม่เข้าคลังครบ">เลยกำหนด ' +
         nf0.format(lateAll) + '</button>' +
+      /* v5.4 ช่องกรองรายคอลัมน์อยู่ในตารางซึ่งต้องเลื่อนลงไปถึงจะเห็น
+         ถ้ากรองค้างไว้แล้วเลื่อนขึ้นมา จะงงว่าทำไมลอตหาย ปุ่มนี้จึงต้องอยู่ข้างบน */
+      (nCol ? '<button class="btn on" data-act="dclrcol">กรองคอลัมน์ ' + nCol + ' ช่อง ×</button>' : '') +
       (d.mon ? '<button class="btn on" data-act="dclrmon">เดือน ' + esc(monTh(d.mon)) + ' ×</button>' : '') +
       (d.wk  ? '<button class="btn on" data-act="dclrwk">' + esc(weekTx(d.wk)) +
                ' (' + esc(dayTh(d.wk)) + ') ×</button>' : '') +
@@ -2146,6 +2242,14 @@ function renderDash(){
         '<th>ลอต</th><th>กำหนดเสร็จ</th><th>สัปดาห์</th><th>สายผลิต</th><th>ชั้น</th>' +
         '<th>หมายเหตุลอต</th><th>หมายเหตุวางแผน</th><th>ตัด</th><th style="text-align:right">มูลค่า</th>' +
         '<th></th>' +
+      '</tr>' +
+      /* v5.4 แถวช่องกรองรายคอลัมน์ · เว้นสามช่องท้ายไว้
+         ตัดเป็นเปอร์เซ็นต์ มูลค่าเป็นตัวเลข สองอันนั้นกรองด้วยข้อความไม่ได้ความ
+         ใครอยากกรองตามความคืบหน้าให้ใช้ช่องสถานะข้างบน ซึ่งตรงกว่า */
+      '<tr class="dflt">' +
+        DCOLS.map(k => '<th><input class="dcf" data-dcol="' + k + '" placeholder="กรอง"' +
+                       ' value="' + esc((d.col && d.col[k]) || '') + '"></th>').join('') +
+        '<th></th><th></th><th></th>' +
       '</tr></thead><tbody>' +
       (shown.length ? shown.map(r => {
         const t = Number(r.total_all) || 0, c = cutOf(r);
@@ -2347,6 +2451,19 @@ async function askRm(){
   renderRm();
 }
 
+/* v5.5 แผ่นที่ต้องตัด หรืออุปกรณ์
+   ไม่ได้ดูจากคลังต้นทาง เพราะ RM01 มีทั้งแผ่นและของอื่นปนกัน
+   เช่นรหัส 81019000 อยู่ RM01 เหมือนกันแต่เป็นเอจ ABS ไม่ใช่แผ่น
+   ดูจากรูปรหัสแทน · สองตัวอักษร ตามด้วยสองตัวเลข และยาว 22 หรือ 25 ตัว
+   ตรวจกับ lot_rm ทั้งตารางแล้ว เข้าเงื่อนไข 54 รหัส เป็น ME PE PB MD PW MV FJ
+   ทั้งหมดมาจาก RM01 กับ PD01 ไม่มีของจาก RM02 หลุดเข้ามาสักตัว
+   ถ้าวันหน้า AX เพิ่มรหัสแผ่นรูปแบบใหม่ มันจะไปโผล่ฝั่งอุปกรณ์ ไม่ได้หายไปไหน
+   ซึ่งสังเกตเห็นได้ทันทีเพราะสองกลุ่มอยู่บนจอเดียวกัน */
+function isBoardCode(id){
+  const s = String(id || '');
+  return /^[A-Z]{2}\d{2}/.test(s) && (s.length === 22 || s.length === 25);
+}
+
 function renderRm(){
   const box = $('rmBody'), R = S.rm;
   if(!R.lot){ box.innerHTML = '<div class="sub">ยังไม่ได้เลือกลอต</div>'; return; }
@@ -2363,6 +2480,10 @@ function renderRm(){
     const nm = id => (R.names[id] && R.names[id].product_name) || '';
     const un = r => r.unit || (R.names[r.item_id] && R.names[r.item_id].unit) || '';
     const got = R.rows.filter(r => nm(r.item_id)).length;
+    /* v5.5 แยกสองกลุ่ม · เรียงลำดับเดิมภายในกลุ่ม ไม่ได้จัดเรียงใหม่
+       คนที่ชินลำดับเดิมจะยังหาของเจอที่เดิมในกลุ่มของมัน */
+    const boards = R.rows.filter(r => isBoardCode(r.item_id));
+    const parts  = R.rows.filter(r => !isBoardCode(r.item_id));
     /* v5.1 นับรายการที่ของในคลังไม่พอกับที่ยังต้องเบิก
        นับเฉพาะตอนอ่านยอดมาได้แล้ว ไม่งั้นจะขึ้นว่าขาดทุกรายการตอนยังโหลดไม่เสร็จ */
     const ohReady = R.onhandLoaded;
@@ -2398,7 +2519,11 @@ function renderRm(){
         '<th style="text-align:right">พอไหม</th>' +
         '<th>หน่วย</th><th>คลัง</th><th>ต้องการ</th>' +
       '</tr></thead><tbody>' +
-      R.rows.map(r => {
+      /* v5.5 แบ่งเป็นสองกลุ่ม แผ่นก่อน อุปกรณ์ทีหลัง · แถวหน้าตาเหมือนเดิมทุกช่อง
+         สร้างแถวด้วยฟังก์ชันตัวเดียวแล้วเรียกสองครั้ง ไม่ได้ก๊อปโค้ดสองชุด
+         ถ้าแก้หน้าตาแถวทีหลัง จะได้ไม่ต้องจำว่ามีอีกที่หนึ่งที่ต้องแก้ตาม */
+      (function(){
+        const rowHtml = r => {
         const need = Number(r.bom_qty) || 0, iss = Number(r.issue_qty) || 0;
         const left = need - iss;
         /* v5.1 ยอดคงเหลือ · ไม่มีแถวในคลัง = ไม่มีของ ไม่ใช่ไม่รู้
@@ -2432,7 +2557,36 @@ function renderRm(){
           '<td class="mono">' + esc([r.from_loc, r.to_loc].filter(Boolean).join(' → ')) + '</td>' +
           '<td>' + esc(dayTh(r.delivery_date)) + '</td>' +
         '</tr>';
-      }).join('') +
+        };
+
+        /* สรุปของแต่ละกลุ่ม · ยังเบิกไม่ครบกี่รายการ และของในคลังไม่พอกี่รายการ
+           ตอบคำถาม "แผ่นพร้อมตัดหรือยัง" กับ "ติดที่อุปกรณ์ตัวไหน" แยกกันคนละบรรทัด */
+        const grpHead = (title, list) => {
+          const noIssue = list.filter(r => (Number(r.bom_qty)||0) > (Number(r.issue_qty)||0)).length;
+          const noStock = !ohReady ? -1 : list.filter(r => {
+            const lf = (Number(r.bom_qty)||0) - (Number(r.issue_qty)||0);
+            if(lf <= 0) return false;
+            const o = R.onhand[r.item_id];
+            return (o ? (Number(o.qty_avail) || 0) : 0) < lf;
+          }).length;
+          let tail;
+          if(!noIssue)          tail = '<b style="color:var(--ok)">เบิกครบแล้ว</b>';
+          else if(noStock < 0)  tail = 'ยังเบิกไม่ครบ ' + nf0.format(noIssue) + ' รายการ';
+          else if(noStock === 0) tail = 'ยังเบิกไม่ครบ ' + nf0.format(noIssue) + ' รายการ · ' +
+                                        '<b style="color:var(--ok)">ของในคลังพอทุกตัว</b>';
+          else                  tail = 'ยังเบิกไม่ครบ ' + nf0.format(noIssue) + ' รายการ · ' +
+                                       '<b style="color:var(--bad)">ของในคลังไม่พอ ' +
+                                       nf0.format(noStock) + ' รายการ</b>';
+          return '<tr class="rmgrp"><td colspan="11">' + esc(title) +
+                 ' <span class="n">' + nf0.format(list.length) + ' รายการ</span>' +
+                 ' <span class="s">' + tail + '</span></td></tr>';
+        };
+
+        let out = '';
+        if(boards.length) out += grpHead('แผ่นที่ต้องตัด', boards) + boards.map(rowHtml).join('');
+        if(parts.length)  out += grpHead('อุปกรณ์',        parts)  + parts.map(rowHtml).join('');
+        return out;
+      })() +
       '</tbody></table></div>' +
       '<div style="margin-top:8px"><button class="btn" data-act="rmask">⤓ ดึงใหม่จาก AX</button></div>';
   } else {
@@ -3224,6 +3378,7 @@ document.addEventListener('click', ev => {
     render(); return;
   }
   if(act === 'dlate'){ S.dash.late = !S.dash.late; render(); return; }
+  if(act === 'dclrcol'){ S.dash.col = {}; render(); return; }   /* v5.4 */
   if(act === 'dreload'){ loadDash(true); return; }
   if(act === 'dlot'){
     /* กดแถวในตารางภาพรวม = กระโดดไปดูรายชิ้นของลอตนั้น
@@ -3329,6 +3484,23 @@ document.addEventListener('input', ev => {
     fltTimer = setTimeout(() => {
       render();
       const again = document.querySelector('[data-dsrch]');
+      if(again){ again.focus(); try { again.setSelectionRange(pos, pos); } catch(e){} }
+    }, 220);
+    return;
+  }
+
+  /* v5.4 ช่องกรองรายคอลัมน์ของตารางรายการลอต
+     กลไกเดียวกับช่องค้นหาข้างบนเป๊ะ · renderDash() เขียน innerHTML ทั้งก้อน
+     ช่องที่กำลังพิมพ์จะหายไปทุกตัวอักษรถ้าไม่จดตำแหน่งเคอร์เซอร์ไว้
+     ต้องหาช่องเดิมด้วย data-dcol ไม่ใช่หยิบช่องแรกที่เจอ ไม่งั้นโฟกัสจะกระโดดข้ามคอลัมน์ */
+  if(el.dataset && el.dataset.dcol){
+    const k = el.dataset.dcol, pos = el.selectionStart;
+    if(!S.dash.col) S.dash.col = {};
+    S.dash.col[k] = el.value;
+    clearTimeout(fltTimer);
+    fltTimer = setTimeout(() => {
+      render();
+      const again = document.querySelector('[data-dcol="' + CSS.escape(k) + '"]');
       if(again){ again.focus(); try { again.setSelectionRange(pos, pos); } catch(e){} }
     }, 220);
     return;
