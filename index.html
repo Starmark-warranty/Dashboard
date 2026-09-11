@@ -5,8 +5,19 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=5.0,user-scalable=yes">
 <title>Cutting Center Dashboard</title>
 <!-- =====================================================================
-  Cutting Center Dashboard   ·   VERSION 13.21
+  Cutting Center Dashboard   ·   VERSION 13.22
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  13.22 2026-09-11  FIX กล่อง lot ขึ้น "AX ไม่มีข้อมูลของ lot นี้" ทั้งที่ฐานข้อมูลมี
+                    fetchLotProgress() ขอ limit=5000 มาทีเดียว แต่ PostgREST ของ
+                    Supabase ตั้ง max-rows ไว้ 1000 · limit ที่ขอเกินไม่มีผล
+                    เซิร์ฟเวอร์คืนแค่ 1000 แถวแรกแล้วจบ ไม่แจ้ง error ออกมาเลย
+                    ตอนนี้ lot_progress มี 2,893 แถว · lot ใหม่ ๆ อยู่แถวที่ 1,900+
+                    จึงไม่เคยถูกส่งกลับมา กล่อง lot เลยไม่รู้ยอดรวมของงานที่กำลังทำ
+                    ซึ่งเป็นงานที่คนเปิดดูบ่อยที่สุด
+                    · เปลี่ยนเป็นดึงทีละ 1000 แถววนจนหมด แบบเดียวกับ supaFetchRows
+                    · ใส่ order=lot.asc ด้วย เลื่อน offset โดยไม่มี order แถวอาจซ้ำ/หาย
+                    · พังกลางคันเอาเท่าที่ได้มาใช้ก่อน ดีกว่าไม่รู้ยอดเลยสักตัว
+                    ยังไม่ได้ทดสอบจริง (แก้ที่ฝั่งดึงข้อมูลอย่างเดียว ไม่แตะการแสดงผล)
   13.21 2026-09-08  CHANGE ปุ่ม "รายชิ้นในลอต" เปิดแท็บใหม่ แทนกรอบซ้อนในหน้าเดิม
                     ตารางรายชิ้นเป็นของที่เปิดค้างไว้แล้วสลับไปมากับจอหลัก
                     ฝังในหน้าเดียวกันแปลว่าต้องปิดก่อนถึงจะเห็นจอหลัก ขัดกับ
@@ -6852,18 +6863,36 @@ function buildLotRows(recs, fromDate){
   supaLotRows = keep.concat(fresh);
 }
 
+/* v13.22 ต้องดึงทีละหน้าเหมือน check_part
+   ของเดิมขอ limit=5000 มาทีเดียว แต่ PostgREST ของ Supabase ตั้ง max-rows ไว้ 1000
+   limit ที่ขอมากกว่านั้นไม่มีผล เซิร์ฟเวอร์คืนมาแค่ 1000 แถวแรกแล้วจบ ไม่ขึ้น error
+   ตอนตารางยังไม่ถึงพันแถวจึงดูเหมือนทำงานปกติ · พอ lot สะสมเกินพัน
+   lot ใหม่ ๆ ที่อยู่ท้ายตารางจะไม่ถูกส่งกลับมา กล่อง lot เลยขึ้นว่า
+   "AX ไม่มีข้อมูลของ lot นี้" ทั้งที่ในฐานข้อมูลมียอดอยู่ครบ
+   ต้องมี order ที่แน่นอนด้วย ไม่งั้นเลื่อน offset ไปแล้วแถวอาจซ้ำหรือหาย */
 async function fetchLotProgress(){
+  const cols = 'lot,proj_name,total_parts,checked_parts,total_all,checked_all';
+  const PAGE = 1000;
+  const m = {};
+  let got = 0;
   try{
-    const u = SUPA.url.replace(/\/+$/,'') + '/rest/v1/lot_progress?select=lot,proj_name,total_parts,checked_parts,total_all,checked_all&limit=5000';
-    const res = await fetch(u, { headers:{ apikey:SUPA.key, Authorization:'Bearer '+SUPA.key } });
-    if(!res.ok) throw new Error('HTTP ' + res.status);
-    const arr = await res.json();
-    const m = {};
-    arr.forEach(x => { m[x.lot] = x; });
+    for(let off = 0; off < 100000; off += PAGE){
+      const u = SUPA.url.replace(/\/+$/,'')
+        + '/rest/v1/lot_progress?select=' + cols
+        + '&order=lot.asc&limit=' + PAGE + '&offset=' + off;
+      const res = await fetch(u, { headers:{ apikey:SUPA.key, Authorization:'Bearer '+SUPA.key } });
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      const arr = await res.json();
+      arr.forEach(x => { m[x.lot] = x; });
+      got += arr.length;
+      if(arr.length < PAGE) break;   // หน้าสุดท้ายแล้ว
+    }
     lotProg = m;
   }catch(e){
     // ตารางนี้เป็นของเสริม ถ้าดึงไม่ได้ก็ยังดูยอดของเครื่องได้ตามปกติ
-    console.warn('[supa] ดึง lot_progress ไม่ได้ (จะไม่มีความคืบหน้าราย lot):', e.message);
+    // ถ้าพังกลางคัน เอาเท่าที่ได้มาใช้ก่อน ดีกว่าทิ้งทั้งก้อนแล้วไม่รู้ยอดเลยสักตัว
+    if(got) lotProg = m;
+    console.warn('[supa] ดึง lot_progress ไม่ครบ (ได้ ' + got + ' แถว):', e.message);
   }
 }
 
