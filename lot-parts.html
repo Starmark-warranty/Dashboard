@@ -5,8 +5,36 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Ax Progress · รายชิ้นในลอต</title>
 <!-- =====================================================================
-  Lot Parts · รายชิ้นในลอต        ·   VERSION 5.6
+  Lot Parts · รายชิ้นในลอต        ·   VERSION 5.7
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  5.7  2026-09-11  FEAT กดหัวตารางเพื่อเรียง ทุกคอลัมน์ · กดซ้ำสลับขึ้นลง
+                   ที่มา: เจ้าของงานขอให้เรียงตามสัปดาห์เสมอ หรือไม่ก็มีตัวเรียงให้
+                   ทำอย่างหลัง เพราะได้ทั้งสองอย่างในทีเดียว
+                   · ค่าเริ่มต้นเปลี่ยนเป็นกำหนดเสร็จจากใกล้ไปไกล
+                     ซึ่งคือลำดับสัปดาห์ในตัวมันเอง และละเอียดกว่าเรียงตามสัปดาห์
+                     เพราะในสัปดาห์เดียวกันยังเรียงตามวันต่อให้อีกชั้น
+                     ของเดิมเริ่มที่มูลค่ามากไปน้อย ซึ่งตอบ "งานไหนก่อน" ไม่ได้
+                   · คอลัมน์ใหม่เริ่มที่ทิศที่คนคาด · ชื่อกับหมายเหตุ ก-ฮ
+                     วันที่ใกล้สุดก่อน · เงินกับความคืบหน้ามากไปน้อย
+                     ไม่มีใครอยากเห็นลอตราคาถูกที่สุดขึ้นก่อน
+                   · ลูกศรโชว์เฉพาะคอลัมน์ที่เรียงอยู่ ไม่ใส่จาง ๆ ทุกหัว
+                     ซึ่งจะเป็นลูกศรเก้าตัวเรียงกันจนไม่รู้ว่าอันไหนทำงานอยู่
+                   · ค่าเท่ากันตัดสินด้วยชื่อลอตเสมอ ไม่งั้นกดเรียงซ้ำ
+                     แถวที่ค่าเท่ากันจะสลับที่กันเองทุกครั้ง ดูเหมือนจอกะพริบมั่ว
+                   · ช่องว่างไปท้ายสุดเสมอ ทั้งตอนเรียงขึ้นและตอนเรียงลง
+                     ลอตที่ไม่มีกำหนดเสร็จมี 617 ตัว ลอยขึ้นหัวเมื่อไหร่
+                     ก็บังของที่ต้องรีบหมด · "ไม่มีข้อมูล" ไม่ใช่ค่ามากหรือน้อย
+                     มันคือคนละเรื่องกับการเรียง จึงไม่คูณด้วยทิศ
+                     ตอนแรกผมใช้ค่าจอมปลอม 9999-99-99 ซึ่งได้ผลทางเดียว
+                     พอกดสลับทิศมันลอยขึ้นหัวทันที · เจอตอนทดสอบ
+                   · เรียงตามความคืบหน้าได้ด้วย · คิดเป็นตัวเลขตัวเดียว
+                     จำนวนขั้นที่ครบ บวกเศษของขั้นที่กำลังทำ
+                     ตัด 50% = 0.5 · ตัดครบรอแพ็ค = 1.0 · จบทุกขั้น = 4.0
+                     ลอตที่ไม่มีรายชิ้นได้ -1 ไปท้ายสุด เพราะบอกไม่ได้ว่าคืบแค่ไหน
+                   · ช่อง "เรียงตาม" เดิมยังอยู่ เขียน state ตัวเดียวกัน
+                     คนที่ชินของเดิมยังใช้ได้ ไม่ได้ถอดอะไรทิ้ง
+                   ยังไม่ได้ทดสอบบนเครื่องจริงหน้าไลน์
+
   5.6  2026-09-11  CHANGE คอลัมน์ "ตัด" เป็น "ความคืบหน้า" บอกสี่ขั้น
                    ที่มา: เจ้าของงานบอกว่าคอลัมน์นี้ควรบอกว่างานไปถึงขั้นไหนแล้ว
                    ของเดิมโชว์ขั้นตัดขั้นเดียว · ตัดครบ 100% ไม่ได้แปลว่าจบ
@@ -1001,6 +1029,12 @@ tr.rmgrp td{background:var(--band);border-top:2px solid var(--line);
 tr.rmgrp .n{font-family:var(--mono);font-weight:600;font-size:11.5px;color:var(--mu);margin-left:6px}
 tr.rmgrp .s{font-family:var(--sans);font-weight:400;font-size:11.5px;color:var(--mu);margin-left:8px}
 
+/* v5.7 หัวตารางที่กดเรียงได้ · ต้องดูออกว่ากดได้โดยไม่ต้องลองกด */
+.dtab th.so{cursor:pointer;user-select:none}
+.dtab th.so:hover{background:var(--hov);color:var(--tx)}
+.dtab th.so.on{color:var(--brand)}
+.dtab th.so .ar{font-family:var(--sans);font-size:9px;margin-left:4px;vertical-align:1px}
+
 /* v5.4 แถวช่องกรองใต้หัวตารางรายการลอต · ใช้สีแถวกรองชุดเดียวกับตารางรายชิ้น */
 .dtab thead tr.dflt th{background:var(--flt);padding:3px 4px;position:sticky;top:28px;z-index:19}
 /* 28px = ความสูงของแถวหัวตาราง (ตัวอักษร 10.5px + padding 7px บนล่าง + เส้น 1px)
@@ -1425,7 +1459,11 @@ const S = {
     late:false,              // v5.2 เอาเฉพาะลอตที่เลยกำหนดแล้วยังไม่จบ
     col:{},                  // v5.4 ตัวกรองรายคอลัมน์ของตารางรายการลอต { คีย์: ข้อความ }
     rmHave:{},               // { ชื่อลอต: จำนวนรายการวัตถุดิบที่มีอยู่แล้ว }
-    sort:'amount',           // amount | end | lot
+    /* v5.7 เรียงตามคอลัมน์ · กดหัวตารางสลับขึ้นลงได้ทุกคอลัมน์
+       ค่าเริ่มต้นเป็นกำหนดเสร็จจากใกล้ไปไกล ซึ่งคือลำดับสัปดาห์ในตัวมันเอง
+       ของเดิมเริ่มที่มูลค่ามากไปน้อย ซึ่งตอบคำถาม "งานไหนก่อน" ไม่ได้ */
+    sortKey:'end',           // lot|end|wk|pool|shelf|rm|pd|prog|amount
+    sortDir:'asc',           // asc | desc
   },
 
   /* v4.3 วัตถุดิบของลอตที่เปิดอยู่ · โหลดตอนกดดู ไม่ได้โหลดพร้อมหน้า */
@@ -2222,10 +2260,22 @@ function renderDash(){
   /* ตาราง · จำกัดจำนวนแถวไว้ ไม่งั้นสี่พันแถวจะหน่วงตอนวาด
      คนที่อยากได้ครบกด Export เอา ซึ่งไม่ได้ตัดที่ 300 */
   const CAP = 300;
+  const dir = d.sortDir === 'desc' ? -1 : 1;
   const sorted = rows.slice().sort((a,b) => {
-    if(d.sort === 'end')  return String(a.end_date || '9999') < String(b.end_date || '9999') ? -1 : 1;
-    if(d.sort === 'lot')  return String(a.lot).localeCompare(String(b.lot), 'th');
-    return (Number(b.amount) || 0) - (Number(a.amount) || 0);
+    const x = dSortVal(a, d.sortKey), y = dSortVal(b, d.sortKey);
+    /* ช่องว่างไปท้ายสุดเสมอ ไม่ว่าจะเรียงขึ้นหรือลง · ไม่คูณด้วยทิศ
+       "ไม่มีข้อมูล" ไม่ใช่ค่ามากหรือค่าน้อย มันคือคนละเรื่องกับการเรียง */
+    if(x === null && y === null) return String(a.lot).localeCompare(String(b.lot), 'th');
+    if(x === null) return 1;
+    if(y === null) return -1;
+    let c;
+    if(typeof x === 'number' && typeof y === 'number') c = x - y;
+    else c = String(x).localeCompare(String(y), 'th');
+    /* ตัวตัดสินรอง · ค่าเท่ากันแล้วต้องได้ลำดับเดิมเสมอ
+       ไม่งั้นกดเรียงคอลัมน์เดิมซ้ำ แถวที่ค่าเท่ากันจะสลับที่กันเองทุกครั้ง
+       ซึ่งดูเหมือนจอกะพริบมั่ว ๆ ทั้งที่ไม่มีอะไรเปลี่ยน */
+    if(c === 0) return String(a.lot).localeCompare(String(b.lot), 'th');
+    return c * dir;
   });
   const shown = sorted.slice(0, CAP);
 
@@ -2255,10 +2305,13 @@ function renderDash(){
       '<label>สายผลิต</label><select class="dsel" data-dsel="pool">' + optHtml(pools, d.pool, 'ทั้งหมด') + '</select>' +
       '<label>BU</label><select class="dsel" data-dsel="bu">' + optHtml(bus, d.bu, 'ทั้งหมด') + '</select>' +
       '<label>สถานะ</label><select class="dsel" data-dsel="st">' + optHtml(DASH_ST, d.st, 'ทั้งหมด') + '</select>' +
-      '<label>เรียงตาม</label><select class="dsel" data-dsel="sort">' +
-        '<option value="amount"' + (d.sort==='amount'?' selected':'') + '>มูลค่ามากไปน้อย</option>' +
-        '<option value="end"'    + (d.sort==='end'   ?' selected':'') + '>กำหนดเสร็จใกล้สุด</option>' +
-        '<option value="lot"'    + (d.sort==='lot'   ?' selected':'') + '>ชื่อลอต</option>' +
+      /* v5.7 ยังเก็บช่องนี้ไว้ · เขียน state ตัวเดียวกับการกดหัวตาราง
+         คนที่ชินของเดิมยังใช้ได้ คนที่อยากเรียงคอลัมน์อื่นกดที่หัวตารางเอา */
+      '<label>เรียงตาม</label><select class="dsel" data-dsel="sortKey">' +
+        '<option value="end"'    + (d.sortKey==='end'   ?' selected':'') + '>กำหนดเสร็จ · ลำดับสัปดาห์</option>' +
+        '<option value="amount"' + (d.sortKey==='amount'?' selected':'') + '>มูลค่า</option>' +
+        '<option value="prog"'   + (d.sortKey==='prog'  ?' selected':'') + '>ความคืบหน้า</option>' +
+        '<option value="lot"'    + (d.sortKey==='lot'   ?' selected':'') + '>ชื่อลอต</option>' +
       '</select>' +
       '<input class="dsrch" data-dsrch="1" placeholder="ค้นหาลอต โครงการ หรือหมายเหตุ" value="' + esc(d.q) + '">' +
       /* v5.2 ทางลัดสองปุ่มที่หน้างานถามบ่อยที่สุด · กดซ้ำเพื่อยกเลิก */
@@ -2345,9 +2398,23 @@ function renderDash(){
       '<span class="sub2">' + (rows.length > CAP ? 'แสดง ' + CAP + ' จาก ' + nf0.format(rows.length) +
         ' · กด Export เพื่อเอาครบ' : nf0.format(rows.length) + ' ลอต') +
       ' · กดแถวเพื่อไปดูรายชิ้น · กดปุ่มท้ายแถวเพื่อดูวัตถุดิบ</span></h4>' +
+      /* v5.7 หัวตารางกดเรียงได้ทุกคอลัมน์ · กดซ้ำสลับขึ้นลง
+         ลูกศรโชว์เฉพาะคอลัมน์ที่เรียงอยู่ ไม่ได้ใส่จาง ๆ ทุกหัว
+         ซึ่งจะกลายเป็นลูกศรเก้าตัวเรียงกันจนไม่รู้ว่าอันไหนทำงานอยู่ */
       '<div class="dwrap"><table class="dtab"><thead><tr>' +
-        '<th>ลอต</th><th>กำหนดเสร็จ</th><th>สัปดาห์</th><th>สายผลิต</th><th>ชั้น</th>' +
-        '<th>หมายเหตุลอต</th><th>หมายเหตุวางแผน</th><th>ตัด</th><th style="text-align:right">มูลค่า</th>' +
+        [['lot','ลอต',''],['end','กำหนดเสร็จ',''],['wk','สัปดาห์',''],
+         ['pool','สายผลิต',''],['shelf','ชั้น',''],
+         ['rm','หมายเหตุลอต',''],['pd','หมายเหตุวางแผน',''],
+         ['prog','ความคืบหน้า',''],['amount','มูลค่า','text-align:right']
+        ].map(c => {
+          const on = d.sortKey === c[0];
+          return '<th class="so' + (on ? ' on' : '') + '" data-act="dsort" data-k="' + c[0] + '"' +
+                 (c[2] ? ' style="' + c[2] + '"' : '') +
+                 ' data-tip="กดเพื่อเรียงตาม' + esc(c[1]) + ' · กดซ้ำเพื่อสลับขึ้นลง">' +
+                 esc(c[1]) +
+                 (on ? '<span class="ar">' + (d.sortDir === 'desc' ? '▼' : '▲') + '</span>' : '') +
+                 '</th>';
+        }).join('') +
         '<th></th>' +
       '</tr>' +
       /* v5.4 แถวช่องกรองรายคอลัมน์ · เว้นสามช่องท้ายไว้
@@ -2412,6 +2479,45 @@ function renderDash(){
         '</tr>';
       }).join('') : '<tr><td colspan="10" style="color:var(--mu2)">ไม่มีลอตในเงื่อนไขนี้</td></tr>') +
       '</tbody></table></div></div>';
+}
+
+/* v5.7 ค่าที่ใช้เรียงของแต่ละคอลัมน์
+   คืนตัวเลขเมื่อเรียงแบบตัวเลข คืนสตริงเมื่อเรียงแบบตัวอักษร
+   ตัวเทียบข้างล่างดูชนิดข้อมูลเอาเอง ไม่ต้องมีตารางบอกว่าคอลัมน์ไหนเป็นแบบไหน
+
+   คืน null เมื่อช่องนั้นว่าง · ตัวเทียบจะดันไปท้ายสุดเสมอ ทั้งขึ้นและลง
+   ของเดิมใช้ค่าจอมปลอมอย่าง 9999-99-99 แทน ซึ่งได้ผลตอนเรียงจากน้อยไปมาก
+   แต่พอกดสลับเป็นมากไปน้อย มันกลายเป็นค่าสูงสุดแล้วลอยขึ้นหัวแถวทันที
+   ลอตที่ไม่มีกำหนดเสร็จมี 617 ตัว ลอยขึ้นหัวเมื่อไหร่ก็บังของที่ต้องรีบหมด */
+function dSortVal(r, k){
+  const txt = v => { const x = String(v == null ? '' : v); return x === '' ? null : x; };
+  switch(k){
+    case 'lot':   return txt(r.lot);
+    case 'end':   return txt(r.end_date);
+    case 'wk':    return txt(weekKey(r.end_date));
+    case 'pool':  return txt(r.prod_pool);
+    case 'shelf': return txt(r.shelf);
+    case 'rm':    return txt(r.lot_remark);
+    case 'pd':    return txt(r.pd_remark);
+    case 'amount': return (r.amount == null ? null : (Number(r.amount) || 0));
+    case 'prog':  { const v = progScore(r); return v < 0 ? null : v; }
+    default:      return txt(r.lot);
+  }
+}
+
+/* คะแนนความคืบหน้าเป็นตัวเลขตัวเดียว เอาไว้เรียง
+   = จำนวนขั้นที่ครบแล้ว บวกเศษของขั้นที่กำลังทำ
+   ตัด 50% ได้ 0.5 · ตัดครบรอแพ็ค ได้ 1.0 · จบทุกขั้น ได้ 4.0
+   ลอตที่ไม่มีรายชิ้นได้ -1 ไปอยู่ท้ายสุด เพราะบอกไม่ได้ว่าคืบหน้าแค่ไหน */
+function progScore(r){
+  const t = Number(r.total_all) || 0;
+  if(!t) return -1;
+  let sc = 0;
+  for(const st of STAGES){
+    const v = Math.min(Number(r[st.k]) || 0, t);
+    if(v >= t) sc += 1; else { sc += v / t; break; }
+  }
+  return sc;
 }
 
 /* v5.6 สี่ขั้นของงาน เรียงตามลำดับจริง · ที่เดียวที่นิยามลำดับนี้
@@ -3551,6 +3657,19 @@ document.addEventListener('click', ev => {
   }
   if(act === 'dlate'){ S.dash.late = !S.dash.late; render(); return; }
   if(act === 'dclrcol'){ S.dash.col = {}; render(); return; }   /* v5.4 */
+  /* v5.7 กดหัวตาราง · คอลัมน์เดิมสลับขึ้นลง คอลัมน์ใหม่เริ่มที่ทิศที่คนคาด
+     ชื่อกับหมายเหตุคนคาดว่า ก-ฮ · วันที่คาดว่าใกล้สุดก่อน
+     เงินกับความคืบหน้าคาดว่ามากไปน้อย ไม่มีใครอยากเห็นลอตราคาถูกสุดขึ้นก่อน */
+  if(act === 'dsort'){
+    const k = t.dataset.k;
+    if(S.dash.sortKey === k){
+      S.dash.sortDir = (S.dash.sortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      S.dash.sortKey = k;
+      S.dash.sortDir = (k === 'amount' || k === 'prog') ? 'desc' : 'asc';
+    }
+    render(); return;
+  }
   if(act === 'dreload'){ loadDash(true); return; }
   if(act === 'dlot'){
     /* กดแถวในตารางภาพรวม = กระโดดไปดูรายชิ้นของลอตนั้น
@@ -3638,6 +3757,13 @@ document.addEventListener('change', ev => {
   if(dk){
     S.dash[dk] = ev.target.value;
     if(dk === 'year'){ S.dash.mon = ''; S.dash.wk = ''; }
+    /* v5.7 เลือกวิธีเรียงจากช่องนี้ ต้องตั้งทิศให้ตรงกับที่คนคาดด้วย
+       ไม่งั้นเลือก "มูลค่า" แล้วได้ลอตถูกที่สุดขึ้นก่อน ซึ่งไม่มีใครต้องการ
+       กติกาเดียวกับตอนกดหัวตารางคอลัมน์ใหม่ */
+    if(dk === 'sortKey'){
+      const v = ev.target.value;
+      S.dash.sortDir = (v === 'amount' || v === 'prog') ? 'desc' : 'asc';
+    }
     render();
     return;
   }
