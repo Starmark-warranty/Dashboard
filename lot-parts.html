@@ -5,8 +5,39 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Ax Progress · รายชิ้นในลอต</title>
 <!-- =====================================================================
-  Lot Parts · รายชิ้นในลอต        ·   VERSION 5.5
+  Lot Parts · รายชิ้นในลอต        ·   VERSION 5.6
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  5.6  2026-09-11  CHANGE คอลัมน์ "ตัด" เป็น "ความคืบหน้า" บอกสี่ขั้น
+                   ที่มา: เจ้าของงานบอกว่าคอลัมน์นี้ควรบอกว่างานไปถึงขั้นไหนแล้ว
+                   ของเดิมโชว์ขั้นตัดขั้นเดียว · ตัดครบ 100% ไม่ได้แปลว่าจบ
+                   ยังต้องผ่านแพ็ค เบิก เข้าคลัง อีกสามขั้น
+                   · สี่แท่งเล็กเรียงตามลำดับงาน ขั้นที่ครบแล้วเป็นเขียว
+                     ขั้นที่กำลังทำเป็นน้ำเงิน ที่ยังไม่เริ่มเป็นพื้นเปล่า
+                   · ข้อความข้างแท่งบอกขั้นที่ค้างอยู่ เช่น "แพ็ค 40%"
+                     ครบทั้งสี่ขั้นขึ้นว่า "จบแล้ว" เป็นสีเขียว
+                   · STAGES เป็นที่เดียวที่นิยามลำดับสี่ขั้น
+                   FIX  เปอร์เซ็นต์ปัดเศษทำให้ระบบคิดว่าขั้นนั้นครบแล้ว
+                   1,285 จาก 1,286 ชิ้น ปัดได้ 100% ทั้งที่ขาดอยู่ชิ้นหนึ่ง
+                   จอจะบอกว่าตัดครบแล้วไปรอขั้นถัดไป แล้วคนจะไปตามผิดขั้น
+                   · ตัดสินว่าครบจากจำนวนชิ้นจริง ไม่ใช่จากเปอร์เซ็นต์
+                   · เปอร์เซ็นต์ที่โชว์ตัดเศษทิ้งแทนการปัด ไม่มีทางขึ้น 100
+                     ถ้ายังไม่ครบจริง · สูงสุดที่ 99%
+                   เจอตอนทดสอบ ไม่ได้เจอตอนใช้งานจริง
+                   FEAT กล่องคำอธิบายตอนเอาเมาส์ไปจี้ ทำเอง ไม่ใช้ของเบราว์เซอร์
+                   ของเดิม (title) ตัวเล็กมาก อ่านหมายเหตุยาว ๆ ไม่ไหว
+                   หน่วงก่อนโผล่ราวครึ่งวินาที และหน้าตาไม่เข้ากับจอเลย
+                   · ตัวหนังสือ 12.5px ขึ้นบรรทัดใหม่ได้ กว้างสุด 440px
+                     ใช้ตัวแปรสีชุดเดิมทั้งหมด ไม่มีค่าสีดิบ
+                   · ใช้กล่องเดียวทั้งหน้า ย้ายตำแหน่งตามเมาส์
+                     ไม่ได้สร้างกล่องต่อแถว ซึ่งจะเป็นสี่พันกล่องในหน้าเดียว
+                   · ชนขอบจอแล้วพลิกไปอีกด้านเอง ไม่งั้นแถวท้ายตาราง
+                     กับคอลัมน์ขวาสุดจะอ่านไม่ได้ ซึ่งเป็นที่ที่หมายเหตุอยู่พอดี
+                   · เลื่อนจอหรือกดอะไร กล่องหายทันที ไม่ลอยค้างผิดที่
+                   · ใช้กับหมายเหตุลอต หมายเหตุวางแผน ชื่ออุปกรณ์
+                     และแถบสี่ขั้น ซึ่งบอกจำนวนชิ้นจริงครบทั้งสี่ขั้น
+                     เปอร์เซ็นต์อย่างเดียวไม่พอ 99 กับ 100 ต่างกันชิ้นเดียวก็ได้
+                   ยังไม่ได้ทดสอบบนเครื่องจริงหน้าไลน์
+
   5.5  2026-09-11  CHANGE ตัวกรองรายคอลัมน์เป็นลูกศรสี่ช่อง ตามที่เจ้าของงานสั่ง
                    ไม่ได้ทำลูกศรทั้งเจ็ดช่อง เพราะนับค่าที่ไม่ซ้ำในฐานแล้ว
                      ลูกศรได้   สายผลิต 19 · สัปดาห์ 47 · กำหนดเสร็จ 229 · ชั้น 1,467
@@ -1129,6 +1160,29 @@ table.dtab td.rm{max-width:340px;overflow:hidden;text-overflow:ellipsis;white-sp
 table.dtab td.pd{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--warn)}
 
 /* แถบความคืบหน้าในตาราง */
+/* v5.6 แถบสี่ขั้น · ตัด แพ็ค เบิก เข้าคลัง
+   ของเดิมโชว์ขั้นตัดขั้นเดียว ซึ่งตอบไม่ได้ว่าตอนนี้งานไปถึงไหนแล้ว
+   ตัดครบ 100% ไม่ได้แปลว่าจบ ยังต้องผ่านอีกสามขั้น */
+.stg{display:flex;align-items:center;gap:7px;min-width:132px}
+.stg .bars{flex:1 1 auto;display:flex;gap:2px;min-width:76px}
+.stg .bars b{flex:1 1 0;height:7px;background:var(--band);border-radius:3px;overflow:hidden;
+  display:block;position:relative}
+.stg .bars b i{display:block;height:100%;background:var(--brand);border-radius:3px}
+.stg .bars b.ok i{background:var(--ok)}
+.stg .tx{font-size:10.5px;color:var(--mu);white-space:nowrap;font-weight:600}
+.stg .tx .q{font-family:var(--mono);font-weight:600;margin-left:3px}
+.stg.fin .tx{color:var(--ok)}
+
+/* v5.6 กล่องคำอธิบายตอนเอาเมาส์ไปจี้ · แทนของที่เบราว์เซอร์ทำให้
+   ของเดิมตัวเล็กมาก อ่านหมายเหตุยาว ๆ ไม่ไหว และหน้าตาไม่เข้ากับจอเลย
+   ใช้ตัวแปรสีชุดเดิมทั้งหมด ไม่มีค่าสีดิบ · ขึ้นบรรทัดใหม่ได้ด้วย pre-wrap */
+.tipbox{position:fixed;z-index:9999;display:none;max-width:440px;
+  background:var(--card);color:var(--tx);border:1px solid var(--line);
+  border-radius:10px;box-shadow:var(--sh2);padding:9px 12px;
+  font-family:var(--sans);font-size:12.5px;line-height:1.65;
+  white-space:pre-wrap;word-break:break-word;pointer-events:none}
+.tipbox.on{display:block}
+
 .pgw{display:flex;align-items:center;gap:6px;min-width:96px}
 .pgw .pb{flex:1 1 auto;height:6px;background:var(--band);border-radius:4px;overflow:hidden}
 .pgw .pb i{display:block;height:100%;background:var(--brand);border-radius:4px}
@@ -1200,6 +1254,10 @@ table.dtab td.pd{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-sp
          เนื้อในเติมด้วย JS เพราะขึ้นกับวันที่ ไม่ใช่ค่าคงที่ -->
     <div class="wkb" id="wkNow" title="สัปดาห์ปัจจุบันตามมาตรฐาน ISO 8601 · เริ่มวันจันทร์"></div>
   </div>
+
+  <!-- v5.6 กล่องคำอธิบาย · ตัวเดียวใช้ร่วมทั้งหน้า ย้ายตำแหน่งตามเมาส์
+       ไม่ได้สร้างกล่องต่อแถว ซึ่งจะกลายเป็นสี่พันกล่องในหน้าเดียว -->
+  <div class="tipbox" id="tipbox"></div>
 
   <!-- แถบเตือน -->
   <div class="note" id="note" style="display:none"><span>⚠</span><span id="noteTx"></span></div>
@@ -2326,8 +2384,6 @@ function renderDash(){
         '<th></th><th></th><th></th>' +
       '</tr></thead><tbody>' +
       (shown.length ? shown.map(r => {
-        const t = Number(r.total_all) || 0, c = cutOf(r);
-        const p = t ? Math.round(c / t * 100) : 0;
         /* ป้ายติดทั้งตอนมีเลขและตอนไม่มี · ตอนไม่มีสำคัญกว่า
            เพราะต้องแยกให้ออกระหว่าง "ยังไม่ได้คิด" กับ "คิดแล้วแต่ยันไม่ได้" */
         const lvv = lvTx(r.amount_lv);
@@ -2339,11 +2395,9 @@ function renderDash(){
           '<td class="mono">' + esc(weekTx(r.end_date)) + '</td>' +
           '<td class="mono">' + esc(r.prod_pool || '') + '</td>' +
           '<td class="mono">' + esc(r.shelf || '') + '</td>' +
-          '<td class="rm" title="' + esc(r.lot_remark || '') + '">' + esc(r.lot_remark || '') + '</td>' +
-          '<td class="pd" title="' + esc(r.pd_remark || '') + '">' + esc(r.pd_remark || '') + '</td>' +
-          '<td><div class="pgw' + (t && c >= t ? ' done' : '') + '">' +
-            '<div class="pb"><i style="width:' + p + '%"></i></div>' +
-            '<span class="pn">' + (t ? p + '%' : '—') + '</span></div></td>' +
+          '<td class="rm" data-tip="' + esc(r.lot_remark || '') + '">' + esc(r.lot_remark || '') + '</td>' +
+          '<td class="pd" data-tip="' + esc(r.pd_remark || '') + '">' + esc(r.pd_remark || '') + '</td>' +
+          stageCell(r) +
           '<td class="num">' + (r.amount == null ? (lv || '—') : baht(r.amount) + ' ' + lv) + '</td>' +
           /* ปุ่มอยู่ในแถวเดียวกัน กดปุ่ม = ดูวัตถุดิบ กดที่อื่นในแถว = ไปดูรายชิ้น
              v5.0 ลอตที่มีวัตถุดิบอยู่แล้วขึ้นเขียวพร้อมจำนวน · ตัวที่ยังไม่มีขึ้นจาง
@@ -2358,6 +2412,50 @@ function renderDash(){
         '</tr>';
       }).join('') : '<tr><td colspan="10" style="color:var(--mu2)">ไม่มีลอตในเงื่อนไขนี้</td></tr>') +
       '</tbody></table></div></div>';
+}
+
+/* v5.6 สี่ขั้นของงาน เรียงตามลำดับจริง · ที่เดียวที่นิยามลำดับนี้
+   AX เก็บเป็นจำนวนชิ้นที่ผ่านแต่ละขั้น ไม่ใช่ธงบอกสถานะ
+   ตรวจแล้วค่าลดหลั่นกันเสมอ ตัด >= แพ็ค >= เบิก >= เข้าคลัง
+   (ทั้งฐานไม่มีแถวไหนที่ขั้นหลังมากกว่าขั้นหน้าเลยสักแถว) */
+const STAGES = [
+  { k:'checked_all',  t:'ตัด' },
+  { k:'checked_pack', t:'แพ็ค' },
+  { k:'checked_pick', t:'เบิก' },
+  { k:'checked_wh',   t:'เข้าคลัง' }
+];
+
+/* ช่องความคืบหน้าในตารางรายการลอต · สี่แท่งเล็ก บวกชื่อขั้นที่ค้างอยู่
+   "ไปถึงไหนแล้ว" = ขั้นแรกที่ยังไม่ครบ · ถ้าครบหมดคือจบ
+   ขั้นที่ครบแล้วเป็นเขียว ขั้นที่กำลังทำเป็นน้ำเงิน ที่ยังไม่เริ่มเป็นพื้นเปล่า */
+function stageCell(r){
+  const t = Number(r.total_all) || 0;
+  if(!t) return '<td><span style="color:var(--mu2)">ไม่มีรายชิ้น</span></td>';
+
+  const v = STAGES.map(s => Math.min(Number(r[s.k]) || 0, t));
+  /* ครบหรือไม่ ต้องดูจากจำนวนชิ้นจริง ห้ามดูจากเปอร์เซ็นต์ที่ปัดแล้ว
+     1,285 จาก 1,286 ปัดได้ 100% ทั้งที่ขาดอยู่ชิ้นหนึ่ง
+     ถ้าเชื่อเปอร์เซ็นต์ จอจะบอกว่าตัดครบแล้วไปรอขั้นถัดไป ซึ่งผิด
+     และคนจะไปตามผิดขั้น · เจอตอนทดสอบ ไม่ได้เจอตอนใช้งานจริง */
+  const done = v.map(x => x >= t);
+  const at   = done.findIndex(x => !x);          /* ขั้นแรกที่ยังไม่ครบ · -1 = ครบหมด */
+  const fin  = at < 0;
+  /* เปอร์เซ็นต์ที่โชว์ต้องไม่ขึ้น 100 ถ้ายังไม่ครบจริง · ตัดเศษทิ้งแทนการปัด */
+  const p = v.map((x, i) => done[i] ? 100 : Math.min(99, Math.floor(x / t * 100)));
+
+  const bars = STAGES.map((s, i) =>
+    '<b' + (done[i] ? ' class="ok"' : '') + '><i style="width:' + p[i] + '%"></i></b>').join('');
+  const tx = fin ? 'จบแล้ว'
+                 : esc(STAGES[at].t) + '<span class="q">' + p[at] + '%</span>';
+
+  /* คำอธิบายบอกครบทั้งสี่ขั้นเป็นตัวเลขจริง ไม่ใช่แค่เปอร์เซ็นต์
+     เปอร์เซ็นต์ปัดเศษ 99% กับ 100% ต่างกันชิ้นเดียวก็ได้ ซึ่งสำคัญมากตอนตามงาน */
+  const tip = STAGES.map((s, i) =>
+    s.t + ' · ' + nf0.format(v[i]) + ' จาก ' + nf0.format(t) + ' ชิ้น · ' + p[i] + '%').join('\n');
+
+  return '<td><div class="stg' + (fin ? ' fin' : '') + '" data-tip="' + esc(tip) + '">' +
+         '<span class="bars">' + bars + '</span>' +
+         '<span class="tx">' + tx + '</span></div></td>';
 }
 
 /* ป้ายความแม่นของตัวเลขเงิน · คนอ่านต้องรู้ว่าเลขนี้ยันได้แค่ไหน */
@@ -2617,7 +2715,7 @@ function renderRm(){
                                 nf3(-gap) + '</td>';
         return '<tr>' +
           '<td class="mono">' + esc(r.item_id || '') + '</td>' +
-          '<td class="nm" title="' + esc(nm(r.item_id)) + '">' +
+          '<td class="nm" data-tip="' + esc(nm(r.item_id)) + '">' +
             (nm(r.item_id) ? esc(nm(r.item_id))
                            : '<span style="color:var(--mu2)">ไม่พบในคลังอุปกรณ์</span>') + '</td>' +
           '<td class="num">' + nf3(need) + '</td>' +
@@ -3554,6 +3652,51 @@ document.addEventListener('change', ev => {
   if(el) el.focus({preventScroll:true});
 });
 let fltTimer = null;
+/* ── v5.6 กล่องคำอธิบายตอนเอาเมาส์ไปจี้ ────────────────────────────
+   ของที่เบราว์เซอร์ทำให้ (title) ตัวเล็กมาก อ่านหมายเหตุยาว ๆ ไม่ไหว
+   หน่วงก่อนโผล่ราวครึ่งวินาที ตัดข้อความยาวทิ้ง และหน้าตาไม่เข้ากับจอเลย
+
+   ใช้กล่องเดียวทั้งหน้า ย้ายตำแหน่งตามเมาส์ · ไม่ได้สร้างกล่องต่อแถว
+   ซึ่งจะกลายเป็นสี่พันกล่องในหน้าเดียว
+   ดักที่ document เพราะตารางถูกวาดใหม่ทั้งก้อนตลอด ผูกกับแถวตรง ๆ ไม่ได้ */
+let tipEl = null;
+function tipShow(text, x, y){
+  if(!tipEl) tipEl = $('tipbox');
+  if(!tipEl || !text) return;
+  tipEl.textContent = text;          /* textContent ไม่ใช่ innerHTML · ข้อความมาจากฐาน */
+  tipEl.classList.add('on');
+  tipMove(x, y);
+}
+function tipMove(x, y){
+  if(!tipEl || !tipEl.classList.contains('on')) return;
+  const b = tipEl.getBoundingClientRect();
+  const pad = 14;
+  /* วางล่างขวาของเคอร์เซอร์ก่อน · ชนขอบจอเมื่อไหร่ค่อยพลิกไปอีกด้าน
+     ไม่งั้นแถวท้ายตารางกับคอลัมน์ขวาสุดจะอ่านไม่ได้เลย ซึ่งเป็นที่ที่หมายเหตุอยู่ */
+  let nx = x + pad, ny = y + pad;
+  if(nx + b.width  > window.innerWidth  - 8) nx = x - b.width  - pad;
+  if(ny + b.height > window.innerHeight - 8) ny = y - b.height - pad;
+  if(nx < 8) nx = 8;
+  if(ny < 8) ny = 8;
+  tipEl.style.left = nx + 'px';
+  tipEl.style.top  = ny + 'px';
+}
+function tipHide(){ if(tipEl) tipEl.classList.remove('on'); }
+
+document.addEventListener('mouseover', ev => {
+  const t = ev.target.closest && ev.target.closest('[data-tip]');
+  if(!t){ tipHide(); return; }
+  const tx = t.getAttribute('data-tip');
+  if(!tx || !tx.trim()){ tipHide(); return; }   /* หมายเหตุว่างไม่ต้องขึ้นกล่องเปล่า */
+  tipShow(tx, ev.clientX, ev.clientY);
+});
+document.addEventListener('mousemove', ev => {
+  if(tipEl && tipEl.classList.contains('on')) tipMove(ev.clientX, ev.clientY);
+});
+/* เลื่อนจอหรือกดอะไรก็ตาม ให้กล่องหายไป ไม่งั้นมันจะลอยค้างผิดที่ */
+document.addEventListener('scroll', tipHide, true);
+document.addEventListener('click',  tipHide, true);
+
 document.addEventListener('input', ev => {
   const el = ev.target;
 
