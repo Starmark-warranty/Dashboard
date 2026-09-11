@@ -5,8 +5,57 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Ax Progress · รายชิ้นในลอต</title>
 <!-- =====================================================================
-  Lot Parts · รายชิ้นในลอต        ·   VERSION 5.1
+  Lot Parts · รายชิ้นในลอต        ·   VERSION 5.3
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  5.3  2026-09-11  FEAT ป้ายสัปดาห์ปัจจุบันมุมขวาของแถบเครื่องมือ
+                   เห็นจากทุกแท็บ · W37 ตัวใหญ่ ตามด้วยช่วงวันจันทร์ถึงอาทิตย์
+                   หน้างานเรียกงานกันด้วยเลขสัปดาห์อยู่แล้ว แต่ต้องเปิดปฏิทิน
+                   มาเทียบเองว่าตอนนี้สัปดาห์ที่เท่าไหร่
+                   · วางไว้ท้ายสุดของแถบแล้วดันขวาด้วย margin-left:auto
+                     ถ้าวางไว้กลางแถบ มันจะดันของที่อยู่หลังมันไปทางขวาทั้งพวง
+                   · เขียนใหม่ทุกครั้งที่วาดจอ ไม่ใช่ครั้งเดียวตอนเปิด
+                     เครื่องหน้าไลน์เปิดค้างข้ามคืน เขียนครั้งเดียวจะค้างสัปดาห์เก่า
+                   · เลขสัปดาห์เป็น mono · ช่วงวันที่มีชื่อเดือนไทยจึงเป็น sans
+                     จอแคบกว่า 640px ซ่อนช่วงวันที่ เหลือแต่เลขสัปดาห์
+                   FEAT กด F5 แล้วค้างอยู่แท็บเดิม
+                   หน้าไลน์รีเฟรชบ่อยเพื่อดูของสด ของเดิมเด้งกลับแท็บรายชิ้นทุกครั้ง
+                   · จำที่ localStorage คีย์ lp_tab · คืนค่าก่อน render ครั้งแรก
+                     ไม่งั้นจอจะกะพริบไปแท็บรายชิ้นก่อนแล้วค่อยเด้งกลับ
+                   · ลอตใน URL ชนะเสมอ เพราะคนส่งลิงก์มาให้ดูรายชิ้นของลอตนั้น
+                     โดยเฉพาะ การเด้งไปแท็บ BI แทนคือการไม่ทำตามที่เขาส่งมา
+                   · เปิดมาค้างที่ BI ก็ยังเลือกลอตไว้เบื้องหลังเหมือนเดิม
+                     กดกลับไปแท็บรายชิ้นแล้วต้องมีของให้ดูทันที ไม่ใช่จอเปล่า
+                   ยังไม่ได้ทดสอบบนเครื่องจริงหน้าไลน์
+
+  5.2  2026-09-11  FEAT สรุปตามสัปดาห์ · ตอบว่าสัปดาห์นี้เหลือลอตไหนยังไม่จบ
+                   ที่มา: เจ้าของงานถามตรง ๆ ว่าอยากรู้ว่าสัปดาห์นี้เหลืออะไร
+                   และอะไรเลยกำหนดแล้ว · ของเดิมต้องไปไล่กดแท่งกราฟเอง
+                   ซึ่งกราฟโชว์แค่ 12 สัปดาห์ท้ายของชุดที่กรองอยู่ หาไม่เจอบ่อย
+                   · ตารางสัปดาห์นี้ถอยหลัง 1 ไปหน้า 4 · แถวละสัปดาห์
+                     แยกจำนวนลอตตามสถานะห้าช่อง · กดแถวเพื่อกรอง
+                   · ปุ่ม "สัปดาห์นี้" กับ "เลยกำหนด N" บนแถบกรอง กดซ้ำเพื่อยกเลิก
+                     ใช้ร่วมกันได้ ไม่ล้างกันเอง เพราะ "สัปดาห์นี้ที่เลยกำหนดแล้ว"
+                     เป็นคำถามที่มีจริง
+                   · ตารางสัปดาห์คิดจากชุดที่ยังไม่กรองเวลา ไม่งั้นพอเลือก
+                     สัปดาห์หนึ่งแล้วสัปดาห์อื่นหายจนกลับไปเลือกไม่ได้
+                     เหตุผลเดียวกับที่รายการในช่องกรองสร้างจาก all ไม่ใช่ rows
+                   CHANGE นิยาม "จบ" เปลี่ยนเป็นเข้าคลังครบ ตามที่เจ้าของงานสั่ง
+                   สถานะเดิมสี่ตัวเป็นห้าตัว · "ตัดครบ" แยกเป็นสองสถานะ
+                     เข้าคลังครบ        = จบจริง (checked_wh ครบ)
+                     ตัดครบ รอเข้าคลัง  = หน้าไลน์เสร็จแล้ว ติดที่ปลายทาง
+                   สองอันนี้ต้องแยก เพราะคนที่ต้องไปตามเป็นคนละคนกัน
+                   จอที่รวมสองอันนี้เข้าด้วยกันจะชี้ผิดคน
+                   · "กำลังทำ" เปลี่ยนชื่อเป็น "กำลังตัด" ให้ตรงกับสิ่งที่มันวัด
+                   · ST_DONE เป็นที่เดียวที่นิยามคำว่าจบ · เปลี่ยนใจก็แก้จุดเดียว
+                   FIX  วันนี้คิดจาก toISOString ซึ่งเป็น UTC
+                   ไทยเร็วกว่า 7 ชั่วโมง ก่อนเจ็ดโมงเช้าจะได้วันของเมื่อวาน
+                   แล้วลอตที่ครบกำหนดวันนี้จะถูกนับว่าเลยกำหนดไปทั้งเช้า
+                   เปลี่ยนเป็น todayKey() ที่อ่านเวลาเครื่องตรง ๆ
+                   NOTE ตัวเลขในตารางนี้จะมีความหมายก็ต่อเมื่อ StarSync
+                   v1.8 ขึ้นไปทำงานอยู่ · ก่อนหน้านั้น checked_wh เป็น null
+                   เกือบทั้งฐาน ทุกลอตจะไปกองที่ช่อง "ไม่มีรายชิ้น"
+                   ยังไม่ได้ทดสอบบนเครื่องจริงหน้าไลน์
+
   5.1  2026-09-11  FEAT ตารางวัตถุดิบบอกได้แล้วว่าของในคลังพอไหม
                    เดิมบอกได้แค่ว่าลอตนี้ยังเบิกไม่ครบเท่าไหร่ แต่ไม่บอกว่า
                    ของที่ยังไม่ได้เบิกนั้น "มีให้เบิกหรือเปล่า" ซึ่งเป็นคำถาม
@@ -850,6 +899,15 @@ thead th.tick-col .th-s:empty{display:none}
 .state-filter{position:absolute;left:2px;top:3px;box-sizing:border-box;width:calc(100% - 4px);min-width:0;height:23px;padding:0;font:16px "Segoe UI Symbol","Segoe UI",sans-serif;color:var(--tx);background:var(--card);border:1px solid var(--line);border-radius:4px;cursor:pointer}
 .state-filter:focus{outline:2px solid var(--brand)}
 
+/* v5.3 ป้ายสัปดาห์ปัจจุบัน · ดันไปขวาสุดของแถบด้วย margin-left:auto
+   ตัวเลขสัปดาห์เป็น mono · ช่วงวันที่มีชื่อเดือนไทยจึงต้องเป็น sans
+   ฟอนต์ mono ไม่มีตัวอักษรไทย ใส่แล้วบรรทัดจะเพี้ยน */
+.wkb{margin-left:auto;display:flex;align-items:center;gap:7px;white-space:nowrap;
+  background:var(--brandbg);border:1px solid var(--line);border-radius:7px;padding:4px 10px}
+.wkb .w{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--brand);letter-spacing:.01em}
+.wkb .d{font-family:var(--sans);font-size:11px;color:var(--mu)}
+@media(max-width:640px){ .wkb .d{display:none} }
+
 /* ══ v4.0 แท็บภาพรวม ══════════════════════════════════════════════
    ใช้ตัวแปรสีชุดเดิมทั้งหมด ไม่มีค่าสีดิบสักตัว
    ตัวเลขทุกที่เป็น mono · ข้อความไทยเป็น sans เสมอ ห้ามสลับ */
@@ -876,6 +934,17 @@ thead th.tick-col .th-s:empty{display:none}
   font-family:inherit;font-size:12px;padding:4px 8px;min-height:28px;cursor:pointer}
 .dsel:focus,.dsrch:focus{outline:2px solid var(--brand);border-color:var(--brand)}
 .dsrch{cursor:text;min-width:180px}
+
+/* v5.2 ตารางสรุปรายสัปดาห์ · แถวกดได้ทั้งแถว ปุ่มไม่ต่ำกว่า 44px บนมือถือ */
+.wkhead{font-size:12px;font-weight:600;color:var(--tx);margin-bottom:6px}
+.wkfoot{font-size:11px;color:var(--mu);margin-top:6px;line-height:1.6}
+.wktab tbody tr{cursor:pointer}
+.wktab tbody tr:hover{background:var(--hov)}
+.wktab tbody tr.wknow{background:var(--brandbg)}
+.wktab tbody tr.wkon{background:var(--stbg);box-shadow:inset 3px 0 0 var(--ok)}
+.wktag{font-family:var(--sans);font-size:10px;font-weight:600;color:var(--brand);
+  background:var(--brandbg);border-radius:5px;padding:1px 5px;margin-left:4px}
+@media(max-width:640px){ .wktab tbody td{padding-top:12px;padding-bottom:12px} }
 
 /* การ์ดตัวเลขสรุป */
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:8px}
@@ -1037,6 +1106,12 @@ table.dtab td.pd{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-sp
     <button class="btn po" data-act="rm" title="สรุปวัตถุดิบของลอตที่เปิดอยู่">▤ วัตถุดิบ</button>
     <button class="btn" data-act="csv">⤓ Export</button>
     <button class="btn" data-act="cfg" title="ตั้งค่าการเชื่อมต่อ">⚙</button>
+
+    <!-- v5.3 สัปดาห์ปัจจุบัน · เห็นจากทุกแท็บ เป็นจุดอ้างอิงเวลาที่หน้างานเรียกกันอยู่แล้ว
+         วางไว้ท้ายสุดของแถบ แล้วดันไปขวาสุดด้วย margin-left:auto
+         ถ้าวางไว้กลางแถบ มันจะดันของที่อยู่หลังมันไปทางขวาทั้งพวง
+         เนื้อในเติมด้วย JS เพราะขึ้นกับวันที่ ไม่ใช่ค่าคงที่ -->
+    <div class="wkb" id="wkNow" title="สัปดาห์ปัจจุบันตามมาตรฐาน ISO 8601 · เริ่มวันจันทร์"></div>
   </div>
 
   <!-- แถบเตือน -->
@@ -1202,6 +1277,7 @@ const S = {
   dash:{
     rows:[], loaded:false, busy:'', err:'',
     year:'', pool:'', bu:'', st:'', mon:'', wk:'', q:'',
+    late:false,              // v5.2 เอาเฉพาะลอตที่เลยกำหนดแล้วยังไม่จบ
     rmHave:{},               // { ชื่อลอต: จำนวนรายการวัตถุดิบที่มีอยู่แล้ว }
     sort:'amount',           // amount | end | lot
   },
@@ -1694,6 +1770,34 @@ function weekKey(s){
          String(d.getDate()).padStart(2,'0');
 }
 
+/* v5.2 วันนี้ตามเวลาเครื่อง · ห้ามใช้ toISOString เพราะนั่นเป็น UTC
+   ไทยเร็วกว่า UTC 7 ชั่วโมง ก่อนเจ็ดโมงเช้าจะได้วันของเมื่อวาน
+   แล้วลอตที่ครบกำหนดวันนี้จะถูกนับว่าเลยกำหนดไปทั้งวัน */
+function todayKey(){
+  const d = new Date(), p = n => String(n).padStart(2,'0');
+  return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate());
+}
+/* วันจันทร์ของสัปดาห์นี้ · คีย์เดียวกับที่ d.wk ใช้ */
+const thisWeekKey = () => weekKey(todayKey());
+
+/* v5.3 ช่วงวันของสัปดาห์ที่ขึ้นต้นด้วยวันจันทร์นั้น · จันทร์ถึงอาทิตย์
+   คิดวันเองไม่ผ่าน toISOString ด้วยเหตุผลเดียวกับ todayKey */
+function weekSpanTh(mon){
+  const t = Date.parse(String(mon || '') + 'T00:00:00');
+  if(isNaN(t)) return '';
+  const e = new Date(t + 6 * 86400000), p = n => String(n).padStart(2,'0');
+  const endKey = e.getFullYear() + '-' + p(e.getMonth()+1) + '-' + p(e.getDate());
+  return dayTh(mon) + ' – ' + dayTh(endKey);
+}
+
+/* เลยกำหนดแล้วยังไม่จบ · ที่เดียวที่นิยามคำนี้ ใช้ทั้ง KPI ตัวกรอง และตาราง
+   ลอตที่ไม่มีกำหนดเสร็จไม่นับ ไม่ใช่เพราะไม่สำคัญ แต่เพราะบอกไม่ได้ว่าเลยหรือยัง */
+function isLate(r, today){
+  const ed = String(r.end_date || '');
+  if(!ed) return false;
+  return ed < (today || todayKey()) && statOf(r) !== ST_DONE;
+}
+
 /* เงิน · ยอดรวมอ่านเป็นล้าน ยอดรายลอตอ่านเป็นบาทเต็ม */
 const nfM = new Intl.NumberFormat('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 function baht(v){ return v == null ? '' : nf0.format(Math.round(Number(v) || 0)); }
@@ -1718,15 +1822,25 @@ function cutOf(r){
   return Math.min(c, t);
 }
 /* สถานะจากยอดที่มีอยู่แล้ว ไม่ได้ไปตีความ lot_status ของ AX
-   ซึ่งยังไม่รู้ว่าเลขไหนแปลว่าอะไร · เก็บค่าดิบไว้ในฐานรอดูสถิติต่อ */
+   ซึ่งยังไม่รู้ว่าเลขไหนแปลว่าอะไร · เก็บค่าดิบไว้ในฐานรอดูสถิติต่อ
+   (ตรวจแล้วทั้งฐาน 4,238 ลอตที่มีค่า เป็นเลข 0 หมด มี 1 อยู่ใบเดียว ใช้ไม่ได้)
+
+   v5.2 "จบ" = ผ่านถึงเข้าคลัง ไม่ใช่ตัดครบ ตามที่เจ้าของงานสั่ง
+   ตัดครบแต่ยังไม่เข้าคลังจึงต้องเป็นสถานะของตัวเอง ไม่ใช่เอาไปรวมกับจบ
+   และไม่ใช่เอาไปรวมกับกำลังทำ เพราะหน้าไลน์ทำงานเสร็จแล้ว ปัญหาอยู่ปลายทาง
+   คนที่ต้องไปตามเป็นคนละคนกัน จอที่รวมสองอันนี้เข้าด้วยกันจะชี้ผิดคน */
 function statOf(r){
-  const t = Number(r.total_all) || 0, c = cutOf(r);
+  const t = Number(r.total_all) || 0;
   if(!t) return 'ไม่มีรายชิ้น';
-  if(c >= t) return 'ตัดครบ';
-  if(c > 0)  return 'กำลังทำ';
+  if((Number(r.checked_wh) || 0) >= t) return 'เข้าคลังครบ';
+  const c = cutOf(r);
+  if(c >= t) return 'ตัดครบ รอเข้าคลัง';
+  if(c > 0)  return 'กำลังตัด';
   return 'ยังไม่เริ่ม';
 }
-const DASH_ST = ['ยังไม่เริ่ม','กำลังทำ','ตัดครบ','ไม่มีรายชิ้น'];
+/* เรียงตามลำดับงานจริง ซ้ายไปขวา ไม่ได้เรียงตามตัวอักษร */
+const DASH_ST = ['ยังไม่เริ่ม','กำลังตัด','ตัดครบ รอเข้าคลัง','เข้าคลังครบ','ไม่มีรายชิ้น'];
+const ST_DONE = 'เข้าคลังครบ';   /* ที่เดียวที่นิยามคำว่า "จบ" · จะเปลี่ยนก็เปลี่ยนตรงนี้ */
 
 /* กรองตามตัวเลือกบนจอ · ตัวเดียวที่ตัดสินว่าอะไรถูกนับบ้าง
    ทั้ง KPI กราฟ และตาราง อ่านจากผลของฟังก์ชันนี้ชุดเดียวกัน
@@ -1742,6 +1856,7 @@ function dashFiltered(){
     if(d.pool && String(r.prod_pool || '') !== d.pool) return false;
     if(d.bu   && (buOf(r) || 'ไม่ระบุ') !== d.bu) return false;
     if(d.st   && statOf(r) !== d.st) return false;
+    if(d.late && !isLate(r)) return false;   /* v5.2 */
     if(q){
       const hay = (r.lot + ' ' + (r.lot_remark || '') + ' ' + (r.pd_remark || '') + ' ' +
                    (r.proj_name || '')).toLowerCase();
@@ -1826,8 +1941,8 @@ function renderDash(){
   const withAmt = rows.filter(r => r.amount != null).length;
   const tAll = rows.reduce((a,r) => a + (Number(r.total_all)   || 0), 0);
   const cAll = rows.reduce((a,r) => a + cutOf(r), 0);
-  const today = new Date().toISOString().slice(0,10);
-  const late = rows.filter(r => r.end_date && String(r.end_date) < today && statOf(r) !== 'ตัดครบ');
+  const today = todayKey();
+  const late = rows.filter(r => isLate(r, today));
   const lateAmt = late.reduce((a,r) => a + (Number(r.amount) || 0), 0);
   /* ลอตที่จับใบขายได้ แต่ยันไม่ได้ว่าใบไหนเป็นของลอตนี้ · ต้องนับให้เห็น
      ไม่ใช่ปล่อยให้เงียบไปกับช่องว่าง คนดูจะได้รู้ว่ายอดรวมยังไม่ครบแค่ไหน */
@@ -1861,6 +1976,48 @@ function renderDash(){
                        k => { const x = isoWeek(k); return x ? ('W' + x.w) : ''; })
                    .sort((a,b) => a.k < b.k ? -1 : 1).slice(-12);
   byWeek.forEach(x => { x.label2 = dayTh(x.k); });
+
+  /* v5.2 สรุปรายสัปดาห์แยกตามสถานะ · คิดจาก d.rows ทั้งชุด ไม่ใช่ rows ที่กรองแล้ว
+     ยกเว้นตัวกรองที่ไม่ใช่เวลา (สายผลิต BU ค้นหา) ซึ่งยังต้องมีผล
+     ไม่งั้นพอกดเลือกสัปดาห์หนึ่งแล้ว สัปดาห์อื่นจะหายไปจนกลับไปเลือกไม่ได้
+     เหตุผลเดียวกับที่รายการตัวเลือกของช่องกรองสร้างจาก all ไม่ใช่ rows */
+  const qWk = d.q.trim().toLowerCase();
+  const wkBase = d.rows.filter(r => {
+    if(d.pool && String(r.prod_pool || '') !== d.pool) return false;
+    if(d.bu   && (buOf(r) || 'ไม่ระบุ') !== d.bu) return false;
+    if(qWk){
+      const hay = (r.lot + ' ' + (r.lot_remark || '') + ' ' + (r.pd_remark || '') + ' ' +
+                   (r.proj_name || '')).toLowerCase();
+      if(!hay.includes(qWk)) return false;
+    }
+    return true;
+  });
+  /* สัปดาห์นี้ถอยหลังหนึ่ง ไปข้างหน้าสี่ · ของเก่ากว่านั้นดูที่ปุ่มเลยกำหนดแทน
+     ซึ่งตอบตรงกว่า เพราะคนถามว่า "ค้างอะไรอยู่" ไม่ได้ถามว่า "สัปดาห์ที่ 12 เป็นไง" */
+  const wkNow = thisWeekKey();
+  /* วันจันทร์ของสัปดาห์ที่แล้ว · คิดเองไม่ผ่าน toISOString ซึ่งเป็น UTC
+     ถ้าใช้ตัวนั้น ช่วงหัวค่ำถึงเที่ยงคืนจะได้วันที่เลื่อนไปหนึ่งวัน */
+  const wkPrev = (() => {
+    const t = Date.parse(wkNow + 'T00:00:00');
+    if(isNaN(t)) return wkNow;
+    const x = new Date(t - 7 * 86400000), p = n => String(n).padStart(2,'0');
+    return x.getFullYear() + '-' + p(x.getMonth()+1) + '-' + p(x.getDate());
+  })();
+  const wkMap = new Map();
+  wkBase.forEach(r => {
+    const k = weekKey(r.end_date);
+    if(!k) return;
+    if(!wkMap.has(k)) wkMap.set(k, { k, n:0, st:{} });
+    const o = wkMap.get(k);
+    o.n++;
+    const s = statOf(r);
+    o.st[s] = (o.st[s] || 0) + 1;
+  });
+  const wkList = [...wkMap.values()]
+    .filter(x => x.k >= wkPrev)
+    .sort((a,b) => a.k < b.k ? -1 : 1)
+    .slice(0, 6);
+  const lateAll = wkBase.filter(r => isLate(r, today)).length;
 
   /* ตาราง · จำกัดจำนวนแถวไว้ ไม่งั้นสี่พันแถวจะหน่วงตอนวาด
      คนที่อยากได้ครบกด Export เอา ซึ่งไม่ได้ตัดที่ 300 */
@@ -1904,11 +2061,52 @@ function renderDash(){
         '<option value="lot"'    + (d.sort==='lot'   ?' selected':'') + '>ชื่อลอต</option>' +
       '</select>' +
       '<input class="dsrch" data-dsrch="1" placeholder="ค้นหาลอต โครงการ หรือหมายเหตุ" value="' + esc(d.q) + '">' +
+      /* v5.2 ทางลัดสองปุ่มที่หน้างานถามบ่อยที่สุด · กดซ้ำเพื่อยกเลิก */
+      '<button class="btn' + (d.wk === wkNow ? ' on' : '') + '" data-act="dthiswk">สัปดาห์นี้</button>' +
+      '<button class="btn' + (d.late ? ' on' : '') + '" data-act="dlate"' +
+        ' title="ลอตที่เลยกำหนดเสร็จแล้วแต่ยังไม่เข้าคลังครบ">เลยกำหนด ' +
+        nf0.format(lateAll) + '</button>' +
       (d.mon ? '<button class="btn on" data-act="dclrmon">เดือน ' + esc(monTh(d.mon)) + ' ×</button>' : '') +
       (d.wk  ? '<button class="btn on" data-act="dclrwk">' + esc(weekTx(d.wk)) +
                ' (' + esc(dayTh(d.wk)) + ') ×</button>' : '') +
       '<button class="btn" data-act="dreload" title="อ่านจาก Supabase ใหม่">⟳ รีเฟรช</button>' +
     '</div></div>' +
+
+    /* ── v5.2 สรุปรายสัปดาห์ · กดแถวเพื่อกรองเฉพาะสัปดาห์นั้น ──
+       วางไว้บนสุดก่อน KPI เพราะเป็นคำถามที่หน้างานถามทุกเช้า
+       "สัปดาห์นี้เหลือลอตไหนยังไม่จบ" ต้องตอบได้โดยไม่ต้องเลื่อนจอ */
+    (wkList.length ?
+      '<div class="blk"><div class="wkhead">สรุปตามสัปดาห์ · กำหนดเสร็จ · กดแถวเพื่อกรอง</div>' +
+      '<div class="dwrap"><table class="dtab wktab"><thead><tr>' +
+        '<th>สัปดาห์</th><th>จันทร์</th><th style="text-align:right">ลอต</th>' +
+        DASH_ST.map(s => '<th style="text-align:right">' + esc(s) + '</th>').join('') +
+      '</tr></thead><tbody>' +
+      wkList.map(w => {
+        const isNow = w.k === wkNow;
+        const on    = d.wk === w.k;
+        return '<tr data-act="dwk" data-k="' + esc(w.k) + '"' +
+               (on ? ' class="wkon"' : (isNow ? ' class="wknow"' : '')) + '>' +
+          '<td class="mono">' + esc(weekTx(w.k)) +
+            (isNow ? ' <span class="wktag">สัปดาห์นี้</span>' : '') + '</td>' +
+          '<td>' + esc(dayTh(w.k)) + '</td>' +
+          '<td class="num">' + nf0.format(w.n) + '</td>' +
+          DASH_ST.map(s => {
+            const v = w.st[s] || 0;
+            /* ศูนย์เขียนเป็นขีด อ่านเร็วกว่าเลขศูนย์เรียงกันเป็นแถว
+               ช่องที่จบแล้วเป็นเขียว ช่องที่ต้องไปตามเป็นแดง ที่เหลือสีปกติ */
+            const col = !v ? 'var(--mu2)'
+                      : s === ST_DONE ? 'var(--ok)'
+                      : s === 'ตัดครบ รอเข้าคลัง' ? 'var(--warn)' : 'var(--tx)';
+            return '<td class="num" style="color:' + col + (v && s === ST_DONE ? ';font-weight:600' : '') +
+                   '">' + (v ? nf0.format(v) : '—') + '</td>';
+          }).join('') +
+        '</tr>';
+      }).join('') +
+      '</tbody></table></div>' +
+      '<div class="wkfoot">จบ = เข้าคลังครบ · ' +
+        '<b style="color:var(--warn)">ตัดครบ รอเข้าคลัง</b> คือหน้าไลน์ทำเสร็จแล้ว ติดที่ปลายทาง · ' +
+        '<b>ไม่มีรายชิ้น</b> คือ AX ยังไม่มีรายชิ้นให้ ไม่ใช่งานเสร็จ' +
+      '</div></div>' : '') +
 
     /* ── ตัวเลขสรุป ── */
     '<div class="kpis">' +
@@ -2277,6 +2475,15 @@ function render(){
   $('viewDash').style.display  = S.tab === 'dash'  ? '' : 'none';
   $('tbParts').className = 'tb' + (S.tab === 'parts' ? ' on' : '');
   $('tbDash').className  = 'tb' + (S.tab === 'dash'  ? ' on' : '');
+
+  /* v5.3 ป้ายสัปดาห์ · เขียนทุกครั้งที่วาดจอ ไม่ใช่ครั้งเดียวตอนเปิด
+     เครื่องหน้าไลน์เปิดค้างข้ามคืน ถ้าเขียนครั้งเดียวจะค้างเป็นสัปดาห์เก่า */
+  const wkEl = $('wkNow');
+  if(wkEl){
+    const mon = thisWeekKey();
+    wkEl.innerHTML = '<span class="w">' + esc(weekTx(mon)) + '</span>' +
+                     '<span class="d">' + esc(weekSpanTh(mon)) + '</span>';
+  }
 
   renderHead();
   renderNote();
@@ -2739,6 +2946,15 @@ function closePicker(){ $('ovLot').classList.remove('open'); }
    โหลดข้อมูล
    ══════════════════════════════════════════════════════════════ */
 async function boot(){
+  /* v5.3 คืนแท็บที่เปิดค้างไว้ · ต้องทำก่อน render ครั้งแรก
+     ไม่งั้นจอจะกะพริบไปแท็บรายชิ้นก่อนแล้วค่อยเด้งกลับ
+     ลอตใน URL ชนะเสมอ เพราะคนส่งลิงก์มาให้ดูรายชิ้นของลอตนั้นโดยเฉพาะ */
+  try {
+    const t = localStorage.getItem('lp_tab');
+    if((t === 'parts' || t === 'dash') &&
+       !new URLSearchParams(location.search).get('lot')) S.tab = t;
+  } catch(e){}
+
   loadCfg();
   if(!S.url || !S.key){ render(); return; }
 
@@ -2768,6 +2984,11 @@ async function boot(){
     try { want = await db.latestPartsLot(); } catch(e){}
   }
   if(want) selectLot(want);
+
+  /* v5.3 เปิดมาค้างที่แท็บ BI ต้องโหลดข้อมูลให้เอง
+     selectLot ข้างบนยังต้องทำ เพราะกดกลับไปแท็บรายชิ้นแล้วต้องมีของให้ดูทันที
+     ไม่ใช่จอเปล่าที่ต้องไปเลือกลอตใหม่ทั้งที่เพิ่งดูอยู่เมื่อกี้ */
+  if(S.tab === 'dash') loadDash(false);
 }
 
 async function selectLot(lot){
@@ -2981,6 +3202,9 @@ document.addEventListener('click', ev => {
     const to = t.dataset.t;
     if(to === S.tab) return;
     S.tab = to;
+    /* v5.3 จำไว้ว่าเปิดแท็บไหนค้างอยู่ · กด F5 แล้วกลับมาที่เดิม
+       หน้าไลน์รีเฟรชบ่อยเพื่อดูของสด เด้งกลับไปแท็บแรกทุกครั้งน่ารำคาญ */
+    try { localStorage.setItem('lp_tab', to); } catch(e){}
     render();
     if(to === 'dash') loadDash(false);
     return;
@@ -2990,11 +3214,23 @@ document.addEventListener('click', ev => {
   if(act === 'dwk'){   S.dash.wk   = (S.dash.wk   === t.dataset.k ? '' : t.dataset.k); render(); return; }
   if(act === 'dclrmon'){ S.dash.mon = ''; render(); return; }
   if(act === 'dclrwk'){  S.dash.wk  = ''; render(); return; }
+  /* v5.2 ทางลัด · กดซ้ำเพื่อยกเลิก จะได้ไม่ต้องหาปุ่มปิดอีกปุ่ม
+     สัปดาห์นี้กับเลยกำหนดใช้ร่วมกันได้ ไม่ได้ล้างกันเอง
+     เพราะ "สัปดาห์นี้ที่เลยกำหนดแล้ว" เป็นคำถามที่มีจริง */
+  if(act === 'dthiswk'){
+    const k = thisWeekKey();
+    S.dash.wk = (S.dash.wk === k ? '' : k);
+    S.dash.mon = '';           /* เดือนที่ค้างอยู่อาจไม่คลุมสัปดาห์นี้ แล้วจอจะว่าง */
+    render(); return;
+  }
+  if(act === 'dlate'){ S.dash.late = !S.dash.late; render(); return; }
   if(act === 'dreload'){ loadDash(true); return; }
   if(act === 'dlot'){
     /* กดแถวในตารางภาพรวม = กระโดดไปดูรายชิ้นของลอตนั้น
        selectLot สั่งดึงจาก AX ให้เองอยู่แล้วถ้ายังไม่มีรายชิ้น */
-    S.tab = 'parts'; render(); selectLot(t.dataset.lot); return;
+    S.tab = 'parts';
+    try { localStorage.setItem('lp_tab', 'parts'); } catch(e){}   /* v5.3 */
+    render(); selectLot(t.dataset.lot); return;
   }
 
   if(act === 'drop'){ openPicker(); return; }
