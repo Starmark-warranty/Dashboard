@@ -5,8 +5,24 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>แผนผลิต · STARMARK</title>
 <!-- =====================================================================
-  แผนผลิต (เดิม Lot Parts · รายชิ้นในลอต)   ·   VERSION 5.19
+  แผนผลิต (เดิม Lot Parts · รายชิ้นในลอต)   ·   VERSION 5.20
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  5.20 2026-09-12  CHANGE จัดหน้าให้ตอบคำถามที่คนเปิดมาถามจริง
+                   · ย้ายแถบตั้งค่าเครื่องไปอยู่ในปุ่ม ⚙
+                     ของเดิมกางอยู่เหนือตารางตลอด กินที่หนึ่งบรรทัดเต็ม
+                     ทั้งที่เป็นค่าที่ตั้งครั้งเดียวแล้วแทบไม่แตะอีก
+                     ของที่ใช้นาน ๆ ครั้งไม่ควรกินที่ถาวร
+                     ยังบันทึกทันทีที่แก้เหมือนเดิม ไม่ต้องกดบันทึกและไม่ต้องโหลดใหม่
+                   · เปิดหน้ามากรองสัปดาห์นี้ให้เลย ไม่ใช่ขึ้นทั้ง 4,896 ลอต
+                     ของเดิมต้องกดปุ่ม "สัปดาห์นี้" เองทุกครั้งที่รีเฟรช
+                   · ซ่อนลอตที่เข้าคลังครบแล้วเป็นค่าเริ่มต้น
+                     หน้านี้ไว้ดูงานที่ยังต้องทำ ลอตที่จบแล้วไม่มีอะไรให้วางแผนต่อ
+                     มีแต่ดันงานที่ต้องทำตกหน้าไป
+                     ปุ่ม "ซ่อนที่จบแล้ว" กดสลับได้ · และถ้าเลือกสถานะเป็น
+                     "เข้าคลังครบ" เองก็ยังเห็น ไม่งั้นกรองแล้วจะได้จอเปล่า
+                   · สรุปรายสัปดาห์ไม่ได้รับผลจากสองข้อหลัง เพราะนับจากชุดของตัวเอง
+                     ยอดในนั้นจึงยังครบทุกสถานะ ไม่งั้นช่อง "เข้าคลังครบ" จะเป็นศูนย์ตลอด
+
   5.19 2026-09-12  FIX  lot ที่ถูก optimize ซ้ำ เวลาบวกเกินเป็นเท่าตัว
                    กติกาใหม่: หนึ่ง lot ใช้ไฟล์ Cut Rite ล่าสุดไฟล์เดียว
                    Cut Rite optimize ลอตเดิมซ้ำได้ แล้วออกเลข .SAW ใหม่
@@ -1342,8 +1358,8 @@ tr.rmgrp .s{font-family:var(--sans);font-weight:400;font-size:11.5px;color:var(-
 .rmbtn .rn{font-family:var(--mono);font-size:11px}
 
 /* v5.12 แถบตั้งค่าเครื่องปิดขอบ */
-.edgebar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:0 0 8px;
-  padding:7px 10px;border:1px solid var(--line);border-radius:8px}
+/* v5.20 แถวตั้งค่าเครื่องในกล่อง ⚙ · ของเดิมชื่อ edgebar อยู่เหนือตาราง เอาออกแล้ว */
+.machrow{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:0 0 4px}
 .ebl{font-size:11px;color:var(--mu2);font-weight:600}
 .ebu{font-size:10.5px;color:var(--mu2)}
 .ebck{display:flex;align-items:center;gap:5px;font-size:11.5px;cursor:pointer;min-height:30px}
@@ -1590,10 +1606,43 @@ table.dtab td.pd{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-sp
 
 <!-- ── ตั้งค่าการเชื่อมต่อ ─────────────────────────────────────── -->
 <div class="ov" id="ovCfg">
-  <div class="modal" style="width:min(520px,96vw)">
-    <h3>การเชื่อมต่อ Supabase</h3>
+  <div class="modal" style="width:min(560px,96vw)">
+    <h3>ตั้งค่า</h3>
     <div class="bd">
-      <div class="sub">การเชื่อมต่อ Smart Production สำหรับหน้าลอต</div>
+
+      <!-- v5.20 ค่าเครื่อง · ย้ายมาจากแถบเหนือตาราง
+           เป็นค่าที่ตั้งครั้งเดียวแล้วแทบไม่แตะอีก ไม่ควรกินที่บนจอถาวร
+           ค่าพวกนี้บันทึกทันทีที่แก้ ไม่ต้องกดปุ่มบันทึก และไม่ต้องโหลดหน้าใหม่
+           เพราะสิ่งที่เก็บในฐานข้อมูลคือจำนวนงาน หน้านี้แค่เอามาคูณ -->
+      <div class="sub">เครื่องปิดขอบ</div>
+      <div class="machrow">
+        <label class="ebck" title="เครื่องที่ติดเทปสองด้านตรงข้ามพร้อมกัน แผ่นวิ่งผ่านเครื่องครึ่งเดียว">
+          <input type="checkbox" id="mEdgeTwo" data-act="edgetwo"> ปิดสองด้านพร้อมกัน</label>
+        <span class="ebl">ความเร็ว</span>
+        <input type="number" class="ebin" id="mEdgeFeed" data-act="edgefeed" min="1" max="99" step="0.5">
+        <span class="ebu">ม./นาที</span>
+        <span class="ebl">จับวาง</span>
+        <input type="number" class="ebin" id="mEdgeHand" data-act="edgehand" min="0" max="300" step="0.5">
+        <span class="ebu">วิ/รอบ</span>
+      </div>
+
+      <div class="sub" style="margin-top:12px">เครื่องเจาะ CNC</div>
+      <div class="machrow">
+        <span class="ebl">รู</span>
+        <input type="number" class="ebin" id="mNcHole" data-act="nchole" min="0" max="60" step="0.1">
+        <span class="ebu">วิ/รู</span>
+        <span class="ebl">จับวาง</span>
+        <input type="number" class="ebin" id="mNcHand" data-act="nchand" min="0" max="300" step="0.5">
+        <span class="ebu">วิ/แผ่น</span>
+        <span class="ebl">ช่องเซาะ</span>
+        <input type="number" class="ebin" id="mNcPkr" data-act="ncpkr" min="0" max="100" step="0.1">
+        <span class="ebu">วิ/1000มม²</span>
+        <span class="ebu">+</span>
+        <input type="number" class="ebin" id="mNcPkf" data-act="ncpkf" min="0" max="300" step="0.5">
+        <span class="ebu">วิ/ช่อง</span>
+      </div>
+
+      <div class="sub" style="margin-top:16px;padding-top:12px;border-top:1px solid var(--line)">การเชื่อมต่อ Smart Production สำหรับหน้าลอต</div>
       <div class="f2"><label>Project URL</label><input type="text" id="cfgUrl" placeholder="https://xxxx.supabase.co"></div>
       <div class="f2"><label>Publishable key</label><input type="text" id="cfgKey" placeholder="sb_publishable_..."></div>
       <div class="br">
@@ -1701,6 +1750,7 @@ const S = {
     rows:[], loaded:false, busy:'', err:'',
     year:'', pool:'', bu:'', st:'', mon:'', wk:'', q:'',
     late:false,              // v5.2 เอาเฉพาะลอตที่เลยกำหนดแล้วยังไม่จบ
+    hideDone:true,           // v5.20 ซ่อนลอตที่เข้าคลังครบแล้ว · ค่าเริ่มต้นคือซ่อน
     col:{},                  // v5.4 ตัวกรองรายคอลัมน์ของตารางรายการลอต { คีย์: ข้อความ }
     rmHave:{},               // { ชื่อลอต: จำนวนรายการวัตถุดิบที่มีอยู่แล้ว }
     /* v5.7 เรียงตามคอลัมน์ · กดหัวตารางสลับขึ้นลงได้ทุกคอลัมน์
@@ -1787,13 +1837,25 @@ function edgeLoad(){
              hand:(+j.hand >= 0) ? +j.hand : EDGE_DEF.hand };
   }catch(e){ EDGE = Object.assign({}, EDGE_DEF); }
 }
+/* v5.20 เขียนค่าปัจจุบันลงช่องในกล่องตั้งค่า
+   ช่องพวกนี้เป็น markup นิ่ง ไม่ได้ถูกวาดใหม่ตอน render() เหมือนตอนอยู่เหนือตาราง
+   ต้องเติมเองตอนเปิดกล่อง และตอนค่าถูกดีดกลับเพราะกรอกไม่ผ่าน */
+function machFill(){
+  const m = { mEdgeTwo:null, mEdgeFeed:'feed', mEdgeHand:'hand' };
+  const a = $('mEdgeTwo'); if(a) a.checked = EDGE.two;
+  const b = $('mEdgeFeed'); if(b) b.value = EDGE.feed;
+  const c = $('mEdgeHand'); if(c) c.value = EDGE.hand;
+  const n = { mNcHole:'hole', mNcHand:'hand', mNcPkr:'pkr', mNcPkf:'pkf' };
+  for(const id in n){ const el = $(id); if(el) el.value = NCS[n[id]]; }
+}
+
 function edgeSet(k, v){
   if(k === 'two')  EDGE.two = !!v;
   // กันค่าที่ทำให้หารศูนย์หรือติดลบ · ปล่อยผ่านแล้วเวลาจะเป็น Infinity
   if(k === 'feed'){ const n = parseFloat(v); EDGE.feed = (n > 0)  ? n : EDGE_DEF.feed; }
   if(k === 'hand'){ const n = parseFloat(v); EDGE.hand = (n >= 0) ? n : EDGE_DEF.hand; }
   try{ localStorage.setItem('lp_edge', JSON.stringify(EDGE)); }catch(e){}
-  render();
+  machFill(); render();
   try{ if($('ovCut') && $('ovCut').classList.contains('open')) renderCutBox(); }catch(e){}
 }
 
@@ -1816,7 +1878,7 @@ function ncSet(k, v){
   const n = parseFloat(v);
   NCS[k] = (n >= 0) ? n : NC_DEF[k];
   try{ localStorage.setItem('lp_nc', JSON.stringify(NCS)); }catch(e){}
-  render();
+  machFill(); render();
   try{ if($('ovCut') && $('ovCut').classList.contains('open')) renderCutBox(); }catch(e){}
 }
 
@@ -2484,6 +2546,10 @@ function dashFiltered(skipCol){
     if(d.pool && String(r.prod_pool || '') !== d.pool) return false;
     if(d.bu   && (buOf(r) || 'ไม่ระบุ') !== d.bu) return false;
     if(d.st   && statOf(r) !== d.st) return false;
+    /* v5.20 ซ่อนลอตที่เข้าคลังครบแล้ว · หน้านี้ไว้ดูงานที่ยังต้องทำ
+       ลอตที่จบแล้วไม่มีอะไรให้วางแผนต่อ มีแต่ดันงานที่ต้องทำตกหน้าไป
+       ถ้าเลือกสถานะเป็น "เข้าคลังครบ" เองก็ยังให้เห็น ไม่งั้นกรองแล้วได้จอเปล่า */
+    if(d.hideDone && d.st !== ST_DONE && statOf(r) === ST_DONE) return false;
     if(d.late && !isLate(r)) return false;   /* v5.2 */
     /* v5.4 ตัวกรองรายคอลัมน์ · ทุกช่องที่กรอกต้องผ่านหมด ไม่ใช่ผ่านช่องใดช่องหนึ่ง
        v5.5 ช่องลูกศรเทียบตรงตัว ช่องพิมพ์เทียบแบบมีข้อความอยู่ข้างใน
@@ -2729,6 +2795,9 @@ function renderDash(){
       '<input class="dsrch" data-dsrch="1" placeholder="ค้นหาลอต โครงการ หรือหมายเหตุ" value="' + esc(d.q) + '">' +
       /* v5.2 ทางลัดสองปุ่มที่หน้างานถามบ่อยที่สุด · กดซ้ำเพื่อยกเลิก */
       '<button class="btn' + (d.wk === wkNow ? ' on' : '') + '" data-act="dthiswk">สัปดาห์นี้</button>' +
+      '<button class="btn' + (d.hideDone ? ' on' : '') + '" data-act="dhidedone"' +
+        ' title="ซ่อนลอตที่เข้าคลังครบแล้ว · กดเพื่อสลับ">' +
+        (d.hideDone ? 'ซ่อนที่จบแล้ว' : 'แสดงทุกสถานะ') + '</button>' +
       '<button class="btn' + (d.late ? ' on' : '') + '" data-act="dlate"' +
         ' title="ลอตที่เลยกำหนดเสร็จแล้วแต่ยังไม่เข้าคลังครบ">เลยกำหนด ' +
         nf0.format(lateAll) + '</button>' +
@@ -2755,32 +2824,9 @@ function renderDash(){
         esc(S.cut.err) + ' · คอลัมน์เวลาตัดจะขึ้นขีด ที่เหลือใช้ได้ตามปกติ</span></div>' : '') +
       /* v5.12 ค่าเครื่องปิดขอบ · Cut Rite ไม่ได้ให้เวลาปิดขอบมา ต้องคูณเอง
          วางเหนือตารางเพราะมีผลกับทุกแถวพร้อมกัน ไม่ใช่ของลอตใดลอตหนึ่ง */
-      '<div class="edgebar">' +
-        '<span class="ebl">เครื่องปิดขอบ</span>' +
-        '<label class="ebck" title="เครื่องที่ติดเทปสองด้านตรงข้ามพร้อมกัน แผ่นวิ่งผ่านเครื่องครึ่งเดียว">' +
-          '<input type="checkbox" data-act="edgetwo"' + (EDGE.two ? ' checked' : '') + '> ปิดสองด้านพร้อมกัน</label>' +
-        '<span class="ebl">ความเร็ว</span>' +
-        '<input type="number" class="ebin" data-act="edgefeed" min="1" max="99" step="0.5" value="' + EDGE.feed + '">' +
-        '<span class="ebu">ม./นาที</span>' +
-        '<span class="ebl">จับวาง</span>' +
-        '<input type="number" class="ebin" data-act="edgehand" min="0" max="300" step="0.5" value="' + EDGE.hand + '">' +
-        '<span class="ebu">วิ/รอบ</span>' +
-        /* v5.13 เครื่องเจาะ · คนละเครื่องกับปิดขอบ แต่อยู่แถบเดียวกันเพราะ
-           มีผลกับคอลัมน์เดียวกัน ถ้าแยกกล่องจะหาไม่เจอว่าปรับที่ไหน */
-        '<span class="ebl" style="margin-left:10px">เครื่องเจาะ</span>' +
-        '<span class="ebu">รู</span>' +
-        '<input type="number" class="ebin" data-act="nchole" min="0" max="60" step="0.1" value="' + NCS.hole + '">' +
-        '<span class="ebu">วิ</span>' +
-        '<span class="ebl">จับวาง</span>' +
-        '<input type="number" class="ebin" data-act="nchand" min="0" max="300" step="0.5" value="' + NCS.hand + '">' +
-        '<span class="ebu">วิ/แผ่น</span>' +
-        '<span class="ebl">ช่องเซาะ</span>' +
-        '<input type="number" class="ebin" data-act="ncpkr" min="0" max="60" step="0.1" value="' + NCS.pkr + '" ' +
-          'title="ยังไม่ได้จับเวลาจริง เป็นค่าเดา ปรับได้">' +
-        '<span class="ebu">วิ/1000มม²</span><span class="ebu">+</span>' +
-        '<input type="number" class="ebin" data-act="ncpkf" min="0" max="300" step="0.5" value="' + NCS.pkf + '">' +
-        '<span class="ebu">วิ/ช่อง</span>' +
-      '</div>' +
+      /* v5.20 ย้ายแถบตั้งค่าเครื่องไปอยู่ในปุ่ม ⚙ แล้ว
+         ของเดิมกางอยู่เหนือตารางตลอดเวลา กินที่หนึ่งบรรทัดเต็ม ทั้งที่เป็นค่าที่
+         ตั้งครั้งเดียวแล้วแทบไม่แตะอีก · ของที่ใช้นาน ๆ ครั้งไม่ควรกินที่ถาวร */
       /* v5.7 หัวตารางกดเรียงได้ทุกคอลัมน์ · กดซ้ำสลับขึ้นลง
          ลูกศรโชว์เฉพาะคอลัมน์ที่เรียงอยู่ ไม่ได้ใส่จาง ๆ ทุกหัว
          ซึ่งจะกลายเป็นลูกศรเก้าตัวเรียงกันจนไม่รู้ว่าอันไหนทำงานอยู่ */
@@ -4110,6 +4156,12 @@ async function boot(){
   } catch(e){}
 
   edgeLoad(); ncLoad();   // v5.12/5.13 ค่าเครื่องที่จำไว้ในเครื่องคนดู
+
+  /* v5.20 เปิดหน้ามาให้เห็นสัปดาห์นี้เลย ไม่ใช่ทั้ง 4,896 ลอต
+     คนเปิดหน้านี้มาถามว่า "สัปดาห์นี้ต้องทำอะไร" แทบทุกครั้ง
+     ของเดิมต้องกดปุ่ม "สัปดาห์นี้" เองทุกรอบที่รีเฟรช
+     กดปุ่มนั้นซ้ำ หรือกดกากบาทบนป้ายสัปดาห์ เพื่อดูทั้งหมดได้เหมือนเดิม */
+  try { S.dash.wk = thisWeekKey(); } catch(e){}
   loadCfg();
   if(!S.url || !S.key){ render(); return; }
 
@@ -4369,6 +4421,7 @@ document.addEventListener('click', ev => {
   if(act === 'dwk'){   S.dash.wk   = (S.dash.wk   === t.dataset.k ? '' : t.dataset.k); render(); return; }
   if(act === 'dclrmon'){ S.dash.mon = ''; render(); return; }
   if(act === 'dclrwk'){  S.dash.wk  = ''; render(); return; }
+  if(act === 'dhidedone'){ S.dash.hideDone = !S.dash.hideDone; render(); return; }
   /* v5.2 ทางลัด · กดซ้ำเพื่อยกเลิก จะได้ไม่ต้องหาปุ่มปิดอีกปุ่ม
      สัปดาห์นี้กับเลยกำหนดใช้ร่วมกันได้ ไม่ได้ล้างกันเอง
      เพราะ "สัปดาห์นี้ที่เลยกำหนดแล้ว" เป็นคำถามที่มีจริง */
@@ -4451,6 +4504,7 @@ document.addEventListener('click', ev => {
   if(act === 'fltclear'){ S.filters = {}; render(); return; }
 
   if(act === 'cfg'){ $('cfgUrl').value = S.url; $('cfgKey').value = S.key;
+    machFill();                     // v5.20 ค่าเครื่องอยู่ในกล่องนี้แล้ว
     $('ovCfg').classList.add('open'); return; }
   if(act === 'cfgclose'){ $('ovCfg').classList.remove('open'); return; }
   if(act === 'cfgsave'){
