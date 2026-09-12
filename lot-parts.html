@@ -5,8 +5,30 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Ax Progress · รายชิ้นในลอต</title>
 <!-- =====================================================================
-  Lot Parts · รายชิ้นในลอต        ·   VERSION 5.9
+  Lot Parts · รายชิ้นในลอต        ·   VERSION 5.10
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  5.10 2026-09-12  FEAT เวลาตัดจาก Cut Rite · คอลัมน์ใหม่ + หน้าต่างรายไม้
+                   ตารางนี้ตอบได้ว่าลอตไหนต้องทำ แต่ตอบไม่ได้ว่าลอตนั้นกินเวลา
+                   เครื่องเท่าไหร่ ซึ่งเป็นตัวที่ใช้จัดคิวจริง ๆ
+                   · คอลัมน์ "เวลาตัด" ขึ้นเวลารวมกับเลข .SAW (ชื่อไฟล์ Export XLSX)
+                     เรียงได้เหมือนคอลัมน์อื่น
+                   · กดแถว = เปิดหน้าต่างเวลาตัดแยกรายกลุ่มไม้ กว้างเต็มจอ
+                   CHANGE กดแถวไม่กระโดดไปแท็บรายชิ้นแล้ว ตามที่เจ้าของงานสั่ง
+                   ทางไปรายชิ้นยังอยู่ครบ กดแท็บ "รายชิ้น" แล้วเลือกลอตจากช่องเลือก
+                   หายเฉพาะทางลัด ไม่ได้หายทั้งฟีเจอร์
+                   CHANGE ตารางลอตขึ้นก่อนสรุปรายสัปดาห์
+                   v5.9 วางสรุปสัปดาห์ไว้บนเพราะมองว่าเป็นตัวช่วยกรอง
+                   แต่ของที่คนมาอ่านจริงคือตาราง ตัวช่วยกรองย้ายลงล่างได้
+
+                   NOTE เวลาตัดอยู่คนละโปรเจกต์ Supabase กับข้อมูลลอต
+                   ตาราง cut_file / cut_board อยู่ที่ Install_tracker
+                   ซึ่งเป็นที่เดียวกับที่ Cutting Center Dashboard อ่านอยู่
+                   หน้านี้จึงอ่านข้ามโปรเจกต์ แบบเดียวกับที่อ่าน fitting_global
+                   จาก StarNexus อยู่แล้ว · ตรวจแล้วชื่อลอตตรงกันทั้งสองฝั่ง
+                   สุ่มเทียบ 36 ตัว ตรงหมด 36
+                   ล้มก็ไม่เป็นไร คอลัมน์จะขึ้นขีด ที่เหลือใช้ได้ครบเหมือนเดิม
+                   ยังไม่ได้ทดสอบบนเครื่องจริงหน้าไลน์
+
   5.9  2026-09-11  CHANGE ตารางรายการลอตขึ้นก่อนมูลค่าและกราฟ ตามที่สั่ง
                    คนเปิดแท็บนี้มาหา "ลอตไหนต้องทำ" ก่อนเสมอ
                    ตัวเลขเงินกับกราฟเป็นของที่ดูเป็นครั้งคราว ไม่ใช่ทุกวัน
@@ -1222,6 +1244,23 @@ tr.rmgrp .s{font-family:var(--sans);font-weight:400;font-size:11.5px;color:var(-
 .rmbtn.has{border-color:var(--ok);color:var(--ok);background:var(--stbg);font-weight:600}
 .rmbtn .rn{font-family:var(--mono);font-size:11px}
 
+/* v5.10 ช่องเวลาตัดในตาราง · สามบรรทัดซ้อนกันในช่องเดียว */
+table.dtab td.cutc{text-align:right;white-space:nowrap;line-height:1.35}
+.cutt{display:block;font-family:var(--mono);font-size:13px}
+.cuteta{display:block;font-size:10px;color:var(--warn)}
+.cutsaw{display:block;font-family:var(--mono);font-size:10px;color:var(--mu2)}
+.cutno{color:var(--mu2)}
+
+/* v5.10 หน้าต่างเวลาตัด · แถบเทียบสัดส่วนว่าไม้ตัวไหนกินเวลาที่สุด */
+.cutsum{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-end;
+  padding:10px 14px;border:1px solid var(--line);border-radius:9px;margin-bottom:10px}
+.cutsum .k{font-size:11px;color:var(--mu2);line-height:1.3}
+.cutsum .v{font-size:19px;font-family:var(--mono)}
+.cutbar{width:120px;height:6px;background:var(--line);border-radius:4px;overflow:hidden}
+.cutbar i{display:block;height:100%;background:var(--brand)}
+.cutnote{font-size:11px;color:var(--mu2);margin-top:8px;line-height:1.7}
+@media (max-width:760px){ .cutbar{display:none} }
+
 /* ตารางลอต */
 .dwrap{max-height:460px;overflow:auto;border:1px solid var(--line);border-radius:9px}
 /* v4.2 ตารางวัตถุดิบอยู่ในหน้าต่าง กดแถวไม่ได้ อย่าให้เคอร์เซอร์หลอก */
@@ -1407,6 +1446,15 @@ table.dtab td.pd{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-sp
   </div>
 </div>
 
+<!-- ── v5.10 เวลาตัดแยกรายกลุ่มไม้ของลอตที่เปิดอยู่ ─────────────────
+     ดึงตอนกดเท่านั้น · ไม่มีใครเปิดดูทุกลอต ดึงมาตั้งแต่แรกคือเปลืองเปล่า -->
+<div class="ov" id="ovCut">
+  <div class="modal rmmodal">
+    <h3>เวลาตัด · <span id="cutLotTx" class="mono"></span><button type="button" class="btn" data-act="cutclose" aria-label="ปิดหน้าต่างเวลาตัด">ปิด ×</button></h3>
+    <div class="bd"><div id="cutBody"></div></div>
+  </div>
+</div>
+
 <!-- ── ตั้งค่าการเชื่อมต่อ ─────────────────────────────────────── -->
 <div class="ov" id="ovCfg">
   <div class="modal" style="width:min(520px,96vw)">
@@ -1534,6 +1582,13 @@ const S = {
           ชื่ออุปกรณ์ไม่มีวันเปลี่ยน เก็บไว้ใช้ซ้ำข้ามลอตได้
           ยอดคงเหลือขยับตลอดเวลา ต้องอ่านใหม่ทุกครั้งที่เปิดลอต */
        onhand:{}, onhandLoaded:false, onhandErr:'', onhandAt:'' },
+
+  /* v5.10 เวลาตัดราย lot · โหลดพร้อมแท็บภาพรวม ตารางเล็ก 1 แถวต่อไฟล์
+     map: lot -> { ids, runs, total_sec, setup_sec, groups, boards, ... } */
+  cut:{ map:{}, loaded:false, err:'' },
+  /* รายกลุ่มไม้ของลอตที่เปิดหน้าต่างอยู่ · ดึงตอนกดเท่านั้น
+     ไม่มีใครเปิดดูทุกลอต ดึงมาตั้งแต่แรกคือเปลืองเปล่า */
+  cutBox:{ lot:'', rows:[], loaded:false, busy:'', err:'' },
 };
 
 /* ── คลังอุปกรณ์ · อยู่คนละโปรเจกต์ Supabase กับข้อมูลลอต ─────────────
@@ -1551,6 +1606,36 @@ function fitCfg(){
     k =  localStorage.getItem('lp_fit_key') || k;
   } catch(e){}
   return { u, k };
+}
+
+/* ── เวลาตัด · อยู่คนละโปรเจกต์ Supabase กับข้อมูลลอต ─────────────────
+   ตาราง cut_file / cut_board อยู่ที่ Install_tracker ซึ่งเป็นที่เดียวกับที่
+   Cutting Center Dashboard อ่านอยู่ และ StarSync-CutPattern เขียนเข้าไป
+   หน้านี้ไปอ่านตอนแสดงผล ไม่ได้ก๊อปมาเก็บไว้ฝั่ง Smart Production
+   เหตุผลเดียวกับ fitting_global: ข้อมูลที่เก็บสองที่จะไม่ตรงกันวันใดวันหนึ่งเสมอ
+   ตั้งทับได้ที่ localStorage คีย์ lp_cut_url / lp_cut_key ถ้าวันหลังย้ายที่ */
+const CUT_URL_DEFAULT = 'https://vyzsdfezmzawctfkehbk.supabase.co';
+const CUT_KEY_DEFAULT = 'sb_publishable__2Ci0D7Gf4dg__BdmHJz3A_KHnvQykx';
+function cutCfg(){
+  let u = CUT_URL_DEFAULT, k = CUT_KEY_DEFAULT;
+  try {
+    u = (localStorage.getItem('lp_cut_url') || u).replace(/\/+$/,'');
+    k =  localStorage.getItem('lp_cut_key') || k;
+  } catch(e){}
+  return { u, k };
+}
+
+/* เวลาแบบมีหน่วย · รูปแบบนาฬิกา 1:51:00 ต้องแปลในหัวว่าตัวไหนชั่วโมง
+   คนอ่านผ่าน ๆ เห็น 1:51 แล้วนึกว่าหนึ่งนาทีห้าสิบเอ็ดวินาทีได้
+   ปัดเป็นนาทีก่อนค่อยแยกชั่วโมง ไม่งั้น 3599 วินาทีจะออกมาเป็น "60 นาที" */
+function cutThai(sec){
+  const x = Math.max(0, Math.round(Number(sec) || 0));
+  if(x < 60) return x + ' วิ';
+  let m = Math.round(x / 60);
+  const h = Math.floor(m / 60);
+  m = m % 60;
+  if(h) return m ? (h + ' ชม. ' + m + ' นาที') : (h + ' ชม.');
+  return m + ' นาที';
 }
 
 /* ชื่อหัวคอลัมน์ · ถอดมาจากนิยามกริดในตัว AxProgress.exe ทั้งหมด */
@@ -1709,6 +1794,44 @@ const db = {
       if(page.length < PAGE) break;
     }
     return out;
+  },
+
+  /* v5.10 เวลาตัดอยู่คนละโปรเจกต์ · มี base/head ของตัวเอง ไม่ใช้ของ S
+     แยกเป็นคนละชุดตั้งใจ · ถ้าใช้ร่วมกันแล้ววันหนึ่งมีคนไปแก้ค่าเชื่อมต่อ
+     ในหน้าตั้งค่า เวลาตัดจะเงียบหายไปโดยไม่มีใครรู้ว่าทำไม */
+  cutBase(){ return cutCfg().u + '/rest/v1/'; },
+  cutHead(){
+    const k = cutCfg().k;
+    return k.startsWith('sb_publishable_') ? { apikey:k } : { apikey:k, Authorization:'Bearer ' + k };
+  },
+  async cutGet(path){
+    const r = await fetch(this.cutBase() + path, { headers:this.cutHead() });
+    if(!r.ok){
+      const t = await r.text().catch(()=> '');
+      throw new Error('HTTP ' + r.status + ' · ' + t.slice(0,240));
+    }
+    return r.json();
+  },
+  async cutGetAll(path, order){
+    const PAGE = 1000, out = [];
+    for(let off = 0; off < 60000; off += PAGE){
+      const page = await this.cutGet(path + '&order=' + order + '&limit=' + PAGE + '&offset=' + off);
+      out.push(...page);
+      if(page.length < PAGE) break;
+    }
+    return out;
+  },
+  cutFiles(){
+    return this.cutGetAll('cut_file?select=id,lot,run_no,file_name,groups,patterns,boards,' +
+                          'waste_pct,cut_sec,setup_sec,total_sec', 'lot.asc');
+  },
+  /* กรองด้วย file_id ที่เป็นตัวเลขล้วน ไม่ใช่ชื่อลอต
+     ชื่อลอตมีวงเล็บ จุด และภาษาไทยปนอยู่ ซึ่ง PostgREST อ่านเป็นไวยากรณ์ตัวกรอง
+     เคยพลาดมาแล้วที่ Cutting Center Dashboard v13.24 กว่าจะรู้ว่าค้นไม่เจอเพราะอะไร */
+  cutBoards(ids){
+    return this.cutGet('cut_board?select=seq,board_code,board_desc,thickness,book_no,' +
+                       'patterns,boards,waste_pct,total_sec&file_id=in.(' + ids.join(',') + ')' +
+                       '&order=total_sec.desc&limit=500');
   },
 
   async get(path){
@@ -2410,41 +2533,6 @@ function renderDash(){
       '<button class="btn" data-act="dreload" title="อ่านจาก Supabase ใหม่">⟳ รีเฟรช</button>' +
     '</div></div>' +
 
-    /* ── v5.2 สรุปรายสัปดาห์ · กดแถวเพื่อกรองเฉพาะสัปดาห์นั้น ──
-       วางไว้บนสุดก่อน KPI เพราะเป็นคำถามที่หน้างานถามทุกเช้า
-       "สัปดาห์นี้เหลือลอตไหนยังไม่จบ" ต้องตอบได้โดยไม่ต้องเลื่อนจอ */
-    (wkList.length ?
-      '<div class="blk"><div class="wkhead">สรุปตามสัปดาห์ · กำหนดเสร็จ · กดแถวเพื่อกรอง</div>' +
-      '<div class="dwrap"><table class="dtab wktab"><thead><tr>' +
-        '<th>สัปดาห์</th><th>จันทร์</th><th style="text-align:right">ลอต</th>' +
-        DASH_ST.map(s => '<th style="text-align:right">' + esc(s) + '</th>').join('') +
-      '</tr></thead><tbody>' +
-      wkList.map(w => {
-        const isNow = w.k === wkNow;
-        const on    = d.wk === w.k;
-        return '<tr data-act="dwk" data-k="' + esc(w.k) + '"' +
-               (on ? ' class="wkon"' : (isNow ? ' class="wknow"' : '')) + '>' +
-          '<td class="mono">' + esc(weekTx(w.k)) +
-            (isNow ? ' <span class="wktag">สัปดาห์นี้</span>' : '') + '</td>' +
-          '<td>' + esc(dayTh(w.k)) + '</td>' +
-          '<td class="num">' + nf0.format(w.n) + '</td>' +
-          DASH_ST.map(s => {
-            const v = w.st[s] || 0;
-            /* ศูนย์เขียนเป็นขีด อ่านเร็วกว่าเลขศูนย์เรียงกันเป็นแถว
-               ช่องที่จบแล้วเป็นเขียว ช่องที่ต้องไปตามเป็นแดง ที่เหลือสีปกติ */
-            const col = !v ? 'var(--mu2)'
-                      : s === ST_DONE ? 'var(--ok)'
-                      : s === 'ตัดครบ รอเข้าคลัง' ? 'var(--warn)' : 'var(--tx)';
-            return '<td class="num" style="color:' + col + (v && s === ST_DONE ? ';font-weight:600' : '') +
-                   '">' + (v ? nf0.format(v) : '—') + '</td>';
-          }).join('') +
-        '</tr>';
-      }).join('') +
-      '</tbody></table></div>' +
-      '<div class="wkfoot">จบ = เข้าคลังครบ · ' +
-        '<b style="color:var(--warn)">ตัดครบ รอเข้าคลัง</b> คือหน้าไลน์ทำเสร็จแล้ว ติดที่ปลายทาง · ' +
-        '<b>ไม่มีรายชิ้น</b> คือ AX ยังไม่มีรายชิ้นให้ ไม่ใช่งานเสร็จ' +
-      '</div></div>' : '') +
 
     /* ── v5.9 ตารางขึ้นก่อนมูลค่า ตามที่เจ้าของงานสั่ง ──
        เหตุผล: คนเปิดแท็บนี้มาหา "ลอตไหนต้องทำ" ก่อนเสมอ
@@ -2454,7 +2542,9 @@ function renderDash(){
     '<div class="blk"><h4>รายการลอต ' +
       '<span class="sub2">' + (rows.length > CAP ? 'แสดง ' + CAP + ' จาก ' + nf0.format(rows.length) +
         ' · กด Export เพื่อเอาครบ' : nf0.format(rows.length) + ' ลอต') +
-      ' · กดแถวเพื่อไปดูรายชิ้น · กดปุ่มท้ายแถวเพื่อดูวัตถุดิบ</span></h4>' +
+      ' · กดแถวเพื่อดูเวลาตัดแยกรายไม้ · กดปุ่มท้ายแถวเพื่อดูวัตถุดิบ</span></h4>' +
+      (S.cut.err ? '<div class="blk dwarn" style="margin:0 0 8px"><span>⚠</span><span>' +
+        esc(S.cut.err) + ' · คอลัมน์เวลาตัดจะขึ้นขีด ที่เหลือใช้ได้ตามปกติ</span></div>' : '') +
       /* v5.7 หัวตารางกดเรียงได้ทุกคอลัมน์ · กดซ้ำสลับขึ้นลง
          ลูกศรโชว์เฉพาะคอลัมน์ที่เรียงอยู่ ไม่ได้ใส่จาง ๆ ทุกหัว
          ซึ่งจะกลายเป็นลูกศรเก้าตัวเรียงกันจนไม่รู้ว่าอันไหนทำงานอยู่ */
@@ -2462,7 +2552,9 @@ function renderDash(){
         [['lot','ลอต',''],['end','กำหนดเสร็จ',''],['wk','สัปดาห์',''],
          ['pool','สายผลิต',''],['shelf','ชั้น',''],
          ['rm','หมายเหตุลอต',''],['pd','หมายเหตุวางแผน',''],
-         ['prog','ความคืบหน้า',''],['amount','มูลค่า','text-align:right']
+         ['prog','ความคืบหน้า',''],
+         ['cut','เวลาตัด','text-align:right'],
+         ['amount','มูลค่า','text-align:right']
         ].map(c => {
           const on = d.sortKey === c[0];
           return '<th class="so' + (on ? ' on' : '') + '" data-act="dsort" data-k="' + c[0] + '"' +
@@ -2505,7 +2597,9 @@ function renderDash(){
                           (o === cur ? ' selected' : '') + '>' + esc(o) + '</option>').join('') +
             '</select></th>';
         }).join('') +
-        '<th></th><th></th><th></th>' +
+        /* v5.10 ช่องว่างสี่ช่อง · ความคืบหน้า เวลาตัด มูลค่า และช่องปุ่ม
+           นับไม่ตรงกับจำนวนคอลัมน์เมื่อไหร่ ตารางจะเหลื่อมทั้งตาราง */
+        '<th></th><th></th><th></th><th></th>' +
       '</tr></thead><tbody>' +
       (shown.length ? shown.map(r => {
         /* ป้ายติดทั้งตอนมีเลขและตอนไม่มี · ตอนไม่มีสำคัญกว่า
@@ -2522,6 +2616,16 @@ function renderDash(){
           '<td class="rm" data-tip="' + esc(r.lot_remark || '') + '">' + esc(r.lot_remark || '') + '</td>' +
           '<td class="pd" data-tip="' + esc(r.pd_remark || '') + '">' + esc(r.pd_remark || '') + '</td>' +
           stageCell(r) +
+          /* v5.10 เวลาตัด · ลอตที่ยังไม่ได้ซิงก์ไฟล์ขึ้นขีด ไม่ใช่ช่องว่าง
+             ช่องว่างอ่านไม่ออกว่า "ไม่มีข้อมูล" หรือ "ศูนย์" */
+          '<td class="cutc">' + (function(){
+            const c = S.cut.map[r.lot];
+            if(!c) return '<span class="cutno">—</span>';
+            const eta = cutEtaOf(r);
+            return '<b class="cutt">' + esc(cutThai(c.total_sec)) + '</b>' +
+              (eta ? '<span class="cuteta">เหลือราว ' + esc(cutThai(eta)) + '</span>' : '') +
+              '<span class="cutsaw">.SAW ' + esc(c.runs.join(' · ')) + '</span>';
+          })() + '</td>' +
           '<td class="num">' + (r.amount == null ? (lv || '—') : baht(r.amount) + ' ' + lv) + '</td>' +
           /* ปุ่มอยู่ในแถวเดียวกัน กดปุ่ม = ดูวัตถุดิบ กดที่อื่นในแถว = ไปดูรายชิ้น
              v5.0 ลอตที่มีวัตถุดิบอยู่แล้วขึ้นเขียวพร้อมจำนวน · ตัวที่ยังไม่มีขึ้นจาง
@@ -2534,8 +2638,47 @@ function renderDash(){
               '">▤ ' + (n ? '<span class="rn">' + n + '</span>' : 'ดึง') + '</button>';
           })() + '</td>' +
         '</tr>';
-      }).join('') : '<tr><td colspan="10" style="color:var(--mu2)">ไม่มีลอตในเงื่อนไขนี้</td></tr>') +
+      }).join('') : '<tr><td colspan="11" style="color:var(--mu2)">ไม่มีลอตในเงื่อนไขนี้</td></tr>') +
       '</tbody></table></div></div>' +
+    /* ── v5.10 สรุปรายสัปดาห์ย้ายลงมาไว้ใต้ตาราง ตามที่เจ้าของงานสั่ง ──
+       v5.9 วางไว้บนเพราะมองว่าเป็นตัวช่วยกรอง ไม่ใช่ของที่มาอ่านเอาเนื้อหา
+       แต่ของที่คนเปิดหน้านี้มาอ่านจริงคือตาราง · ตัวช่วยกรองอยู่ล่างได้
+       กดแถวที่นี่แล้วตารางข้างบนกรองตาม ต้องเลื่อนขึ้นไปดูผล */
+    /* ── v5.2 สรุปรายสัปดาห์ · กดแถวเพื่อกรองเฉพาะสัปดาห์นั้น ──
+       วางไว้บนสุดก่อน KPI เพราะเป็นคำถามที่หน้างานถามทุกเช้า
+       "สัปดาห์นี้เหลือลอตไหนยังไม่จบ" ต้องตอบได้โดยไม่ต้องเลื่อนจอ */
+    (wkList.length ?
+      '<div class="blk"><div class="wkhead">สรุปตามสัปดาห์ · กำหนดเสร็จ · กดแถวเพื่อกรอง</div>' +
+      '<div class="dwrap"><table class="dtab wktab"><thead><tr>' +
+        '<th>สัปดาห์</th><th>จันทร์</th><th style="text-align:right">ลอต</th>' +
+        DASH_ST.map(s => '<th style="text-align:right">' + esc(s) + '</th>').join('') +
+      '</tr></thead><tbody>' +
+      wkList.map(w => {
+        const isNow = w.k === wkNow;
+        const on    = d.wk === w.k;
+        return '<tr data-act="dwk" data-k="' + esc(w.k) + '"' +
+               (on ? ' class="wkon"' : (isNow ? ' class="wknow"' : '')) + '>' +
+          '<td class="mono">' + esc(weekTx(w.k)) +
+            (isNow ? ' <span class="wktag">สัปดาห์นี้</span>' : '') + '</td>' +
+          '<td>' + esc(dayTh(w.k)) + '</td>' +
+          '<td class="num">' + nf0.format(w.n) + '</td>' +
+          DASH_ST.map(s => {
+            const v = w.st[s] || 0;
+            /* ศูนย์เขียนเป็นขีด อ่านเร็วกว่าเลขศูนย์เรียงกันเป็นแถว
+               ช่องที่จบแล้วเป็นเขียว ช่องที่ต้องไปตามเป็นแดง ที่เหลือสีปกติ */
+            const col = !v ? 'var(--mu2)'
+                      : s === ST_DONE ? 'var(--ok)'
+                      : s === 'ตัดครบ รอเข้าคลัง' ? 'var(--warn)' : 'var(--tx)';
+            return '<td class="num" style="color:' + col + (v && s === ST_DONE ? ';font-weight:600' : '') +
+                   '">' + (v ? nf0.format(v) : '—') + '</td>';
+          }).join('') +
+        '</tr>';
+      }).join('') +
+      '</tbody></table></div>' +
+      '<div class="wkfoot">จบ = เข้าคลังครบ · ' +
+        '<b style="color:var(--warn)">ตัดครบ รอเข้าคลัง</b> คือหน้าไลน์ทำเสร็จแล้ว ติดที่ปลายทาง · ' +
+        '<b>ไม่มีรายชิ้น</b> คือ AX ยังไม่มีรายชิ้นให้ ไม่ใช่งานเสร็จ' +
+      '</div></div>' : '') +
     /* ── ตัวเลขสรุป ── */
     '<div class="kpis">' +
       kpi('มูลค่างานรวม', mBaht(amt), 'ล้านบาท', withAmt + ' จาก ' + rows.length + ' ลอตที่มีตัวเลข', true) +
@@ -2587,6 +2730,9 @@ function dSortVal(r, k){
     case 'pd':    return txt(r.pd_remark);
     case 'amount': return (r.amount == null ? null : (Number(r.amount) || 0));
     case 'prog':  { const v = progScore(r); return v < 0 ? null : v; }
+    /* v5.10 ลอตที่ไม่มีไฟล์เวลาตัดคืน null ไปอยู่ท้ายสุดเสมอ
+       ไม่ใช่ศูนย์ · "ไม่รู้" กับ "ศูนย์วินาที" คนละเรื่องกัน */
+    case 'cut':   { const c = S.cut.map[r.lot]; return c ? c.total_sec : null; }
     default:      return txt(r.lot);
   }
 }
@@ -2703,10 +2849,65 @@ async function loadDash(force){
     /* ปุ่มวัตถุดิบต้องบอกได้ว่าลอตไหนมีของอยู่แล้ว · ล้มก็ไม่เป็นไร
        ปุ่มจะขึ้นเป็นแบบยังไม่มี ซึ่งกดแล้วก็ยังใช้งานได้ตามปกติ */
     try { (await db.rmHave()).forEach(x => { d.rmHave[x.lot] = x.n; }); } catch(e2){}
+    /* v5.10 เวลาตัด · คนละโปรเจกต์ ล้มแยกกัน ตารางหลักต้องไม่พังตาม */
+    await loadCut();
   } catch(e){
     d.err = 'อ่าน lot_progress ไม่สำเร็จ · ' + e.message;
   }
   d.busy = ''; render();
+}
+
+/* ── v5.10 เวลาตัดจาก Cut Rite ────────────────────────────────────
+   1 แถว = 1 ไฟล์ Pattern summary · ลอตที่ถูกแยก optimize หลายรอบจะมีหลายไฟล์
+   บวกรวมทุกไฟล์ของลอตเดียวกัน และเก็บ id ไว้ใช้ตอนขอรายกลุ่มไม้ต่อ */
+async function loadCut(){
+  const C = S.cut;
+  try {
+    const rows = await db.cutFiles();
+    const m = {};
+    rows.forEach(x => {
+      if(!x.lot) return;
+      const e = m[x.lot] || (m[x.lot] = {
+        ids:[], runs:[], names:[], files:0,
+        groups:0, patterns:0, boards:0,
+        cut_sec:0, setup_sec:0, total_sec:0, wsum:0, wbase:0
+      });
+      if(x.id != null)  e.ids.push(x.id);
+      if(x.run_no)      e.runs.push(String(x.run_no));
+      if(x.file_name)   e.names.push(String(x.file_name));
+      e.files++;
+      e.groups    += Number(x.groups)    || 0;
+      e.patterns  += Number(x.patterns)  || 0;
+      e.boards    += Number(x.boards)    || 0;
+      e.cut_sec   += Number(x.cut_sec)   || 0;
+      e.setup_sec += Number(x.setup_sec) || 0;
+      e.total_sec += Number(x.total_sec) || 0;
+      /* เศษไม้เฉลี่ยถ่วงด้วยจำนวนแผ่น · เอา % มาบวกหารกันตรง ๆ ไม่ได้
+         ไฟล์ที่ตัดแผ่นเดียวจะดึงค่าเฉลี่ยเพี้ยนไปทั้งลอต */
+      if(x.waste_pct != null && x.boards){
+        e.wsum  += Number(x.waste_pct) * Number(x.boards);
+        e.wbase += Number(x.boards);
+      }
+    });
+    C.map = m; C.loaded = true; C.err = '';
+  } catch(e){
+    C.err = 'อ่านเวลาตัดไม่ได้ · ' + e.message;
+  }
+}
+
+/* ประมาณเวลาที่เหลือจากสัดส่วนชิ้นที่ยังไม่ตัด
+   หยาบโดยตั้งใจ · เวลาจริงผูกกับ "แผ่น" ไม่ใช่ "ชิ้น"
+   แผ่นที่เศษเยอะใช้เวลาต่อชิ้นมากกว่า ถ้าของที่เหลือไปกองอยู่ตรงนั้นจะนานกว่านี้
+   ที่ยังทำเพราะคำถามหน้างานคือ "อีกนานไหม" ซึ่งต้องการคำตอบหยาบ ๆ ทันที
+   ทุกที่ที่เอาไปแสดงต้องมีคำว่า "ราว" ติดไปด้วยเสมอ */
+function cutEtaOf(r){
+  const c = S.cut.map[r.lot];
+  if(!c || !c.total_sec) return null;
+  const tot  = Number(r.total_parts) || 0;
+  const done = Math.min(Number(r.checked_parts) || 0, tot);
+  const left = tot - done;
+  if(!tot || left <= 0) return null;
+  return Math.round(c.total_sec * (left / tot));
 }
 
 /* Export ของแท็บนี้ · เอาทุกแถวที่ผ่านตัวกรอง ไม่ได้ตัดที่ 300 เหมือนบนจอ */
@@ -2992,6 +3193,104 @@ function renderRm(){
    v4.4 รับชื่อลอตเข้ามา ไม่ได้อ่านจาก S.lot อีกแล้ว
    เพราะเรียกจากตารางในแท็บ BI ซึ่งลอตนั้นยังไม่ได้เปิดดูรายชิ้น
    ถ้ายังผูกกับ S.lot จะเปิดของลอตที่ค้างอยู่ในแท็บรายชิ้นแทน ซึ่งผิดตัวเงียบ ๆ */
+/* ── v5.10 หน้าต่างเวลาตัดแยกรายกลุ่มไม้ ─────────────────────────── */
+function openCutBox(lot){
+  if(!lot) return;
+  if(S.cutBox.lot !== lot){
+    S.cutBox = { lot, rows:[], loaded:false, busy:'', err:'' };
+  }
+  $('cutLotTx').textContent = lot;
+  $('ovCut').classList.add('open');
+  renderCutBox();
+  loadCutBoards(lot);
+}
+
+async function loadCutBoards(lot){
+  const B = S.cutBox;
+  if(B.loaded || B.busy) return;
+  const c = S.cut.map[lot];
+  if(!c || !c.ids.length){ B.loaded = true; renderCutBox(); return; }
+  B.busy = 'กำลังอ่านรายกลุ่มไม้'; B.err = ''; renderCutBox();
+  try {
+    const rows = await db.cutBoards(c.ids);
+    if(S.cutBox.lot !== lot) return;        /* เปลี่ยนลอตระหว่างรอ ทิ้งผลไปเลย */
+    B.rows = rows; B.loaded = true;
+  } catch(e){ B.err = 'อ่านรายกลุ่มไม้ไม่ได้ · ' + e.message; }
+  B.busy = ''; renderCutBox();
+}
+
+function renderCutBox(){
+  const box = $('cutBody'); if(!box) return;
+  const B = S.cutBox, lot = B.lot, c = S.cut.map[lot];
+  const r0 = (S.dash.rows || []).find(x => x.lot === lot) || null;
+
+  if(!c){
+    box.innerHTML = '<div class="blk">ยังไม่มีข้อมูลเวลาตัดของลอตนี้<br>' +
+      '<span class="sub2">ไฟล์ Pattern summary ของลอตนี้ยังไม่ถูกซิงก์เข้ามา ' +
+      'หรือ Cut Rite ยังไม่ได้ออกไฟล์ให้</span></div>';
+    return;
+  }
+
+  const eta   = r0 ? cutEtaOf(r0) : null;
+  const waste = c.wbase ? (c.wsum / c.wbase) : null;
+  const cell  = (k, v, col) => '<div><div class="k">' + esc(k) + '</div>' +
+    '<div class="v"' + (col ? ' style="color:' + col + '"' : '') + '>' + esc(v) + '</div></div>';
+
+  let head = '<div class="cutsum">' +
+    cell('เวลาตัดทั้งลอต', cutThai(c.total_sec)) +
+    (eta ? cell('เหลืออีกราว', cutThai(eta), 'var(--warn)') : '') +
+    cell('ตั้งเครื่อง + ยกไม้', cutThai(c.setup_sec)) +
+    cell('ไม้', c.groups + ' ชนิด') +
+    cell('แผ่น', nf0.format(c.boards)) +
+    (waste == null ? '' : cell('เศษเฉลี่ย', waste.toFixed(1) + '%')) +
+    cell('.SAW', c.runs.join(' · ')) +
+  '</div>';
+
+  head += '<div class="cutnote">เวลานี้ Cut Rite คำนวณไว้ตอน optimize ' +
+    'ไม่ใช่เวลาที่จับจริงหน้างาน · ของจริงจะมากกว่าเพราะมีเปลี่ยนใบเลื่อย รอไม้ พักเบรก' +
+    (eta ? ' · "เหลืออีกราว" ประมาณจากสัดส่วนชิ้นที่ยังไม่ตัด เป็นของทั้งลอตรวมทุกเครื่อง' : '') +
+    '<br>ชื่อไฟล์ใน Export XLSX: <b class="mono">' +
+    esc(c.names.length ? c.names.join(', ') : c.runs.map(x => x + '.xlsx').join(', ')) + '</b></div>';
+
+  if(B.busy){ box.innerHTML = head + '<div class="blk"><span class="spin"></span> ' + esc(B.busy) + '</div>'; return; }
+  if(B.err){  box.innerHTML = head + '<div class="blk dwarn"><span>⚠</span><span>' + esc(B.err) + '</span></div>'; return; }
+  if(!B.loaded){ box.innerHTML = head; return; }
+  if(!B.rows.length){
+    box.innerHTML = head + '<div class="blk">ไม่มีรายกลุ่มไม้ของลอตนี้</div>';
+    return;
+  }
+
+  let max = 1;
+  B.rows.forEach(b => { if((Number(b.total_sec) || 0) > max) max = Number(b.total_sec); });
+
+  box.innerHTML = head +
+    '<div class="dwrap"><table class="dtab"><thead><tr>' +
+      '<th>ไม้</th><th>หนา</th><th style="text-align:right">แผ่น</th>' +
+      '<th style="text-align:right">แพทเทิร์น</th><th style="text-align:right">เศษ</th>' +
+      '<th></th><th style="text-align:right">เวลา</th>' +
+    '</tr></thead><tbody>' +
+    B.rows.map(b => {
+      const w = Math.max(3, Math.round((Number(b.total_sec) || 0) / max * 100));
+      return '<tr>' +
+        '<td class="nm">' + esc(b.board_desc || b.board_code || '—') +
+          (b.board_code && b.board_desc ? '<div class="sub2 mono">' + esc(b.board_code) + '</div>' : '') + '</td>' +
+        '<td class="mono">' + (b.thickness == null ? '' : esc(b.thickness) + ' mm') + '</td>' +
+        '<td class="num">' + nf0.format(Number(b.boards) || 0) + '</td>' +
+        '<td class="num">' + nf0.format(Number(b.patterns) || 0) + '</td>' +
+        '<td class="num">' + (b.waste_pct == null ? '—' : esc(b.waste_pct) + '%') + '</td>' +
+        '<td><div class="cutbar"><i style="width:' + w + '%"></i></div></td>' +
+        '<td class="num mono">' + esc(cutThai(b.total_sec)) + '</td>' +
+      '</tr>';
+    }).join('') +
+    /* ตั้งเครื่องไม่ได้อยู่ในไม้ชนิดไหน Cut Rite แยกไว้บรรทัดต่างหาก
+       ถ้าไม่โชว์ ผลรวมในตารางจะไม่เท่ากับเวลาทั้งลอตแล้วคนจะหาว่าหายไปไหน */
+    (c.setup_sec ? '<tr><td class="nm">ตั้งเครื่อง + ยกไม้เข้า' +
+      '<div class="sub2">Cut Rite แยกไว้ต่างหาก ไม่ได้อยู่ในไม้ชนิดไหน</div></td>' +
+      '<td></td><td></td><td></td><td></td><td></td>' +
+      '<td class="num mono">' + esc(cutThai(c.setup_sec)) + '</td></tr>' : '') +
+    '</tbody></table></div>';
+}
+
 function openRm(lot){
   if(!lot) return;
   if(S.rm.lot !== lot){
@@ -3782,12 +4081,12 @@ document.addEventListener('click', ev => {
   }
   if(act === 'dreload'){ loadDash(true); return; }
   if(act === 'dlot'){
-    /* กดแถวในตารางภาพรวม = กระโดดไปดูรายชิ้นของลอตนั้น
-       selectLot สั่งดึงจาก AX ให้เองอยู่แล้วถ้ายังไม่มีรายชิ้น */
-    S.tab = 'parts';
-    try { localStorage.setItem('lp_tab', 'parts'); } catch(e){}   /* v5.3 */
-    render(); selectLot(t.dataset.lot); return;
+    /* v5.10 กดแถว = เปิดหน้าต่างเวลาตัด ไม่กระโดดไปแท็บรายชิ้นแล้ว
+       ทางไปรายชิ้นยังอยู่ครบ · กดแท็บ "รายชิ้น" แล้วเลือกลอตจากช่องเลือก
+       หายเฉพาะทางลัด ไม่ได้หายทั้งฟีเจอร์ */
+    openCutBox(t.dataset.lot); return;
   }
+  if(act === 'cutclose'){ $('ovCut').classList.remove('open'); return; }
 
   if(act === 'drop'){ openPicker(); return; }
   if(act === 'pkclose'){ closePicker(); return; }
