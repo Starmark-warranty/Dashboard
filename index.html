@@ -5,8 +5,36 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=5.0,user-scalable=yes">
 <title>Cutting Center Dashboard</title>
 <!-- =====================================================================
-  Cutting Center Dashboard   ·   VERSION 13.25
+  Cutting Center Dashboard   ·   VERSION 13.27
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  13.27 2026-09-12  FEAT โชว์เลข .SAW ของ lot · ชื่อไฟล์ใน Export XLSX
+                    เห็นเวลาแล้วอยากไปเปิดไฟล์ต้นทางดูเอง แต่หาไม่เจอว่าไฟล์ไหน
+                    ชื่อไฟล์เป็นเลขล้วน ไม่ได้มีชื่อ lot อยู่ในชื่อไฟล์เลย
+                    ต้องไล่เปิดทีละไฟล์ถึงจะรู้ · เลขนี้เก็บไว้ในฐานข้อมูล
+                    ตั้งแต่ 13.24 แล้ว (คอลัมน์ run_no) แค่ยังไม่ได้เอาขึ้นจอ
+                    · ขึ้นทั้งในการ์ดค้นหา lot และในกล่อง Lot รายเครื่อง
+                    · กดที่เลขแล้วคัดลอกได้เลย จะได้เอาไปวางในช่องค้นหาของ
+                      Windows Explorer ตรง ๆ ไม่ต้องพิมพ์ตามทีละตัว
+                    · lot ที่ถูกแยก optimize หลายรอบจะมีหลายเลข ขึ้นให้ครบทุกตัว
+                    ยังไม่ได้ทดสอบบนเครื่องจริง
+  13.26 2026-09-12  FEAT เวลาที่เหลือ · หน่วยเวลาเป็นภาษาไทย · เวลาในกล่อง lot รายเครื่อง
+                    หน้างานถามว่า "อีกนานไหม" ไม่ได้ถามว่า "ใช้ไปแล้วเท่าไหร่"
+                    ของเดิมตอบได้แค่เวลารวมทั้ง lot ซึ่งต้องเอาไปคิดต่อเองในหัว
+                    · ประมาณเวลาที่เหลือ = เวลารวม x (ชิ้นที่เหลือ / ชิ้นทั้งหมด)
+                      หยาบโดยตั้งใจ · เวลาจริงขึ้นกับว่าชิ้นที่เหลืออยู่ในแผ่นไหน
+                      ไม่ได้กระจายเท่ากันทุกชิ้น · แผ่นที่เศษเยอะใช้เวลาต่อชิ้นมากกว่า
+                      แต่ตอบ "อีกราว ๆ เท่าไหร่" ได้พอใช้ ดีกว่าไม่มีอะไรให้ดูเลย
+                      เขียนกำกับว่า "ราว" ทุกที่ ไม่ให้เข้าใจว่าเป็นเลขตายตัว
+                    · เลิกโชว์ 1:51:00 เปลี่ยนเป็น "1 ชม. 51 นาที"
+                      รูปแบบนาฬิกาต้องนั่งแปลในหัวว่าตัวไหนคือชั่วโมง
+                      คนหน้าไลน์อ่านผ่าน ๆ แล้วเห็น 1:51 นึกว่า 1 นาที 51 วิ ได้
+                      ใต้ 1 นาทีขึ้นเป็นวินาที · ใต้ 1 ชม. ขึ้นเป็นนาทีล้วน
+                    · กล่อง "Lot ของ <เครื่อง>" เพิ่มแถวเวลาตัดใต้แถบความคืบหน้า
+                      ของเดิมมีแต่ในกล่องค้นหา lot ซึ่งเป็นคนละทางเข้า
+                    · เวลาที่เหลือเป็นของ "ทั้ง lot รวมทุกเครื่อง" ไม่ใช่ของเครื่องเดียว
+                      เพราะ Cut Rite ให้เวลามาก้อนเดียวต่อ lot ไม่ได้แยกเครื่อง
+                      และ lot หนึ่งวิ่งหลายเครื่องพร้อมกันได้ เขียนกำกับไว้แล้ว
+                    ยังไม่ได้ทดสอบบนเครื่องจริง
   13.25 2026-09-12  FIX กด "ดูรายไม้" แล้วขึ้น "ไม่มีรายละเอียดไม้ของ lot นี้"
                     ทั้งที่ในฐานข้อมูลมีครบ · BO69-0765 มี 8 กลุ่มไม้อยู่จริง
                     ต้นเหตุ: 13.24 ครอบค่าใน lot=eq. ด้วยอัญประกาศคู่
@@ -739,6 +767,10 @@ tr:hover td{background:rgba(255,255,255,.02)}
   border:1px solid #1e293b;border-radius:8px;padding:7px 10px;margin-bottom:8px;font-size:11.5px}
 .lf-cut-l{color:#64748b}
 .lf-cut-v{color:#c4b5fd;font-weight:700;font-size:13px;font-variant-numeric:tabular-nums}
+.lf-cut-eta{color:#fbbf24;font-weight:700;font-size:12px;white-space:nowrap;cursor:help}
+.lf-cut-saw{font-family:monospace;font-size:11px;color:#7dd3fc;background:#0b2b3d;
+  border:1px solid #155e75;border-radius:5px;padding:2px 7px;cursor:pointer;white-space:nowrap}
+.lf-cut-saw:hover{background:#155e75;color:#fff}
 .lf-cut-s{color:#475569;font-size:10.5px;flex:1;min-width:130px}
 .lf-cut-b{background:#1e293b;border:1px solid #334155;color:#cbd5e1;border-radius:20px;
   padding:4px 11px;font-size:10.5px;cursor:pointer;font-family:inherit;flex-shrink:0;min-height:26px}
@@ -752,7 +784,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 .cb-sub{display:block;color:#475569;font-size:10px}
 .cb-bar{width:64px;height:5px;background:#172033;border-radius:3px;overflow:hidden;flex-shrink:0}
 .cb-bar i{display:block;height:100%;background:#7c3aed}
-.cb-t{color:#c4b5fd;font-weight:700;flex-shrink:0;min-width:58px;text-align:right;
+.cb-t{color:#c4b5fd;font-weight:700;flex-shrink:0;min-width:92px;text-align:right;
   font-variant-numeric:tabular-nums}
 @media (max-width:768px){ .cb-bar{display:none} }
 ::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:#0f172a}
@@ -3876,6 +3908,7 @@ function lfRun(){
     const fin  = st.fin;
     const proj = (p && p.proj_name) || '';
     const cf   = cutLot[e.lot] || null;   // v13.24 เวลาตัด อาจไม่มีถ้ายังไม่ได้ซิงก์ไฟล์ lot นี้
+    const eta  = cutEta(e.lot, tot, st.left);   // v13.26 ประมาณเวลาที่เหลือ · null ถ้าจบแล้วหรือไม่รู้ยอด
     const badge = fin ? '<span class="lf-badge done">✓ ตัดจบแล้ว</span>'
                 : tot ? '<span class="lf-badge wip">กำลังทำ ' + pct + '%</span>'
                       : '<span class="lf-badge unk">ไม่รู้ยอดรวม</span>';
@@ -3904,9 +3937,11 @@ function lfRun(){
       </div>
       ${cf ? `<div class="lf-cut">
         <span class="lf-cut-l">เวลาตัด</span>
-        <b class="lf-cut-v">${cutHms(cf.total_sec)}</b>
+        <b class="lf-cut-v">${cutThai(cf.total_sec)}</b>
+        ${eta ? `<span class="lf-cut-eta" title="ประมาณจากสัดส่วนชิ้นที่ยังไม่ตัด · ไม่ใช่เลขตายตัว · เป็นของทั้ง lot รวมทุกเครื่อง">เหลืออีกราว ${cutThai(eta)}</span>` : ''}
+        ${cutSawHtml(cf, 'lf-cut-saw')}
         <span class="lf-cut-s">Cut Rite คำนวณไว้ ไม่ใช่เวลาจับจริง
-          <span style="color:#334155">·</span> ตั้งเครื่อง ${cutHms(cf.setup_sec)}
+          <span style="color:#334155">·</span> ตั้งเครื่อง ${cutThai(cf.setup_sec)}
           <span style="color:#334155">·</span> ไม้ ${n(cf.groups)} ชนิด
           <span style="color:#334155">·</span> ${n(cf.boards)} แผ่น${
           cf.wbase ? ' <span style="color:#334155">·</span> เศษเฉลี่ย ' + (cf.wsum/cf.wbase).toFixed(1) + '%' : ''}${
@@ -4002,7 +4037,9 @@ function renderLotBox(){
     const st = lotStat(lot, scanAll);
     return { lot, proj:(st.p && st.p.proj_name) || '', mine:agg[lot].n, days:agg[lot].days.size,
              last:agg[lot].last, tot:st.tot, done:st.done, pct:st.pct, left:st.left,
-             skip:st.skip, fin:st.fin, src:st.src, ax:st.ax };
+             skip:st.skip, fin:st.fin, src:st.src, ax:st.ax,
+             // v13.26 เวลาตัด · ไม่มีก็ไม่ขึ้นแถวนั้นเลย ไม่ขึ้นเป็นช่องว่าง
+             cf:cutLot[lot] || null, eta:cutEta(lot, st.tot, st.left) };
   }).sort((a,b) => (a.fin - b.fin) || (b.last > a.last ? 1 : b.last < a.last ? -1 : 0));
 
   const nFin   = list.filter(x => x.fin).length;
@@ -4065,6 +4102,14 @@ function renderLotBox(){
         <div style="height:7px;background:#1e293b;border-radius:4px;overflow:hidden">
           <div style="height:100%;width:${x.pct}%;background:${barCol}"></div>
         </div>
+        ${x.cf ? `<div style="margin-top:7px;padding-top:7px;border-top:1px solid #1e293b;font-size:11px;color:#64748b">
+          เวลาตัด <b style="color:#c4b5fd;font-size:13px">${cutThai(x.cf.total_sec)}</b>
+          ${x.eta ? `<span style="color:#334155"> · </span>เหลืออีกราว <b style="color:#fbbf24;font-size:13px">${cutThai(x.eta)}</b>` : ''}
+          ${cutSawHtml(x.cf, 'lf-cut-saw')}
+          <div style="font-size:10px;color:#475569;margin-top:2px">
+            Cut Rite คำนวณไว้ ไม่ใช่เวลาจับจริง${x.eta ? ' · ประมาณจากสัดส่วนชิ้นที่เหลือ · เป็นของทั้ง lot รวมทุกเครื่อง' : ''}
+          </div>
+        </div>` : ''}
         <div style="font-size:10px;color:#475569;margin-top:5px">
           ${x.src === 'scan'
             ? `นับจากที่เครื่องยิงจริง · AX ยังค้างอยู่ที่ ${n(x.ax)}`
@@ -7070,6 +7115,37 @@ function cutHms(sec){
   return h ? (h + ':' + p2(m) + ':' + p2(ss)) : (m + ':' + p2(ss));
 }
 
+// v13.26 เวลาแบบมีหน่วย ใช้กับทุกที่ที่คนอ่านเอาไปตัดสินใจ
+// รูปแบบนาฬิกา 1:51:00 ต้องแปลในหัวว่าตัวไหนชั่วโมง คนอ่านผ่าน ๆ เห็น 1:51
+// แล้วนึกว่าหนึ่งนาทีห้าสิบเอ็ดวินาทีได้ · ปัดเป็นนาทีก่อนค่อยแยกชั่วโมง
+// ไม่งั้น 3599 วินาทีจะออกมาเป็น "60 นาที" แทนที่จะเป็น "1 ชม."
+function cutThai(sec){
+  const s = Math.max(0, Math.round(Number(sec) || 0));
+  if(s < 60) return s + ' วิ';
+  let m = Math.round(s / 60);
+  const h = Math.floor(m / 60);
+  m = m % 60;
+  if(h) return m ? (h + ' ชม. ' + m + ' นาที') : (h + ' ชม.');
+  return m + ' นาที';
+}
+
+/* v13.26 ประมาณเวลาที่เหลือของ lot
+   สูตร: เวลารวมที่ Cut Rite คำนวณไว้ x (ชิ้นที่ยังไม่ตัด / ชิ้นทั้งหมด)
+
+   รู้อยู่ว่าหยาบ · เวลาตัดจริงผูกกับ "แผ่น" ไม่ใช่ "ชิ้น"
+   แผ่นที่ซอยละเอียดใช้เวลาต่อชิ้นน้อยกว่าแผ่นที่เศษเยอะมาก
+   ถ้าชิ้นที่เหลือดันไปกองอยู่ในไม้ตัวที่ตัดช้า ของจริงจะนานกว่านี้
+
+   ที่ยังทำเพราะคำถามหน้างานคือ "อีกนานไหม" ซึ่งต้องการคำตอบหยาบ ๆ ทันที
+   ไม่ใช่ตัวเลขเป๊ะ · และเลขหยาบที่เขียนกำกับว่าหยาบ ยังดีกว่าไม่มีอะไรให้ดู
+   ทุกที่ที่เอาไปแสดงต้องมีคำว่า "ราว" ติดไปด้วยเสมอ */
+function cutEta(lot, tot, left){
+  const cf = cutLot[lot];
+  if(!cf || !cf.total_sec) return null;
+  if(!tot || !left || left <= 0) return null;
+  return Math.round(cf.total_sec * (Math.min(left, tot) / tot));
+}
+
 async function fetchCutFiles(){
   // ต้องดึง id มาด้วย · ใช้เป็นตัวกรองตอนขอรายไม้ แทนการกรองด้วยชื่อ lot
   const cols = 'id,lot,run_no,file_name,groups,patterns,boards,waste_pct,cut_sec,setup_sec,total_sec';
@@ -7089,10 +7165,13 @@ async function fetchCutFiles(){
       arr.forEach(x => {
         if(!x.lot) return;
         const e = m[x.lot] || (m[x.lot] = {
-          ids:[], files:0, groups:0, patterns:0, boards:0,
+          ids:[], runs:[], names:[], files:0, groups:0, patterns:0, boards:0,
           cut_sec:0, setup_sec:0, total_sec:0, wsum:0, wbase:0
         });
         if(x.id != null) e.ids.push(x.id);
+        // v13.27 เลขงาน optimize · คนหน้างานเรียกว่าเลข .SAW และเป็นชื่อไฟล์ด้วย
+        if(x.run_no)    e.runs.push(String(x.run_no));
+        if(x.file_name) e.names.push(String(x.file_name));
         e.files++;
         e.groups    += x.groups    || 0;
         e.patterns  += x.patterns  || 0;
@@ -7141,6 +7220,43 @@ async function fetchCutBoards(lot){
   return arr;
 }
 
+/* v13.27 เลข .SAW · เลขงาน optimize ของ Cut Rite ซึ่งเป็นชื่อไฟล์ใน Export XLSX ด้วย
+   ชื่อไฟล์เป็นเลขล้วน ไม่มีชื่อ lot อยู่ในนั้นเลย ถ้าไม่โชว์เลขนี้
+   คนที่อยากไปเปิดไฟล์ต้นทางต้องไล่เปิดทีละไฟล์ถึงจะรู้ว่าอันไหนของ lot ไหน */
+function cutSawHtml(cf, cls){
+  if(!cf || !cf.runs || !cf.runs.length) return '';
+  const txt = cf.runs.join(' · ');
+  const tip = 'ชื่อไฟล์ใน Export XLSX: ' + (cf.names.length ? cf.names.join(', ') : txt + '.xlsx')
+            + ' — กดเพื่อคัดลอกเลข';
+  return '<span class="' + cls + '" title="' + esc13(tip) + '"'
+       + ' data-saw="' + esc13(cf.runs.join(' ')) + '" onclick="cutCopySaw(this)">.SAW '
+       + esc13(txt) + '</span>';
+}
+
+// คัดลอกเลขไว้เอาไปวางในช่องค้นหาของ Explorer · ไม่ต้องพิมพ์ตามทีละตัว
+function cutCopySaw(el){
+  const v = el.getAttribute('data-saw') || '';
+  if(!v) return;
+  const done = () => {
+    const old = el.textContent;
+    el.textContent = 'คัดลอกแล้ว';
+    setTimeout(() => { el.textContent = old; }, 1200);
+  };
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(v).then(done, () => {});
+      return;
+    }
+  }catch(e){}
+  // สำรองไว้สำหรับหน้าที่เปิดแบบไม่ใช่ https · clipboard API จะไม่ทำงาน
+  try{
+    const t = document.createElement('textarea');
+    t.value = v; t.style.position = 'fixed'; t.style.opacity = '0';
+    document.body.appendChild(t); t.select();
+    document.execCommand('copy'); document.body.removeChild(t); done();
+  }catch(e){}
+}
+
 function renderCutBoards(lot, arr){
   const e = cutLot[lot];
   if(!arr || !arr.length){
@@ -7159,7 +7275,7 @@ function renderCutBoards(lot, arr){
       + '<div class="cb-nm">' + esc13(b.board_desc || b.board_code || '—')
       +   '<span class="cb-sub">' + esc13(sub.join(' · ')) + '</span></div>'
       + '<div class="cb-bar"><i style="width:' + w + '%"></i></div>'
-      + '<div class="cb-t">' + cutHms(b.total_sec) + '</div>'
+      + '<div class="cb-t">' + cutThai(b.total_sec) + '</div>'
       + '</div>';
   }).join('');
   const setup = (e && e.setup_sec)
@@ -7167,7 +7283,7 @@ function renderCutBoards(lot, arr){
       + '<div class="cb-nm">ตั้งเครื่อง + ยกไม้เข้า'
       +   '<span class="cb-sub">Cut Rite แยกไว้ต่างหาก ไม่ได้อยู่ในไม้ชนิดไหน</span></div>'
       + '<div class="cb-bar"></div>'
-      + '<div class="cb-t">' + cutHms(e.setup_sec) + '</div></div>'
+      + '<div class="cb-t">' + cutThai(e.setup_sec) + '</div></div>'
     : '';
   return rows + setup;
 }
