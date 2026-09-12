@@ -5,8 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=5.0,user-scalable=yes">
 <title>Cutting Center Dashboard</title>
 <!-- =====================================================================
-  Cutting Center Dashboard   ·   VERSION 13.30
+  Cutting Center Dashboard   ·   VERSION 13.31
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  13.31 2026-09-12  FEAT เพิ่มจำนวนชิ้นในแถบเวลาตัด
+                    ของเดิมมีแต่ "แผ่น" ซึ่งคือแผ่นไม้ดิบที่เอาเข้าเลื่อย
+                    ไม่ได้บอกว่าตัดออกมาได้กี่ชิ้น · สองตัวต่างกันหลายเท่า
+                    ทำพร้อมกับ lot-parts 5.17 ให้สองหน้าพูดเหมือนกัน
+
   13.30 2026-09-12  CHANGE ปรับคำตามที่หน้างานใช้จริง
                     · ตัดคำว่า "เทป" ออก เหลือแต่จำนวนเมตร
                     · "เที่ยว" เปลี่ยนเป็น "รอบ"
@@ -4003,7 +4008,7 @@ function lfRun(){
         <span class="lf-cut-s">Cut Rite คำนวณไว้ ไม่ใช่เวลาจับจริง
           <span style="color:#334155">·</span> ตั้งเครื่อง ${cutThai(cf.setup_sec)}
           <span style="color:#334155">·</span> ไม้ ${n(cf.groups)} ชนิด
-          <span style="color:#334155">·</span> ${n(cf.boards)} แผ่น${
+          <span style="color:#334155">·</span> ${cf.edge_all_panels ? n(cf.edge_all_panels) + ' ชิ้น จาก ' : ''}${n(cf.boards)} แผ่นไม้${
           cf.wbase ? ' <span style="color:#334155">·</span> เศษเฉลี่ย ' + (cf.wsum/cf.wbase).toFixed(1) + '%' : ''}${
           cf.files > 1 ? ' <span style="color:#334155">·</span> รวม ' + cf.files + ' ไฟล์' : ''}${
           edg != null ? ' <span style="color:#334155">·</span> ' + n(cf.edge_m) + ' ม.'
