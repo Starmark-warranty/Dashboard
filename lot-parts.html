@@ -5,8 +5,16 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>แผนผลิต · STARMARK</title>
 <!-- =====================================================================
-  แผนผลิต (เดิม Lot Parts · รายชิ้นในลอต)   ·   VERSION 5.14
+  แผนผลิต (เดิม Lot Parts · รายชิ้นในลอต)   ·   VERSION 5.15
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  5.15 2026-09-12  CHANGE เน้น "รวมทั้งงาน" ให้เด่นกว่าตัวอื่นในแถบสรุป
+                   ของเดิมทั้งเจ็ดช่องหน้าตาเหมือนกันหมด ตาไม่รู้จะเกาะตรงไหน
+                   ทั้งที่ตัวที่คนเปิดหน้านี้มาหาคือตัวเดียว คือรวมทั้งงาน
+                   อีกหกช่องเป็นที่มาของตัวเลขนั้น ไว้ดูตอนสงสัยว่าทำไมนานจัง
+                   · ทำเป็นป้ายพื้นทึบสีแบรนด์ ตัวใหญ่ขึ้น
+                   · ย้ายมาไว้ซ้ายสุด เป็นตัวแรกที่ตาเจอ
+                   · ตัด ปิดขอบ เจาะ ต่อท้ายด้วยเครื่องหมายบวกให้เห็นว่าบวกกันมา
+
   5.14 2026-09-12  CHANGE เปลี่ยนชื่อที่คนเห็นเป็น "แผนผลิต"
                    ชื่อเดิม "รายชิ้นในลอต" ตรงกับตอนที่หน้านี้ทำได้แค่เปิดดูรายชิ้น
                    แต่ตอนนี้มันตอบได้ถึงว่างานแต่ละขั้นกินเวลาเท่าไหร่ ตัด ปิดขอบ เจาะ
@@ -1311,10 +1319,22 @@ table.dtab td.cutc{text-align:right;white-space:nowrap;line-height:1.35}
 .cutno{color:var(--mu2)}
 
 /* v5.10 หน้าต่างเวลาตัด · แถบเทียบสัดส่วนว่าไม้ตัวไหนกินเวลาที่สุด */
-.cutsum{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-end;
+.cutsum{display:flex;gap:22px;flex-wrap:wrap;align-items:center;
   padding:10px 14px;border:1px solid var(--line);border-radius:9px;margin-bottom:10px}
 .cutsum .k{font-size:11px;color:var(--mu2);line-height:1.3}
 .cutsum .v{font-size:19px;font-family:var(--mono)}
+/* v5.15 ตัวเลขที่คนเปิดหน้านี้มาหา · ให้เด่นกว่าที่มาของมัน */
+.cutsum .tot{background:var(--brand);border-radius:10px;padding:9px 16px;
+  box-shadow:var(--sh2)}
+.cutsum .tot .k{color:rgba(255,255,255,.8)}
+.cutsum .tot .v{color:#fff;font-size:24px;font-weight:700;letter-spacing:-.3px}
+/* เครื่องหมายบวกคั่นระหว่างสามงาน ให้เห็นว่าตัวรวมบวกมาจากไหน */
+.cutsum .pl{font-size:16px;color:var(--mu2);margin:0 -12px;align-self:center}
+@media (max-width:560px){
+  .cutsum{gap:14px}
+  .cutsum .pl{display:none}
+  .cutsum .tot{width:100%}
+}
 .cutbar{width:120px;height:6px;background:var(--line);border-radius:4px;overflow:hidden}
 .cutbar i{display:block;height:100%;background:var(--brand)}
 .cutnote{font-size:11px;color:var(--mu2);margin-top:8px;line-height:1.7}
@@ -3440,17 +3460,22 @@ function renderCutBox(){
 
   const eta   = r0 ? cutEtaOf(r0) : null;
   const waste = c.wbase ? (c.wsum / c.wbase) : null;
-  const cell  = (k, v, col) => '<div><div class="k">' + esc(k) + '</div>' +
+  const cell  = (k, v, col, cls) => '<div' + (cls ? ' class="' + cls + '"' : '') +
+    '><div class="k">' + esc(k) + '</div>' +
     '<div class="v"' + (col ? ' style="color:' + col + '"' : '') + '>' + esc(v) + '</div></div>';
+  const plus  = '<span class="pl">+</span>';
 
   const edg = cutEdgeSec(c);
   const ncs = cutNcSec(c);
+  /* v5.15 ตัวรวมมาก่อน แล้วค่อยแจกแจงว่าบวกมาจากอะไร
+     เรียงแบบเดิมคือแจกแจงก่อนแล้วรวมทีหลัง ซึ่งเป็นลำดับของคนคำนวณ
+     ไม่ใช่ลำดับของคนอ่าน · คนอ่านอยากรู้คำตอบก่อน ที่มาไว้ทีหลัง */
   let head = '<div class="cutsum">' +
-    cell('เวลาตัด', cutThai(c.total_sec)) +
-    (edg == null ? '' : cell('ปิดขอบ', cutThai(edg), 'var(--ok2,#0f766e)')) +
-    (ncs == null ? '' : cell('เจาะ', cutThai(ncs), '#9d174d')) +
     ((edg == null && ncs == null) ? '' :
-      cell('รวมทั้งงาน', cutThai(c.total_sec + (edg||0) + (ncs||0)))) +
+      cell('รวมทั้งงาน', cutThai(c.total_sec + (edg||0) + (ncs||0)), null, 'tot')) +
+    cell('เวลาตัด', cutThai(c.total_sec)) +
+    (edg == null ? '' : plus + cell('ปิดขอบ', cutThai(edg), 'var(--ok2,#0f766e)')) +
+    (ncs == null ? '' : plus + cell('เจาะ', cutThai(ncs), '#9d174d')) +
     (eta ? cell('เหลืออีกราว', cutThai(eta), 'var(--warn)') : '') +
     cell('ตั้งเครื่อง + ยกไม้', cutThai(c.setup_sec)) +
     cell('ไม้', c.groups + ' ชนิด') +
