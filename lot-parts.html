@@ -5,8 +5,18 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Ax Progress · รายชิ้นในลอต</title>
 <!-- =====================================================================
-  Lot Parts · รายชิ้นในลอต        ·   VERSION 5.12
+  Lot Parts · รายชิ้นในลอต        ·   VERSION 5.13
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  5.13 2026-09-12  FEAT เวลาเจาะ CNC · ครบสามงาน ตัด ปิดขอบ เจาะ
+                   StarSync-CutPattern v1.3 อ่านไฟล์ .mpr ใน NCData นับรูเจาะ
+                   ตัวเชื่อมคือบาร์โค้ด 14 หลัก เป็นทั้งชื่อไฟล์ .mpr
+                   และคอลัมน์ (17)Barcode ในชีต Part summary
+                   · ค่าเริ่มต้น รูละ 3 วิ จับวางแผ่นละ 4.5 วิ จากเจ้าของงาน
+                     ช่องเซาะเดาไว้ก่อน 1 วิ/1000 ตร.มม. บวก 6 วิ/ช่อง ปรับได้บนหน้าจอ
+                   · คอลัมน์เวลาขึ้นสามบรรทัด ตัด / ขอบ / เจาะ
+                   · เรียงคอลัมน์นี้ใช้เวลารวมทั้งสามงาน
+                   ยังไม่ได้ทดสอบบนเครื่องจริง
+
   5.12 2026-09-12  FEAT เวลาปิดขอบ · ตั้งค่าเครื่องได้จากหน้าจอ
                    Cut Rite ไม่ได้ให้เวลาปิดขอบมา ชีต Edging summary ว่างทุกไฟล์
                    StarSync-CutPattern v1.2 คิดจากชีต Part summary แล้วส่งขึ้นเป็น
@@ -1284,6 +1294,7 @@ tr.rmgrp .s{font-family:var(--sans);font-weight:400;font-size:11.5px;color:var(-
 table.dtab td.cutc{text-align:right;white-space:nowrap;line-height:1.35}
 .cutt{display:block;font-family:var(--mono);font-size:13px}
 .cutedge{display:block;font-family:var(--mono);font-size:12px;color:var(--ok2,#0f766e)}
+.cutnc{display:block;font-family:var(--mono);font-size:12px;color:#9d174d}
 .cuteta{display:block;font-size:10px;color:var(--warn)}
 .cutsaw{display:block;font-family:var(--mono);font-size:10px;color:var(--mu2)}
 .cutno{color:var(--mu2)}
@@ -1713,6 +1724,39 @@ function edgeSet(k, v){
   try{ if($('ovCut') && $('ovCut').classList.contains('open')) renderCutBox(); }catch(e){}
 }
 
+/* v5.13 ค่าเครื่องเจาะ CNC · แยกจากค่าเครื่องปิดขอบ คนละเครื่อง
+   รูละ 3 วิ จับวาง 4.5 วิ มาจากเจ้าของงาน
+   ส่วนค่าช่องเซาะเป็นการเดา ยังไม่ได้จับเวลาจริง */
+const NC_DEF = { hole:3, hand:4.5, pkr:1, pkf:6 };
+let NCS = { hole:3, hand:4.5, pkr:1, pkf:6 };
+
+function ncLoad(){
+  try{
+    const j = JSON.parse(localStorage.getItem('lp_nc') || '{}');
+    NCS = { hole:(+j.hole >= 0) ? +j.hole : NC_DEF.hole,
+            hand:(+j.hand >= 0) ? +j.hand : NC_DEF.hand,
+            pkr :(+j.pkr  >= 0) ? +j.pkr  : NC_DEF.pkr,
+            pkf :(+j.pkf  >= 0) ? +j.pkf  : NC_DEF.pkf };
+  }catch(e){ NCS = Object.assign({}, NC_DEF); }
+}
+function ncSet(k, v){
+  const n = parseFloat(v);
+  NCS[k] = (n >= 0) ? n : NC_DEF[k];
+  try{ localStorage.setItem('lp_nc', JSON.stringify(NCS)); }catch(e){}
+  render();
+  try{ if($('ovCut') && $('ovCut').classList.contains('open')) renderCutBox(); }catch(e){}
+}
+
+/* เวลาเจาะของลอต · null เมื่อยังไม่ได้อ่าน NCData ของลอตนั้น */
+function cutNcSec(c){
+  if(!c || c.nc_panels == null) return null;
+  const holes = (+c.nc_vhole || 0) + (+c.nc_hhole || 0);
+  return Math.round(holes * NCS.hole
+                  + (+c.nc_panels || 0) * NCS.hand
+                  + (+c.nc_pocket_mm2 || 0) / 1000 * NCS.pkr
+                  + (+c.nc_pocket || 0) * NCS.pkf);
+}
+
 /* เวลาปิดขอบของลอต · null เมื่อยังไม่มีข้อมูล จะได้ไม่ขึ้นบรรทัดนั้นเลย
    เวลา = ระยะที่แผ่นวิ่งผ่านเครื่อง / ความเร็วป้อน + จำนวนเที่ยว x เวลาจับวาง */
 function cutEdgeSec(c){
@@ -1910,7 +1954,9 @@ const db = {
     return this.cutGetAll('cut_file?select=id,lot,run_no,file_name,groups,patterns,boards,' +
                           'waste_pct,cut_sec,setup_sec,total_sec,' +
                           'edge_m,edge_panels,edge_all_panels,edge_pass1,edge_run1_m,' +
-                          'edge_pass2,edge_run2_m,edge_guess', 'lot.asc');
+                          'edge_pass2,edge_run2_m,edge_guess,' +
+                          'nc_parts,nc_found,nc_panels,nc_vhole,nc_hhole,' +
+                          'nc_pocket,nc_pocket_mm2,nc_other,nc_missing', 'lot.asc');
   },
   /* กรองด้วย file_id ที่เป็นตัวเลขล้วน ไม่ใช่ชื่อลอต
      ชื่อลอตมีวงเล็บ จุด และภาษาไทยปนอยู่ ซึ่ง PostgREST อ่านเป็นไวยากรณ์ตัวกรอง
@@ -2644,6 +2690,21 @@ function renderDash(){
         '<span class="ebl">จับวาง</span>' +
         '<input type="number" class="ebin" data-act="edgehand" min="0" max="300" step="0.5" value="' + EDGE.hand + '">' +
         '<span class="ebu">วิ/เที่ยว</span>' +
+        /* v5.13 เครื่องเจาะ · คนละเครื่องกับปิดขอบ แต่อยู่แถบเดียวกันเพราะ
+           มีผลกับคอลัมน์เดียวกัน ถ้าแยกกล่องจะหาไม่เจอว่าปรับที่ไหน */
+        '<span class="ebl" style="margin-left:10px">เครื่องเจาะ</span>' +
+        '<span class="ebu">รู</span>' +
+        '<input type="number" class="ebin" data-act="nchole" min="0" max="60" step="0.1" value="' + NCS.hole + '">' +
+        '<span class="ebu">วิ</span>' +
+        '<span class="ebl">จับวาง</span>' +
+        '<input type="number" class="ebin" data-act="nchand" min="0" max="300" step="0.5" value="' + NCS.hand + '">' +
+        '<span class="ebu">วิ/แผ่น</span>' +
+        '<span class="ebl">ช่องเซาะ</span>' +
+        '<input type="number" class="ebin" data-act="ncpkr" min="0" max="60" step="0.1" value="' + NCS.pkr + '" ' +
+          'title="ยังไม่ได้จับเวลาจริง เป็นค่าเดา ปรับได้">' +
+        '<span class="ebu">วิ/1000มม²</span><span class="ebu">+</span>' +
+        '<input type="number" class="ebin" data-act="ncpkf" min="0" max="300" step="0.5" value="' + NCS.pkf + '">' +
+        '<span class="ebu">วิ/ช่อง</span>' +
       '</div>' +
       /* v5.7 หัวตารางกดเรียงได้ทุกคอลัมน์ · กดซ้ำสลับขึ้นลง
          ลูกศรโชว์เฉพาะคอลัมน์ที่เรียงอยู่ ไม่ได้ใส่จาง ๆ ทุกหัว
@@ -2723,8 +2784,10 @@ function renderDash(){
             if(!c) return '<span class="cutno">—</span>';
             const eta = cutEtaOf(r);
             const edg = cutEdgeSec(c);
+            const ncs = cutNcSec(c);
             return '<b class="cutt">ตัด ' + esc(cutThai(c.total_sec)) + '</b>' +
               (edg != null ? '<span class="cutedge">ขอบ ' + esc(cutThai(edg)) + '</span>' : '') +
+              (ncs != null ? '<span class="cutnc">เจาะ ' + esc(cutThai(ncs)) + '</span>' : '') +
               (eta ? '<span class="cuteta">เหลือราว ' + esc(cutThai(eta)) + '</span>' : '') +
               '<span class="cutsaw">.SAW ' + esc(c.runs.join(' · ')) + '</span>';
           })() + '</td>' +
@@ -2836,8 +2899,10 @@ function dSortVal(r, k){
        ไม่ใช่ศูนย์ · "ไม่รู้" กับ "ศูนย์วินาที" คนละเรื่องกัน */
     /* v5.12 เรียงด้วยเวลารวม ตัด+ขอบ ไม่ใช่เวลาตัดอย่างเดียว
        เพราะตัวที่ใช้จัดคิวคือเวลาที่งานกินเครื่องทั้งหมด */
+    /* v5.13 เรียงด้วยเวลารวมทั้งสามงาน ตัด+ขอบ+เจาะ
+       เพราะตัวที่ใช้จัดคิวคือเวลาที่งานกินเครื่องทั้งหมด */
     case 'cut':   { const c = S.cut.map[r.lot]; if(!c) return null;
-                    const e = cutEdgeSec(c); return c.total_sec + (e || 0); }
+                    return c.total_sec + (cutEdgeSec(c) || 0) + (cutNcSec(c) || 0); }
     default:      return txt(r.lot);
   }
 }
@@ -2978,7 +3043,11 @@ async function loadCut(){
         cut_sec:0, setup_sec:0, total_sec:0, wsum:0, wbase:0,
         // v5.12 งานปิดขอบ · บวกรวมทุกไฟล์ของลอตเดียวกันเหมือนงานตัด
         edge_m:0, edge_panels:0, edge_all_panels:0, edge_guess:0,
-        edge_pass1:0, edge_run1_m:0, edge_pass2:0, edge_run2_m:0
+        edge_pass1:0, edge_run1_m:0, edge_pass2:0, edge_run2_m:0,
+        /* v5.13 งานเจาะ · nc_panels เริ่มเป็น null เพื่อแยก
+           "ยังไม่ได้อ่าน NCData" ออกจาก "อ่านแล้วไม่มีงานเจาะ" */
+        nc_panels:null, nc_parts:0, nc_found:0, nc_vhole:0, nc_hhole:0,
+        nc_pocket:0, nc_pocket_mm2:0, nc_other:0, nc_missing:0
       });
       if(x.id != null)  e.ids.push(x.id);
       if(x.run_no)      e.runs.push(String(x.run_no));
@@ -3004,6 +3073,17 @@ async function loadCut(){
       e.edge_run1_m     += Number(x.edge_run1_m)     || 0;
       e.edge_pass2      += Number(x.edge_pass2)      || 0;
       e.edge_run2_m     += Number(x.edge_run2_m)     || 0;
+      if(x.nc_panels != null){
+        e.nc_panels      = (e.nc_panels || 0) + (Number(x.nc_panels) || 0);
+        e.nc_parts      += Number(x.nc_parts)      || 0;
+        e.nc_found      += Number(x.nc_found)      || 0;
+        e.nc_vhole      += Number(x.nc_vhole)      || 0;
+        e.nc_hhole      += Number(x.nc_hhole)      || 0;
+        e.nc_pocket     += Number(x.nc_pocket)     || 0;
+        e.nc_pocket_mm2 += Number(x.nc_pocket_mm2) || 0;
+        e.nc_other      += Number(x.nc_other)      || 0;
+        e.nc_missing    += Number(x.nc_missing)    || 0;
+      }
     });
     C.map = m; C.loaded = true; C.err = '';
   } catch(e){
@@ -3353,10 +3433,13 @@ function renderCutBox(){
     '<div class="v"' + (col ? ' style="color:' + col + '"' : '') + '>' + esc(v) + '</div></div>';
 
   const edg = cutEdgeSec(c);
+  const ncs = cutNcSec(c);
   let head = '<div class="cutsum">' +
     cell('เวลาตัด', cutThai(c.total_sec)) +
     (edg == null ? '' : cell('ปิดขอบ', cutThai(edg), 'var(--ok2,#0f766e)')) +
-    (edg == null ? '' : cell('รวมสองงาน', cutThai(c.total_sec + edg))) +
+    (ncs == null ? '' : cell('เจาะ', cutThai(ncs), '#9d174d')) +
+    ((edg == null && ncs == null) ? '' :
+      cell('รวมทั้งงาน', cutThai(c.total_sec + (edg||0) + (ncs||0)))) +
     (eta ? cell('เหลืออีกราว', cutThai(eta), 'var(--warn)') : '') +
     cell('ตั้งเครื่อง + ยกไม้', cutThai(c.setup_sec)) +
     cell('ไม้', c.groups + ' ชนิด') +
@@ -3373,6 +3456,21 @@ function renderCutBox(){
       EDGE.hand + ' วิ/เที่ยว' +
       (c.edge_guess ? ' <b style="color:var(--warn)">· มี ' + nf0.format(c.edge_guess) +
         ' แผ่นที่บอกไม่ได้จากขนาดว่าปิดด้านไหน เลยเดาจากรหัสขอบ</b>' : '') +
+      '</div>';
+  }
+
+  if(ncs != null){
+    head += '<div class="cutnote">เจาะ · ' +
+      nf0.format((+c.nc_vhole||0) + (+c.nc_hhole||0)) + ' รู (ตั้ง ' + nf0.format(c.nc_vhole) +
+      ' · นอน ' + nf0.format(c.nc_hhole) + ')' +
+      (c.nc_pocket ? ' · ช่องเซาะ ' + nf0.format(c.nc_pocket) + ' ช่อง ' +
+        nf0.format(Math.round(c.nc_pocket_mm2/100)/10) + ' ตร.ซม.' : '') +
+      ' · ' + nf0.format(c.nc_panels) + ' แผ่นเข้าเครื่อง · คิดที่ ' + NCS.hole +
+      ' วิ/รู จับวาง ' + NCS.hand + ' วิ/แผ่น' +
+      (c.nc_missing ? ' <b style="color:var(--warn)">· หาไฟล์เจาะไม่เจอ ' + nf0.format(c.nc_missing) +
+        ' แผ่น เวลาเจาะจะต่ำกว่าจริง</b>' : '') +
+      (c.nc_other ? ' <b style="color:var(--warn)">· มีคำสั่งที่ยังไม่รู้จัก ' + nf0.format(c.nc_other) +
+        ' รายการ ยังไม่ได้คิดเวลาให้</b>' : '') +
       '</div>';
   }
 
@@ -3926,7 +4024,7 @@ async function boot(){
        !new URLSearchParams(location.search).get('lot')) S.tab = t;
   } catch(e){}
 
-  edgeLoad();          // v5.12 ค่าเครื่องปิดขอบที่จำไว้ในเครื่องคนดู
+  edgeLoad(); ncLoad();   // v5.12/5.13 ค่าเครื่องที่จำไว้ในเครื่องคนดู
   loadCfg();
   if(!S.url || !S.key){ render(); return; }
 
@@ -4290,6 +4388,10 @@ document.addEventListener('change', ev => {
   const eact = ev.target.dataset && ev.target.dataset.act;
   if(eact === 'edgefeed'){ edgeSet('feed', ev.target.value); return; }
   if(eact === 'edgehand'){ edgeSet('hand', ev.target.value); return; }
+  if(eact === 'nchole'){ ncSet('hole', ev.target.value); return; }
+  if(eact === 'nchand'){ ncSet('hand', ev.target.value); return; }
+  if(eact === 'ncpkr'){  ncSet('pkr',  ev.target.value); return; }
+  if(eact === 'ncpkf'){  ncSet('pkf',  ev.target.value); return; }
 
   /* v4.0 ช่องเลือกของแท็บภาพรวม · เปลี่ยนปีหรือสายผลิตแล้วเดือนที่กรองค้างอยู่
      อาจไม่มีอยู่จริงในชุดใหม่ ล้างทิ้งด้วย ไม่งั้นจอจะว่างโดยไม่รู้สาเหตุ */

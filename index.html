@@ -5,8 +5,23 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=5.0,user-scalable=yes">
 <title>Cutting Center Dashboard</title>
 <!-- =====================================================================
-  Cutting Center Dashboard   ·   VERSION 13.28
+  Cutting Center Dashboard   ·   VERSION 13.29
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  13.29 2026-09-12  FEAT เวลาเจาะ CNC · ครบสามงาน ตัด ปิดขอบ เจาะ
+                    StarSync-CutPattern v1.3 อ่านไฟล์ .mpr ใน NCData
+                    นับรูเจาะกับพื้นที่ช่องเซาะ แล้วส่งขึ้นเป็นจำนวน ไม่ใช่วินาที
+                    ตัวเชื่อมคือบาร์โค้ด 14 หลัก ซึ่งเป็นทั้งชื่อไฟล์ .mpr
+                    และคอลัมน์ (17)Barcode ในชีต Part summary
+                    · ค่าเริ่มต้นจากเจ้าของงาน รูละ 3 วิ จับวางแผ่นละ 4.5 วิ
+                      ช่องเซาะเดาไว้ก่อนที่ 1 วิ/1000 ตร.มม. บวก 6 วิ/ช่อง
+                      ปรับได้บนหน้าจอทั้งหมด · ค่าช่องเซาะยังไม่ได้จับเวลาจริง
+                    · "รวม" กลายเป็น ตัด + ปิดขอบ + เจาะ
+                      สามงานนี้ต่อคิวกันตามลำดับจริงที่โรงงานทำ
+                    · lot ที่หาไฟล์ .mpr ไม่เจอบางแผ่นจะขึ้นเตือนสีเหลือง
+                      เวลาเจาะของลอตนั้นจะต่ำกว่าจริงเท่าจำนวนแผ่นที่หาไม่เจอ
+                    · nc_other คือคำสั่งชนิดที่ยังไม่รู้จักในไฟล์ .mpr
+                      ขึ้นสูงเมื่อไหร่แปลว่าเจอคำสั่งแบบใหม่ที่ยังไม่ได้คิดเวลาให้
+                    ยังไม่ได้ทดสอบบนเครื่องจริง
   13.28 2026-09-12  FEAT เวลาปิดขอบ · ตั้งค่าเครื่องได้จากหน้าจอ
                     ตรวจไฟล์จริงแล้ว Cut Rite ไม่ได้ให้เวลาปิดขอบมาเลย
                     ชีต Edging summary ว่างทุกไฟล์ คอลัมน์ Edge ในชีต Machine times
@@ -796,6 +811,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
   border-radius:6px;padding:4px 7px;font-size:11.5px;font-family:monospace;min-height:28px}
 .lf-edge-in:focus{outline:none;border-color:#7c3aed}
 .lf-cut-edge{color:#5eead4;font-weight:700;font-size:12px;white-space:nowrap}
+.lf-cut-nc{color:#fda4af;font-weight:700;font-size:12px;white-space:nowrap}
 .lf-cut-sum{color:#e2e8f0;font-weight:700;font-size:12px;white-space:nowrap;
   background:#1e293b;border-radius:5px;padding:2px 8px}
 .lf-cut-saw{font-family:monospace;font-size:11px;color:#7dd3fc;background:#0b2b3d;
@@ -3781,7 +3797,7 @@ function openLotFind(){
   if($('lfFrom') && !$('lfFrom').value) $('lfFrom').value = '';
   if($('lfTo')   && !$('lfTo').value)   $('lfTo').value   = '';
   lfPresets();
-  edgeFill();          // v13.28 เอาค่าเครื่องที่จำไว้มาใส่ช่องกรอก
+  edgeFill(); ncFill();   // v13.28/13.29 เอาค่าเครื่องที่จำไว้มาใส่ช่องกรอก
   openModal('ov-lotfind');
   setTimeout(()=>{ const i=$('lfQ'); if(i) i.focus(); }, 80);
   lfRun();
@@ -3941,6 +3957,7 @@ function lfRun(){
     const cf   = cutLot[e.lot] || null;   // v13.24 เวลาตัด อาจไม่มีถ้ายังไม่ได้ซิงก์ไฟล์ lot นี้
     const eta  = cutEta(e.lot, tot, st.left);   // v13.26 ประมาณเวลาที่เหลือ · null ถ้าจบแล้วหรือไม่รู้ยอด
     const edg  = cutEdgeSec(cf);                // v13.28 เวลาปิดขอบ · null ถ้ายังไม่มีข้อมูล
+    const ncs  = cutNcSec(cf);                  // v13.29 เวลาเจาะ · null ถ้ายังไม่ได้อ่าน NCData
     const badge = fin ? '<span class="lf-badge done">✓ ตัดจบแล้ว</span>'
                 : tot ? '<span class="lf-badge wip">กำลังทำ ' + pct + '%</span>'
                       : '<span class="lf-badge unk">ไม่รู้ยอดรวม</span>';
@@ -3970,8 +3987,9 @@ function lfRun(){
       ${cf ? `<div class="lf-cut">
         <span class="lf-cut-l">เวลาตัด</span>
         <b class="lf-cut-v">${cutThai(cf.total_sec)}</b>
-        ${edg != null ? `<span class="lf-cut-l">ปิดขอบ</span><b class="lf-cut-edge">${cutThai(edg)}</b>
-          <span class="lf-cut-sum" title="ตัด + ปิดขอบ · สองงานนี้ต่อคิวกัน ไม่ได้ทำพร้อมกัน">รวม ${cutThai(cf.total_sec + edg)}</span>` : ''}
+        ${edg != null ? `<span class="lf-cut-l">ปิดขอบ</span><b class="lf-cut-edge">${cutThai(edg)}</b>` : ''}
+        ${ncs != null ? `<span class="lf-cut-l">เจาะ</span><b class="lf-cut-nc">${cutThai(ncs)}</b>` : ''}
+        ${(edg != null || ncs != null) ? `<span class="lf-cut-sum" title="ตัด + ปิดขอบ + เจาะ · สามงานนี้ต่อคิวกัน ไม่ได้ทำพร้อมกัน">รวม ${cutThai(cf.total_sec + (edg||0) + (ncs||0))}</span>` : ''}
         ${eta ? `<span class="lf-cut-eta" title="ประมาณจากสัดส่วนชิ้นที่ยังไม่ตัด · ไม่ใช่เลขตายตัว · เป็นของทั้ง lot รวมทุกเครื่อง">เหลืออีกราว ${cutThai(eta)}</span>` : ''}
         ${cutSawHtml(cf, 'lf-cut-saw')}
         <span class="lf-cut-s">Cut Rite คำนวณไว้ ไม่ใช่เวลาจับจริง
@@ -3984,7 +4002,12 @@ function lfRun(){
             + ' <span style="color:#334155">·</span> ปิดขอบ ' + n(cf.edge_panels) + '/' + n(cf.edge_all_panels) + ' แผ่น'
             + ' <span style="color:#334155">·</span> ' + (EDGE.two ? 'เครื่องสองด้าน' : 'เครื่องทีละด้าน')
             + ' ' + EDGE.feed + ' ม./นาที'
-            + (cf.edge_guess ? ' <span style="color:#fbbf24">· เดาด้าน ' + n(cf.edge_guess) + ' แผ่น</span>' : '') : ''}</span>
+            + (cf.edge_guess ? ' <span style="color:#fbbf24">· เดาด้าน ' + n(cf.edge_guess) + ' แผ่น</span>' : '') : ''}${
+          ncs != null ? ' <span style="color:#334155">·</span> เจาะ ' + n((+cf.nc_vhole||0)+(+cf.nc_hhole||0)) + ' รู'
+            + (cf.nc_pocket ? ' · ช่องเซาะ ' + n(cf.nc_pocket) : '')
+            + ' <span style="color:#334155">·</span> ' + n(cf.nc_panels) + ' แผ่นเข้า CNC'
+            + (cf.nc_missing ? ' <span style="color:#fbbf24">· หาไฟล์เจาะไม่เจอ ' + n(cf.nc_missing) + ' แผ่น เวลาจะต่ำกว่าจริง</span>' : '')
+            + (cf.nc_other ? ' <span style="color:#fbbf24">· คำสั่งที่ยังไม่รู้จัก ' + n(cf.nc_other) + '</span>' : '') : ''}</span>
         <button class="lf-cut-b" data-lot="${esc13(e.lot)}" onclick="lfCutToggle(this)">ดูรายไม้</button>
       </div>
       <div class="lf-cutbox" hidden></div>` : ''}
@@ -4079,7 +4102,7 @@ function renderLotBox(){
              skip:st.skip, fin:st.fin, src:st.src, ax:st.ax,
              // v13.26 เวลาตัด · ไม่มีก็ไม่ขึ้นแถวนั้นเลย ไม่ขึ้นเป็นช่องว่าง
              cf:cutLot[lot] || null, eta:cutEta(lot, st.tot, st.left),
-             edg:cutEdgeSec(cutLot[lot]) };
+             edg:cutEdgeSec(cutLot[lot]), ncs:cutNcSec(cutLot[lot]) };
   }).sort((a,b) => (a.fin - b.fin) || (b.last > a.last ? 1 : b.last < a.last ? -1 : 0));
 
   const nFin   = list.filter(x => x.fin).length;
@@ -4144,8 +4167,9 @@ function renderLotBox(){
         </div>
         ${x.cf ? `<div style="margin-top:7px;padding-top:7px;border-top:1px solid #1e293b;font-size:11px;color:#64748b">
           เวลาตัด <b style="color:#c4b5fd;font-size:13px">${cutThai(x.cf.total_sec)}</b>
-          ${x.edg != null ? `<span style="color:#334155"> · </span>ปิดขอบ <b style="color:#5eead4;font-size:13px">${cutThai(x.edg)}</b>
-            <span style="color:#334155"> · </span>รวม <b style="font-size:13px">${cutThai(x.cf.total_sec + x.edg)}</b>` : ''}
+          ${x.edg != null ? `<span style="color:#334155"> · </span>ปิดขอบ <b style="color:#5eead4;font-size:13px">${cutThai(x.edg)}</b>` : ''}
+          ${x.ncs != null ? `<span style="color:#334155"> · </span>เจาะ <b style="color:#fda4af;font-size:13px">${cutThai(x.ncs)}</b>` : ''}
+          ${(x.edg != null || x.ncs != null) ? `<span style="color:#334155"> · </span>รวม <b style="font-size:13px">${cutThai(x.cf.total_sec + (x.edg||0) + (x.ncs||0))}</b>` : ''}
           ${x.eta ? `<span style="color:#334155"> · </span>เหลืออีกราว <b style="color:#fbbf24;font-size:13px">${cutThai(x.eta)}</b>` : ''}
           ${cutSawHtml(x.cf, 'lf-cut-saw')}
           <div style="font-size:10px;color:#475569;margin-top:2px">
@@ -7195,6 +7219,47 @@ function edgeFill(){
   if(d) d.textContent = EDGE.two ? 'สองด้านพร้อมกัน' : 'ทีละด้าน';
 }
 
+/* ── v13.29 ค่าเครื่องเจาะ CNC ───────────────────────────────────────
+   เก็บแยกจากค่าเครื่องปิดขอบ คนละเครื่อง คนละคนคุม
+   วินาทีต่อรู 3 กับจับวาง 4.5 มาจากเจ้าของงาน
+   ส่วนค่าช่องเซาะเป็นการเดา ยังไม่ได้จับเวลาจริง ต้องปรับทีหลัง */
+const NC_DEF = { hole:3, hand:4.5, pkr:1, pkf:6 };
+let NCS = { hole:3, hand:4.5, pkr:1, pkf:6 };
+
+function ncLoad(){
+  try{
+    const j = JSON.parse(localStorage.getItem('cc_nc') || '{}');
+    NCS = { hole:(+j.hole >= 0) ? +j.hole : NC_DEF.hole,
+            hand:(+j.hand >= 0) ? +j.hand : NC_DEF.hand,
+            pkr :(+j.pkr  >= 0) ? +j.pkr  : NC_DEF.pkr,
+            pkf :(+j.pkf  >= 0) ? +j.pkf  : NC_DEF.pkf };
+  }catch(e){ NCS = Object.assign({}, NC_DEF); }
+}
+function ncSet(k, v){
+  const n = parseFloat(v);
+  NCS[k] = (n >= 0) ? n : NC_DEF[k];     // ติดลบหรือไม่ใช่ตัวเลข เด้งกลับค่าตั้งต้น
+  try{ localStorage.setItem('cc_nc', JSON.stringify(NCS)); }catch(e){}
+  ncFill();
+  try{ lfRun(); }catch(e){}
+  try{ renderLotBox(); }catch(e){}
+}
+function ncFill(){
+  const m = { ncHole:'hole', ncHand:'hand', ncPkr:'pkr', ncPkf:'pkf' };
+  for(const id in m){ const el = $(id); if(el) el.value = NCS[m[id]]; }
+}
+
+/* เวลาเจาะของ lot · null เมื่อยังไม่ได้อ่าน NCData ของลอตนั้น
+   รูตั้งกับรูนอนคิดอัตราเดียวกันตามที่เจ้าของงานกำหนด
+   แยกเก็บสองช่องในฐานข้อมูลไว้เผื่อวันหลังอยากแยกอัตรา */
+function cutNcSec(cf){
+  if(!cf || cf.nc_panels == null) return null;
+  const holes = (+cf.nc_vhole || 0) + (+cf.nc_hhole || 0);
+  return Math.round(holes * NCS.hole
+                  + (+cf.nc_panels || 0) * NCS.hand
+                  + (+cf.nc_pocket_mm2 || 0) / 1000 * NCS.pkr
+                  + (+cf.nc_pocket || 0) * NCS.pkf);
+}
+
 /* เวลาปิดขอบของ lot · null เมื่อยังไม่มีข้อมูล จะได้ไม่ขึ้นแถวนั้นเลย
    เวลา = ระยะที่แผ่นวิ่งผ่านเครื่อง / ความเร็วป้อน + จำนวนเที่ยว x เวลาจับวาง
    ระยะวิ่งกับจำนวนเที่ยวมีสองชุดในฐานข้อมูล ชุดหนึ่งต่อเครื่องหนึ่งแบบ
@@ -7241,7 +7306,8 @@ function cutEta(lot, tot, left){
 async function fetchCutFiles(){
   // ต้องดึง id มาด้วย · ใช้เป็นตัวกรองตอนขอรายไม้ แทนการกรองด้วยชื่อ lot
   const cols = 'id,lot,run_no,file_name,groups,patterns,boards,waste_pct,cut_sec,setup_sec,total_sec'
-             + ',edge_m,edge_panels,edge_all_panels,edge_pass1,edge_run1_m,edge_pass2,edge_run2_m,edge_guess';
+             + ',edge_m,edge_panels,edge_all_panels,edge_pass1,edge_run1_m,edge_pass2,edge_run2_m,edge_guess'
+             + ',nc_parts,nc_found,nc_panels,nc_vhole,nc_hhole,nc_pocket,nc_pocket_mm2,nc_other,nc_missing';
   const PAGE = 1000;
   const m = {};
   let got = 0;
@@ -7262,7 +7328,11 @@ async function fetchCutFiles(){
           cut_sec:0, setup_sec:0, total_sec:0, wsum:0, wbase:0,
           // v13.28 งานปิดขอบ · บวกรวมทุกไฟล์ของ lot เดียวกันเหมือนงานตัด
           edge_m:0, edge_panels:0, edge_all_panels:0, edge_guess:0,
-          edge_pass1:0, edge_run1_m:0, edge_pass2:0, edge_run2_m:0
+          edge_pass1:0, edge_run1_m:0, edge_pass2:0, edge_run2_m:0,
+          /* v13.29 งานเจาะ · nc_panels เริ่มเป็น null ไม่ใช่ 0
+             เพื่อแยก "ยังไม่ได้อ่าน NCData" ออกจาก "อ่านแล้วไม่มีงานเจาะ" */
+          nc_panels:null, nc_parts:0, nc_found:0, nc_vhole:0, nc_hhole:0,
+          nc_pocket:0, nc_pocket_mm2:0, nc_other:0, nc_missing:0
         });
         if(x.id != null) e.ids.push(x.id);
         // v13.27 เลขงาน optimize · คนหน้างานเรียกว่าเลข .SAW และเป็นชื่อไฟล์ด้วย
@@ -7286,6 +7356,17 @@ async function fetchCutFiles(){
         e.edge_run1_m    += +x.edge_run1_m    || 0;
         e.edge_pass2     += +x.edge_pass2     || 0;
         e.edge_run2_m    += +x.edge_run2_m    || 0;
+        if(x.nc_panels != null){
+          e.nc_panels = (e.nc_panels || 0) + (+x.nc_panels || 0);
+          e.nc_parts      += +x.nc_parts      || 0;
+          e.nc_found      += +x.nc_found      || 0;
+          e.nc_vhole      += +x.nc_vhole      || 0;
+          e.nc_hhole      += +x.nc_hhole      || 0;
+          e.nc_pocket     += +x.nc_pocket     || 0;
+          e.nc_pocket_mm2 += +x.nc_pocket_mm2 || 0;
+          e.nc_other      += +x.nc_other      || 0;
+          e.nc_missing    += +x.nc_missing    || 0;
+        }
       });
       got += arr.length;
       if(arr.length < PAGE) break;
@@ -7533,7 +7614,7 @@ async function fetchSupabaseData(silent, mode){
     supaProg.steps(4); supaProg.bar(86);
     supaProg.stage('ดึงความคืบหน้าราย lot', 'ตาราง lot_progress · บอกว่า lot ไหนตัดจบแล้ว');
     await fetchLotProgress();    // v13.7 ตารางเล็ก ดึงทุกรอบได้ ไม่หนัก
-    edgeLoad();                  // v13.28 ค่าเครื่องปิดขอบที่จำไว้ในเครื่องคนดู
+    edgeLoad(); ncLoad();        // v13.28/13.29 ค่าเครื่องที่จำไว้ในเครื่องคนดู
     await fetchCutFiles();       // v13.24 เวลาตัดจาก Cut Rite · 1 แถวต่อไฟล์ เล็กพอ ๆ กัน
 
     // ── ขั้น 5: รวมยอดลงการ์ด (sync ล้วน ต้อง yield ให้จอวาดข้อความก่อน) ──
@@ -8032,6 +8113,24 @@ window.onload=()=>{
       <span class="lf-edge-l">จับวาง</span>
       <input type="number" id="edgeHand" class="lf-edge-in" min="0" max="300" step="0.5"
              onchange="edgeSet('hand', this.value)"><span class="lf-edge-u">วิ/เที่ยว</span>
+    </div>
+
+    <!-- v13.29 ค่าเครื่องเจาะ CNC · แยกแถวจากปิดขอบ คนละเครื่อง คนละคนคุม -->
+    <div class="lf-edge">
+      <span class="lf-edge-l">เครื่องเจาะ</span>
+      <span class="lf-edge-u">รู</span>
+      <input type="number" id="ncHole" class="lf-edge-in" min="0" max="60" step="0.1"
+             onchange="ncSet('hole', this.value)"><span class="lf-edge-u">วิ</span>
+      <span class="lf-edge-l">จับวาง</span>
+      <input type="number" id="ncHand" class="lf-edge-in" min="0" max="300" step="0.5"
+             onchange="ncSet('hand', this.value)"><span class="lf-edge-u">วิ/แผ่น</span>
+      <span class="lf-edge-l">ช่องเซาะ</span>
+      <input type="number" id="ncPkr" class="lf-edge-in" min="0" max="60" step="0.1"
+             onchange="ncSet('pkr', this.value)"
+             title="ยังไม่ได้จับเวลาจริง เป็นค่าเดา ปรับได้"><span class="lf-edge-u">วิ/1000มม²</span>
+      <span class="lf-edge-u">+</span>
+      <input type="number" id="ncPkf" class="lf-edge-in" min="0" max="300" step="0.5"
+             onchange="ncSet('pkf', this.value)"><span class="lf-edge-u">วิ/ช่อง</span>
     </div>
   </div>
 
