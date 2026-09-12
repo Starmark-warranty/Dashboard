@@ -5,8 +5,22 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>แผนผลิต · STARMARK</title>
 <!-- =====================================================================
-  แผนผลิต (เดิม Lot Parts · รายชิ้นในลอต)   ·   VERSION 5.20
+  แผนผลิต (เดิม Lot Parts · รายชิ้นในลอต)   ·   VERSION 5.21
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  5.21 2026-09-12  FEAT ช่องกรอง สัปดาห์ กับ สายผลิต ติ๊กได้หลายค่า
+                   ของเดิมเลือกได้ค่าเดียว คนที่อยากดูสองสัปดาห์รวมกัน
+                   หรือสองสายผลิตพร้อมกัน ต้องเลือกทีละอันแล้วจำเลขเอง
+                   ซึ่งเป็นงานที่คอมพิวเตอร์ควรทำให้
+                   · เปิดเป็นหน้าต่างติ๊ก ไม่ใช่รายการกางลงมาในหัวตาราง
+                     เพราะหัวตารางอยู่ในกล่องที่เลื่อนได้ รายการที่กางลงมา
+                     จะถูกขอบกล่องตัดหายครึ่งหนึ่ง · และบนมือถือติ๊กง่ายกว่า
+                   · ตารางวาดใหม่ตอนกดตกลง ไม่ใช่ทุกครั้งที่ติ๊ก
+                     ติ๊กสามช่องแล้ววาดสามรอบกับสี่พันแถวคือหน่วงเปล่า
+                     และรายการตัวเลือกจะไม่ขยับหนีมือระหว่างที่ยังติ๊กไม่เสร็จ
+                   · ช่อง กำหนดเสร็จ กับ ชั้น ยังเลือกค่าเดียวเหมือนเดิม
+                     สองช่องนั้นมีตัวเลือก 229 กับ 1,467 ค่า ทำเป็นติ๊กแล้วหาไม่เจอ
+                     ถ้าวันหลังอยากได้ด้วยก็เติมคีย์ลง DCOL_MULTI ได้เลย
+
   5.20 2026-09-12  CHANGE จัดหน้าให้ตอบคำถามที่คนเปิดมาถามจริง
                    · ย้ายแถบตั้งค่าเครื่องไปอยู่ในปุ่ม ⚙
                      ของเดิมกางอยู่เหนือตารางตลอด กินที่หนึ่งบรรทัดเต็ม
@@ -1358,6 +1372,22 @@ tr.rmgrp .s{font-family:var(--sans);font-weight:400;font-size:11.5px;color:var(-
 .rmbtn .rn{font-family:var(--mono);font-size:11px}
 
 /* v5.12 แถบตั้งค่าเครื่องปิดขอบ */
+/* v5.21 ปุ่มกรองแบบติ๊กหลายค่าในหัวตาราง · หน้าตาเหมือนช่องเลือกเดิมให้มากที่สุด
+   คนที่ชินกับช่องเดิมจะได้ไม่ต้องเรียนรู้ใหม่ว่าอันไหนกดได้ */
+.dcm{width:100%;min-height:30px;padding:4px 7px;font-size:11.5px;text-align:left;
+  border:1px solid var(--line);border-radius:6px;background:var(--card);
+  color:var(--tx);cursor:pointer;font-family:inherit;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.dcm:hover{border-color:var(--brand)}
+.dcm.on{background:var(--brandbg);border-color:var(--brand);color:var(--brand2);font-weight:600}
+/* รายการติ๊ก · เลื่อนได้ในตัวเอง ไม่ดันหน้าต่างให้ยาวเกินจอ */
+.pkwrap{max-height:52vh;overflow:auto;border:1px solid var(--line);border-radius:8px;
+  margin:8px 0;padding:4px}
+.pkr{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:6px;
+  font-size:13px;cursor:pointer;min-height:40px}
+.pkr:hover{background:var(--hov)}
+.pkr input{width:17px;height:17px;cursor:pointer;flex-shrink:0}
+
 /* v5.20 แถวตั้งค่าเครื่องในกล่อง ⚙ · ของเดิมชื่อ edgebar อยู่เหนือตาราง เอาออกแล้ว */
 .machrow{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:0 0 4px}
 .ebl{font-size:11px;color:var(--mu2);font-weight:600}
@@ -1605,6 +1635,22 @@ table.dtab td.pd{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-sp
 </div>
 
 <!-- ── ตั้งค่าการเชื่อมต่อ ─────────────────────────────────────── -->
+<!-- v5.21 หน้าต่างติ๊กเลือกหลายค่า · ใช้ร่วมกันทุกช่องที่ติ๊กได้ -->
+<div class="ov" id="ovPick">
+  <div class="modal" style="width:min(460px,96vw)">
+    <h3 id="pickTitle">กรอง</h3>
+    <div class="bd">
+      <div class="sub" id="pickCount"></div>
+      <div class="pkwrap" id="pickBody"></div>
+      <div class="br">
+        <button class="btn" data-act="pickall">เลือกทั้งหมด</button>
+        <button class="btn" data-act="pickclr">ล้าง</button>
+        <button class="btn" data-act="pickclose">ตกลง</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="ov" id="ovCfg">
   <div class="modal" style="width:min(560px,96vw)">
     <h3>ตั้งค่า</h3>
@@ -1734,6 +1780,8 @@ const S = {
   lots:[], lot:'', rows:[], prog:null,
   pkOpen:'',          // คอลัมน์ที่กางดูทั้งหมดอยู่ในหน้าต่างเลือกลอต
   pq:'',              // คำค้นในหน้าต่างเลือกลอต
+  pick:'',            // v5.21 ช่องที่หน้าต่างติ๊กกำลังเปิดอยู่
+  pickOpts:[],        // v5.21 รายการตัวเลือกที่ล็อกไว้ตอนเปิด ไม่ให้ขยับระหว่างติ๊ก
   filters:{}, sort:{k:'',dir:0},
   miss:{},            // { คอลัมน์: เหตุผลที่ไม่มีข้อมูล }
   view:'all',         // ตัวกรองแถว: all | todo | pack
@@ -1840,6 +1888,51 @@ function edgeLoad(){
 /* v5.20 เขียนค่าปัจจุบันลงช่องในกล่องตั้งค่า
    ช่องพวกนี้เป็น markup นิ่ง ไม่ได้ถูกวาดใหม่ตอน render() เหมือนตอนอยู่เหนือตาราง
    ต้องเติมเองตอนเปิดกล่อง และตอนค่าถูกดีดกลับเพราะกรอกไม่ผ่าน */
+/* ── v5.21 หน้าต่างติ๊กเลือกหลายค่า ────────────────────────────────
+   ตารางไม่ได้วาดใหม่ทุกครั้งที่ติ๊ก · วาดตอนกดตกลงครั้งเดียว
+   เหตุผลสองข้อ
+     1. ติ๊กสามช่องแล้ววาดสามรอบกับสี่พันแถว คือหน่วงเปล่า
+     2. รายการตัวเลือกสร้างจากแถวที่ผ่านตัวกรองอื่น ถ้าวาดใหม่ทุกติ๊ก
+        รายการจะขยับหนีมือระหว่างที่ยังเลือกไม่เสร็จ */
+function openPick(k){
+  if(DCOL_MULTI.indexOf(k) < 0) return;
+  S.pick = k;
+  S.pickOpts = dColOpts(k);          /* ล็อกรายการไว้ตอนเปิด ไม่ให้ขยับระหว่างติ๊ก */
+  $('pickTitle').textContent = 'กรอง' + (DCOL_MULTI_TX[k] || k);
+  renderPick();
+  $('ovPick').classList.add('open');
+}
+
+function renderPick(){
+  const k = S.pick; if(!k) return;
+  const cur  = dcolArr(k);
+  const opts = S.pickOpts || [];
+  $('pickCount').textContent = cur.length
+    ? 'เลือกไว้ ' + cur.length + ' จาก ' + opts.length
+    : 'ยังไม่เลือก = เอาทั้งหมด (' + opts.length + ' ค่า)';
+  $('pickBody').innerHTML = opts.length
+    ? opts.map(o => '<label class="pkr"><input type="checkbox" data-act="pickck"' +
+        ' data-v="' + esc(o) + '"' + (cur.indexOf(o) >= 0 ? ' checked' : '') + '>' +
+        '<span>' + esc(o) + '</span></label>').join('')
+    : '<div class="pkr"><span class="sub2">ไม่มีตัวเลือกในเงื่อนไขนี้</span></div>';
+}
+
+/* ติ๊ก/ถอนติ๊กหนึ่งค่า · อัปเดตแต่ตัวนับ ไม่วาดตารางและไม่วาดรายการใหม่
+   วาดรายการใหม่จะทำให้ช่องที่เพิ่งติ๊กกระเด็นหายไปจากใต้นิ้ว */
+function pickToggle(v, on){
+  const k = S.pick; if(!k) return;
+  if(!S.dash.col) S.dash.col = {};
+  const a = dcolArr(k).slice();
+  const i = a.indexOf(v);
+  if(on && i < 0) a.push(v);
+  if(!on && i >= 0) a.splice(i, 1);
+  S.dash.col[k] = a;
+  const cur = a, opts = S.pickOpts || [];
+  $('pickCount').textContent = cur.length
+    ? 'เลือกไว้ ' + cur.length + ' จาก ' + opts.length
+    : 'ยังไม่เลือก = เอาทั้งหมด (' + opts.length + ' ค่า)';
+}
+
 function machFill(){
   const m = { mEdgeTwo:null, mEdgeFeed:'feed', mEdgeHand:'hand' };
   const a = $('mEdgeTwo'); if(a) a.checked = EDGE.two;
@@ -2507,6 +2600,36 @@ const ST_DONE = 'เข้าคลังครบ';   /* ที่เดีย�
             ลอต 4,857 ค่า · หมายเหตุลอต 4,140 ค่า · หมายเหตุวางแผน 2,381 ค่า
             เทียบแบบมีข้อความอยู่ข้างใน เพราะหมายเหตุเป็นประโยคยาว */
 const DCOL_SEL = ['end','wk','pool','shelf'];
+/* v5.21 สองช่องนี้ติ๊กได้หลายค่า · เก็บค่าเป็น array ไม่ใช่สตริง
+   เลือกสองช่องนี้เพราะตัวเลือกมีไม่กี่สิบค่า ติ๊กแล้วยังหาเจอ
+   กำหนดเสร็จ 229 ค่า กับ ชั้น 1,467 ค่า ทำเป็นติ๊กแล้วเลื่อนหาไม่ไหว */
+const DCOL_MULTI = ['wk','pool'];
+const DCOL_MULTI_TX = { wk:'สัปดาห์', pool:'สายผลิต' };
+
+/* ค่าที่เลือกไว้ของช่องติ๊ก · คืน array เสมอ ไม่ต้องคอยเช็ค null ที่ปลายทาง */
+function dcolArr(k){
+  const v = S.dash.col && S.dash.col[k];
+  return Array.isArray(v) ? v : (v ? [String(v)] : []);
+}
+
+/* ตัวเลือกของช่องกรองคอลัมน์ · สร้างจากแถวที่ผ่านตัวกรองอื่นทั้งหมด ยกเว้นตัวมันเอง
+   แยกออกมาเป็นฟังก์ชันเพราะทั้งหัวตารางและหน้าต่างติ๊กต้องใช้ชุดเดียวกัน
+   ถ้าเขียนสองที่ วันหนึ่งจะมีตัวเลือกโผล่ในที่หนึ่งแต่ไม่โผล่ในอีกที่ */
+function dColOpts(k){
+  const seen = new Map();
+  dashFiltered(k).forEach(r => {
+    const lb = dColLabel(r, k);
+    if(lb && !seen.has(lb)) seen.set(lb, dColSort(r, k));
+  });
+  const opts = [...seen.keys()].sort((a,b) => {
+    const x = seen.get(a), y = seen.get(b);
+    return x < y ? -1 : x > y ? 1 : 0;
+  });
+  /* ค่าที่เลือกค้างอยู่ต้องมีในรายการเสมอ แม้ตัวกรองอื่นจะทำให้มันไม่เหลือแถว
+     ไม่งั้นช่องจะเด้งกลับเป็น "ทั้งหมด" เอง แล้วผลบนจอไม่ตรงกับที่เห็นในช่อง */
+  dcolArr(k).forEach(v => { if(opts.indexOf(v) < 0) opts.unshift(v); });
+  return opts;
+}
 const DCOL_TXT = ['lot','rm','pd'];
 const DCOLS    = ['lot','end','wk','pool','shelf','rm','pd'];   /* ลำดับบนจอ */
 
@@ -2560,6 +2683,12 @@ function dashFiltered(skipCol){
        บทเรียนเดียวกับที่ตัวเลือกของช่องกรองข้างบนสร้างจาก all ไม่ใช่ rows */
     for(const ck of DCOLS){
       if(ck === skipCol) continue;
+      /* v5.21 ช่องติ๊กหลายค่า · ว่างไว้ = เอาทั้งหมด เหมือนช่องเลือกค่าเดียว */
+      if(DCOL_MULTI.indexOf(ck) >= 0){
+        const arr = dcolArr(ck);
+        if(arr.length && arr.indexOf(dColLabel(r, ck)) < 0) return false;
+        continue;
+      }
       const cv = String((d.col && d.col[ck]) || '').trim();
       if(!cv) continue;
       if(DCOL_SEL.indexOf(ck) >= 0){
@@ -2859,20 +2988,19 @@ function renderDash(){
             return '<th><input class="dcf" data-dcol="' + k + '" placeholder="กรอง"' +
                    ' value="' + esc(cur) + '"></th>';
           }
-          /* ตัวเลือกสร้างจากแถวที่ผ่านตัวกรองอื่นทั้งหมด ยกเว้นตัวมันเอง
-             จะได้ไม่เหลือตัวเลือกเดียวจนกลับไปเลือกอย่างอื่นไม่ได้ */
-          const seen = new Map();
-          dashFiltered(k).forEach(r => {
-            const lb = dColLabel(r, k);
-            if(lb && !seen.has(lb)) seen.set(lb, dColSort(r, k));
-          });
-          const opts = [...seen.keys()].sort((a,b) => {
-            const x = seen.get(a), y = seen.get(b);
-            return x < y ? -1 : x > y ? 1 : 0;
-          });
-          /* ค่าที่เลือกค้างอยู่ต้องมีในรายการเสมอ แม้ตัวกรองอื่นจะทำให้มันไม่เหลือแถว
-             ไม่งั้นช่องจะเด้งกลับเป็น "ทั้งหมด" เอง แล้วผลบนจอไม่ตรงกับที่เห็นในช่อง */
-          if(cur && opts.indexOf(cur) < 0) opts.unshift(cur);
+          /* v5.21 ช่องติ๊กหลายค่า · เป็นปุ่มที่เปิดหน้าต่างติ๊ก
+             ไม่ทำเป็นรายการกางลงมา เพราะหัวตารางอยู่ในกล่องที่เลื่อนได้
+             รายการที่กางลงมาจะถูกขอบกล่องตัดหายครึ่งหนึ่ง */
+          if(DCOL_MULTI.indexOf(k) >= 0){
+            const a  = dcolArr(k);
+            const tx = a.length === 0 ? 'ทั้งหมด'
+                     : a.length <= 2  ? a.join(', ')
+                     : a.length + ' ค่า';
+            return '<th><button class="dcm' + (a.length ? ' on' : '') + '"' +
+                   ' data-act="dpick" data-k="' + k + '"' +
+                   ' title="ติ๊กเลือกได้หลายค่า">' + esc(tx) + '</button></th>';
+          }
+          const opts = dColOpts(k);
           return '<th><select class="dcs" data-dcol="' + k + '">' +
             '<option value="">ทั้งหมด</option>' +
             opts.map(o => '<option value="' + esc(o) + '"' +
@@ -4433,6 +4561,22 @@ document.addEventListener('click', ev => {
   }
   if(act === 'dlate'){ S.dash.late = !S.dash.late; render(); return; }
   if(act === 'dclrcol'){ S.dash.col = {}; render(); return; }   /* v5.4 */
+  /* v5.21 ช่องติ๊กหลายค่า */
+  if(act === 'dpick'){ openPick(t.dataset.k); return; }
+  if(act === 'pickall'){
+    if(!S.dash.col) S.dash.col = {};
+    S.dash.col[S.pick] = (S.pickOpts || []).slice();
+    renderPick(); return;
+  }
+  if(act === 'pickclr'){
+    if(!S.dash.col) S.dash.col = {};
+    S.dash.col[S.pick] = [];
+    renderPick(); return;
+  }
+  if(act === 'pickclose'){
+    $('ovPick').classList.remove('open');
+    S.pick = ''; render(); return;      /* วาดตารางใหม่ตอนนี้ครั้งเดียว */
+  }
   /* v5.7 กดหัวตาราง · คอลัมน์เดิมสลับขึ้นลง คอลัมน์ใหม่เริ่มที่ทิศที่คนคาด
      ชื่อกับหมายเหตุคนคาดว่า ก-ฮ · วันที่คาดว่าใกล้สุดก่อน
      เงินกับความคืบหน้าคาดว่ามากไปน้อย ไม่มีใครอยากเห็นลอตราคาถูกสุดขึ้นก่อน */
@@ -4525,6 +4669,9 @@ document.addEventListener('change', ev => {
      ถ้าใช้ input จะวาดใหม่ทุกตัวอักษรที่พิมพ์ แล้วเคอร์เซอร์จะกระเด็นออกจากช่อง
      เป็นอาการเดียวกับที่ v5.5 เจอกับช่องกรองรายคอลัมน์ */
   const eact = ev.target.dataset && ev.target.dataset.act;
+  /* v5.21 ช่องติ๊กในหน้าต่างกรอง · ใช้ change เพราะ checkbox ยิง change ตอนสถานะเปลี่ยน
+     ไม่ผูกกับตัวจับ click เพราะกดที่ label จะได้สองเหตุการณ์แล้วติ๊กกลับทันที */
+  if(eact === 'pickck'){ pickToggle(ev.target.dataset.v, ev.target.checked); return; }
   if(eact === 'edgefeed'){ edgeSet('feed', ev.target.value); return; }
   if(eact === 'edgehand'){ edgeSet('hand', ev.target.value); return; }
   if(eact === 'nchole'){ ncSet('hole', ev.target.value); return; }
@@ -4676,7 +4823,14 @@ document.addEventListener('keydown', ev => {
     if(first){ ev.preventDefault(); selectLot(first.dataset.lot); }
     return;
   }
-  if(ev.key === 'Escape') ['ovCols','ovCfg','ovLot'].forEach(id => $(id).classList.remove('open'));
+  if(ev.key === 'Escape'){
+    /* v5.21 ปิดหน้าต่างติ๊กด้วยแล้ววาดตารางตาม ไม่งั้นกด Escape แล้วผลที่ติ๊กจะไม่ขึ้น */
+    const wasPick = $('ovPick') && $('ovPick').classList.contains('open');
+    ['ovCols','ovCfg','ovLot','ovPick','ovCut'].forEach(id => {
+      const el = $(id); if(el) el.classList.remove('open');
+    });
+    if(wasPick){ S.pick = ''; render(); }
+  }
 });
 
 /* ── ลากปรับความกว้างคอลัมน์ ────────────────────────────────── */
