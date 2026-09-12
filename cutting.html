@@ -5,8 +5,42 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=5.0,user-scalable=yes">
 <title>Cutting Center Dashboard</title>
 <!-- =====================================================================
-  Cutting Center Dashboard   ·   VERSION 13.31
+  Cutting Center Dashboard   ·   VERSION 13.34
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  13.34 2026-09-12  FIX  lot ที่ถูก optimize ซ้ำ เวลาบวกเกินเป็นเท่าตัว
+                    กติกาใหม่: หนึ่ง lot ใช้ไฟล์ Cut Rite ล่าสุดไฟล์เดียว
+                    Cut Rite optimize ลอตเดิมซ้ำได้ แล้วออกเลข .SAW ใหม่
+                    ไฟล์เก่ายังค้างในโฟลเดอร์ ตัวซิงก์จึงเก็บไว้ทั้งสองใบ
+                    ของเดิมบวกรวมทุกไฟล์ของลอตเดียวกัน เวลาจึงเกินจริงเป็นเท่าตัว
+                      SDRHH_B_TOW.A_FL4-5_HG  ชิ้น 1,202 เท่ากันทั้งสองไฟล์
+                      โชว์ 7:19 ทั้งที่จริง 3:00
+                      SPL_สมุทรปราการ_058_869  สามไฟล์ โชว์ 4:35 ทั้งที่จริง 1:36
+                    ผมเดาเอาเองตั้งแต่ 13.24 ว่าลอตที่มีหลายไฟล์คือการแยกงาน
+                    ไม่ได้ถามก่อน · เจ้าของงานยืนยันว่าหนึ่งลอตต้องมีเลขเดียว
+                    · เปลี่ยนไปอ่าน view cut_lot_latest แทนตาราง cut_file
+                      กติกาอยู่ที่ฐานข้อมูลจุดเดียว ทั้งสองหน้าจึงคิดเหมือนกันแน่นอน
+                      ไม่ใช่ต่างคนต่างเขียนโค้ดเลือกเอง แล้ววันหนึ่งเลขไม่ตรงกัน
+                    · ประวัติไฟล์เก่ายังอยู่ใน cut_file ครบ ไม่ได้ลบทิ้ง
+
+  13.33 2026-09-12  CHANGE กล่อง "Lot ของ <เครื่อง>" เอาปิดขอบกับเจาะออก
+                    กล่องนี้ตอบคำถามของคนคุมเลื่อยว่าเครื่องนี้เหลืออะไรต้องตัด
+                    ปิดขอบกับเจาะเป็นงานของเครื่องอื่น ที่จะเกิดหลังจากตัดเสร็จแล้ว
+                    เอามาวางปนกันทำให้คนอ่านเข้าใจว่าเป็นงานของเครื่องนี้
+                    แล้ววางคิวเลื่อยผิด · 13.28-13.29 ใส่ไปโดยไม่ได้คิดว่า
+                    หน้านี้เป็นของใคร แค่เห็นว่ามีข้อมูลก็เอามาโชว์
+                    · เหลือ เวลาตัด · เหลืออีกราว · .SAW
+                      "เหลืออีกราว" คิดจากเวลาตัดอย่างเดียวอยู่แล้ว ไม่ได้รวมงานอื่น
+                    · ตัวเลขครบสามงานยังดูได้ที่กล่องค้นหา lot และหน้าแผนผลิต
+                      ซึ่งเป็นที่ที่คนวางแผนทั้งสายใช้ ไม่ใช่คนคุมเลื่อง
+
+  13.32 2026-09-12  CHANGE เอาคำเตือนสีส้มออกให้หมด
+                    เหลือคำเตือนเรื่อง "เดาด้านที่ปิดขอบจากรหัส" ตัวสุดท้าย
+                    ทั้งสองอันเป็นเรื่องปกติที่เกิดทุกลอต ไม่ใช่ของผิดพลาด
+                    คำเตือนที่ขึ้นทุกครั้งไม่ใช่คำเตือน เป็นเสียงรบกวน
+                    และพอคนชินกับสีส้มแล้ว วันที่มีเรื่องจริงก็จะไม่มีใครเห็น
+                    ตัวเลขยังเก็บใน edge_guess กับ nc_missing ครบ
+                    ถ้าวันหลังอยากตรวจย้อน ยังดึงจากฐานข้อมูลได้
+
   13.31 2026-09-12  FEAT เพิ่มจำนวนชิ้นในแถบเวลาตัด
                     ของเดิมมีแต่ "แผ่น" ซึ่งคือแผ่นไม้ดิบที่เอาเข้าเลื่อย
                     ไม่ได้บอกว่าตัดออกมาได้กี่ชิ้น · สองตัวต่างกันหลายเท่า
@@ -4010,12 +4044,14 @@ function lfRun(){
           <span style="color:#334155">·</span> ไม้ ${n(cf.groups)} ชนิด
           <span style="color:#334155">·</span> ${cf.edge_all_panels ? n(cf.edge_all_panels) + ' ชิ้น จาก ' : ''}${n(cf.boards)} แผ่นไม้${
           cf.wbase ? ' <span style="color:#334155">·</span> เศษเฉลี่ย ' + (cf.wsum/cf.wbase).toFixed(1) + '%' : ''}${
-          cf.files > 1 ? ' <span style="color:#334155">·</span> รวม ' + cf.files + ' ไฟล์' : ''}${
+          /* v13.34 เลิกโชว์ "รวม N ไฟล์" · view คืนลอตละหนึ่งไฟล์เสมอ
+             เงื่อนไขนี้จึงเป็นจริงไม่ได้อีกแล้ว ปล่อยไว้มีแต่ทำให้คนอ่านโค้ดเข้าใจผิด */ ''}${
           edg != null ? ' <span style="color:#334155">·</span> ' + n(cf.edge_m) + ' ม.'
             + ' <span style="color:#334155">·</span> ปิดขอบ ' + n(cf.edge_panels) + '/' + n(cf.edge_all_panels) + ' แผ่น'
             + ' <span style="color:#334155">·</span> ' + (EDGE.two ? 'เครื่องสองด้าน' : 'เครื่องทีละด้าน')
             + ' ' + EDGE.feed + ' ม./นาที'
-            + (cf.edge_guess ? ' <span style="color:#fbbf24">· เดาด้าน ' + n(cf.edge_guess) + ' แผ่น</span>' : '') : ''}${
+            /* v13.32 เอาคำเตือน "เดาด้าน" ออก · เกิดทุกลอตเป็นเรื่องปกติ
+               ตัวเลขยังอยู่ใน edge_guess ถ้าอยากตรวจย้อน */ : ''}${
           ncs != null ? ' <span style="color:#334155">·</span> เจาะ ' + n((+cf.nc_vhole||0)+(+cf.nc_hhole||0)) + ' รู'
             + (cf.nc_pocket ? ' · ช่องเซาะ ' + n(cf.nc_pocket) : '')
             + ' <span style="color:#334155">·</span> ' + n(cf.nc_panels) + ' แผ่นเข้า CNC'
@@ -4116,7 +4152,8 @@ function renderLotBox(){
              skip:st.skip, fin:st.fin, src:st.src, ax:st.ax,
              // v13.26 เวลาตัด · ไม่มีก็ไม่ขึ้นแถวนั้นเลย ไม่ขึ้นเป็นช่องว่าง
              cf:cutLot[lot] || null, eta:cutEta(lot, st.tot, st.left),
-             edg:cutEdgeSec(cutLot[lot]), ncs:cutNcSec(cutLot[lot]) };
+             /* v13.33 ไม่ต้องคิดเวลาปิดขอบกับเจาะแล้ว กล่องนี้ไม่ได้แสดง
+                คิดทิ้งไว้เปล่า ๆ ทุกครั้งที่วาด แถมคนอ่านโค้ดจะงงว่าเอาไปใช้ตรงไหน */ };
   }).sort((a,b) => (a.fin - b.fin) || (b.last > a.last ? 1 : b.last < a.last ? -1 : 0));
 
   const nFin   = list.filter(x => x.fin).length;
@@ -4180,14 +4217,14 @@ function renderLotBox(){
           <div style="height:100%;width:${x.pct}%;background:${barCol}"></div>
         </div>
         ${x.cf ? `<div style="margin-top:7px;padding-top:7px;border-top:1px solid #1e293b;font-size:11px;color:#64748b">
+          <!-- v13.33 หน้านี้เป็นของคนคุมเลื่อย เอาแต่เวลาตัด
+               ปิดขอบกับเจาะเป็นงานของเครื่องอื่นที่เกิดทีหลัง
+               เอามาปนกันแล้วคนจะวางคิวเลื่อยผิด -->
           เวลาตัด <b style="color:#c4b5fd;font-size:13px">${cutThai(x.cf.total_sec)}</b>
-          ${x.edg != null ? `<span style="color:#334155"> · </span>ปิดขอบ <b style="color:#5eead4;font-size:13px">${cutThai(x.edg)}</b>` : ''}
-          ${x.ncs != null ? `<span style="color:#334155"> · </span>เจาะ <b style="color:#fda4af;font-size:13px">${cutThai(x.ncs)}</b>` : ''}
-          ${(x.edg != null || x.ncs != null) ? `<span style="color:#334155"> · </span>รวม <b style="font-size:13px">${cutThai(x.cf.total_sec + (x.edg||0) + (x.ncs||0))}</b>` : ''}
           ${x.eta ? `<span style="color:#334155"> · </span>เหลืออีกราว <b style="color:#fbbf24;font-size:13px">${cutThai(x.eta)}</b>` : ''}
           ${cutSawHtml(x.cf, 'lf-cut-saw')}
           <div style="font-size:10px;color:#475569;margin-top:2px">
-            Cut Rite คำนวณไว้ ไม่ใช่เวลาจับจริง${x.edg != null ? ' · ปิดขอบคิดจากเครื่อง' + (EDGE.two ? 'สองด้านพร้อมกัน' : 'ทีละด้าน') + ' ' + EDGE.feed + ' ม./นาที' : ''}${x.eta ? ' · เวลาที่เหลือประมาณจากสัดส่วนชิ้นที่เหลือ เป็นของทั้ง lot รวมทุกเครื่อง' : ''}
+            Cut Rite คำนวณไว้ ไม่ใช่เวลาจับจริง${x.eta ? ' · เวลาที่เหลือประมาณจากสัดส่วนชิ้นที่เหลือ เป็นของทั้ง lot รวมทุกเครื่อง' : ''}
           </div>
         </div>` : ''}
         <div style="font-size:10px;color:#475569;margin-top:5px">
@@ -7330,7 +7367,7 @@ async function fetchCutFiles(){
     // ขอมากกว่านั้นไม่ขึ้น error แต่ได้มาแค่พันแถวแรก ซึ่งเป็นบั๊กที่ 13.22 เจอมาแล้ว
     for(let off = 0; off < 100000; off += PAGE){
       const u = SUPA.url.replace(/\/+$/,'')
-        + '/rest/v1/cut_file?select=' + cols
+        + '/rest/v1/cut_lot_latest?select=' + cols
         + '&order=lot.asc,file_name.asc&limit=' + PAGE + '&offset=' + off;
       const res = await fetch(u, { headers:{ apikey:SUPA.key, Authorization:'Bearer '+SUPA.key } });
       if(!res.ok) throw new Error('HTTP ' + res.status);
