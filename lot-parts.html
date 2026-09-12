@@ -5,8 +5,21 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Ax Progress · รายชิ้นในลอต</title>
 <!-- =====================================================================
-  Lot Parts · รายชิ้นในลอต        ·   VERSION 5.10
+  Lot Parts · รายชิ้นในลอต        ·   VERSION 5.11
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  5.11 2026-09-12  FIX  หน้าต่างเวลาตัดยาวทะลุขอบล่างจนอ่านไม่ครบ
+                   ลอตที่มีไม้ 11 ชนิด ตารางยาวเกินจอแล้วส่วนล่างถูกตัดหาย
+                   เลื่อนลงไปดูไม่ได้ด้วย เพราะตัวที่ควรเลื่อนคือตารางข้างใน
+                   ไม่ใช่ทั้งหน้าต่าง
+                   ต้นเหตุ: 5.10 ลอก CSS หน้าต่างวัตถุดิบมาใช้ แต่กฎที่ทำให้
+                   ตารางเลื่อนได้เขียนเจาะจงไว้ที่ #rmBody ตัวเดียว
+                   #cutBody จึงไม่ได้อะไรเลย แล้วตารางก็ยืดจนทะลุกรอบ
+                   · เติม #cutBody เข้าไปในกฎเดียวกัน แก้ที่เดียวได้ทั้งสองหน้าต่าง
+                   CHANGE แท็บ BI มาอยู่ก่อนแท็บรายชิ้น และเป็นแท็บที่เปิดมาเจอก่อน
+                   คนเปิดหน้านี้มาดูภาพรวมก่อนเสมอ · รายชิ้นเป็นของที่เจาะดูทีหลัง
+                   · ของเดิมที่จำแท็บล่าสุดไว้ใน localStorage ยังทำงานเหมือนเดิม
+                     ใครค้างที่รายชิ้นไว้ กด F5 ก็ยังกลับมาที่รายชิ้น
+
   5.10 2026-09-12  FEAT เวลาตัดจาก Cut Rite · คอลัมน์ใหม่ + หน้าต่างรายไม้
                    ตารางนี้ตอบได้ว่าลอตไหนต้องทำ แต่ตอบไม่ได้ว่าลอตนั้นกินเวลา
                    เครื่องเท่าไหร่ ซึ่งเป็นตัวที่ใช้จัดคิวจริง ๆ
@@ -1259,6 +1272,11 @@ table.dtab td.cutc{text-align:right;white-space:nowrap;line-height:1.35}
 .cutbar{width:120px;height:6px;background:var(--line);border-radius:4px;overflow:hidden}
 .cutbar i{display:block;height:100%;background:var(--brand)}
 .cutnote{font-size:11px;color:var(--mu2);margin-top:8px;line-height:1.7}
+/* v5.11 สรุปหัวกับคำอธิบายต้องไม่ถูกบีบ · เป็นลูกของกล่อง flex
+   ค่าเริ่มต้นของ flex-shrink คือ 1 ถ้าไม่ล็อกไว้ พอตารางยาวมันจะบีบสองอันนี้
+   จนตัวเลขข้างบนซ้อนกันแทนที่จะให้ตารางเลื่อนเอา */
+.modal.rmmodal .cutsum,
+.modal.rmmodal .cutnote{flex:0 0 auto}
 @media (max-width:760px){ .cutbar{display:none} }
 
 /* ตารางลอต */
@@ -1273,7 +1291,11 @@ table.dtab td.cutc{text-align:right;white-space:nowrap;line-height:1.35}
 .modal.rmmodal{width:min(1600px,97vw);max-height:94vh;display:flex;flex-direction:column}
 .modal.rmmodal > h3{flex:0 0 auto}
 .modal.rmmodal > .bd{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;padding:14px 18px}
-.modal.rmmodal #rmBody{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+/* v5.11 ต้องใส่ทั้งสองตัว · กฎนี้คือสิ่งที่ทำให้ตารางข้างในเลื่อนได้
+   แทนที่จะยืดจนทะลุขอบล่างของหน้าต่าง · 5.10 ลืมเติม #cutBody
+   แล้วหน้าต่างเวลาตัดของลอตที่มีไม้หลายชนิดจะอ่านไม่ครบ */
+.modal.rmmodal #rmBody,
+.modal.rmmodal #cutBody{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
 .modal.rmmodal .dwrap{flex:1 1 auto;max-height:none}
 
 /* ชื่ออุปกรณ์ต้องเห็นเต็ม · ตัดคำแล้วขึ้นบรรทัดใหม่แทนการตัดท้ายทิ้ง */
@@ -1356,8 +1378,11 @@ table.dtab td.pd{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-sp
        คนที่ชินตำแหน่งเดิมอยู่แล้วจะไม่ต้องหาใหม่ -->
   <div class="ribbon">
     <div class="tabs">
-      <button class="tb on" data-act="tab" data-t="parts" id="tbParts">รายชิ้น</button>
-      <button class="tb"    data-act="tab" data-t="dash"  id="tbDash" title="ภาพรวมมูลค่างานและความคืบหน้า">BI</button>
+      <!-- v5.11 BI มาก่อน · คนเปิดหน้านี้มาดูภาพรวมก่อนเสมอ
+           รายชิ้นเป็นของที่เจาะดูทีหลังเมื่อรู้แล้วว่าจะดูลอตไหน
+           คลาส on ตอนเริ่มต้องตรงกับ S.tab ไม่งั้นจะติดไฟผิดปุ่มชั่วขณะ -->
+      <button class="tb on" data-act="tab" data-t="dash"  id="tbDash" title="ภาพรวมมูลค่างานและความคืบหน้า">BI</button>
+      <button class="tb"    data-act="tab" data-t="parts" id="tbParts">รายชิ้น</button>
     </div>
     <div class="fld po">
       <label>Lot Id</label>
@@ -1561,7 +1586,9 @@ const S = {
 
   /* v4.0 แท็บภาพรวม · เก็บแยกก้อนของตัวเอง ไม่ปนกับของหน้ารายชิ้น
      rows โหลดครั้งแรกตอนกดเข้าแท็บ ไม่ได้โหลดพร้อมหน้า */
-  tab:'parts',               // parts | dash
+  tab:'dash',                // parts | dash · v5.11 เปิดมาเจอ BI ก่อน
+                             // ของที่จำแท็บล่าสุดไว้ใน localStorage ยังชนะค่านี้
+                             // ใครค้างที่รายชิ้นไว้ กด F5 ก็ยังกลับมาที่รายชิ้น
   dash:{
     rows:[], loaded:false, busy:'', err:'',
     year:'', pool:'', bu:'', st:'', mon:'', wk:'', q:'',
