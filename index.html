@@ -5,8 +5,26 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=5.0,user-scalable=yes">
 <title>Cutting Center Dashboard</title>
 <!-- =====================================================================
-  Cutting Center Dashboard   ·   VERSION 13.23
+  Cutting Center Dashboard   ·   VERSION 13.24
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  13.24 2026-09-12  FEAT เวลาตัดราย lot จากไฟล์ Pattern summary ของ Cut Rite
+                    ก่อนหน้านี้หน้านี้ตอบได้แค่ "ตัดไปกี่ชิ้นแล้ว" แต่ตอบไม่ได้ว่า
+                    "lot นี้กินเวลาเครื่องเท่าไหร่" กับ "ไม้ตัวไหนกินเวลาที่สุด"
+                    ซึ่งเป็นคำถามที่ใช้วางคิวเครื่องจริง ๆ
+                    · ตาราง cut_file (ราย lot) + cut_board (รายกลุ่มไม้) บน Supabase
+                      ป้อนโดย StarSync-CutPattern.ps1 ที่เฝ้าโฟลเดอร์ Export XLSX
+                    · การ์ดในกล่องค้นหา lot เพิ่มแถบเวลาตัด กดดูรายไม้ได้
+                      รายไม้ดึงตอนกดเท่านั้น ไม่ดึงมาตั้งแต่แรกเพราะไม่ได้ดูทุก lot
+                    · cut_file ดึงพร้อมรอบโหลดปกติ ตารางเล็ก 1 แถวต่อ lot
+                    · เวลานี้เป็นเวลาที่ Cut Rite "คำนวณ" ตอน optimize ไม่ใช่เวลาจับจริง
+                      เขียนกำกับไว้บนหน้าจอแล้ว ไม่งั้นคนจะเอาไปเทียบกับชั่วโมงกะ
+                      แล้วงงว่าทำไมไม่ตรง
+                    · ตัวเลขที่โชว์ = ผลรวมกลุ่มไม้ + เวลาตั้งเครื่อง
+                      Cut Rite แยกเวลาตั้งเครื่องไว้บรรทัดต่างหาก ไม่ได้อยู่ในไม้ตัวไหน
+                      ตรวจกับไฟล์จริง 12 ไฟล์แล้วตรงกับแถว Total ทุกไฟล์
+                    · เครื่องในไฟล์ Cut Rite (HPP380) เป็นชุดค่าตอน optimize
+                      ไม่ใช่เครื่องที่ยิงจริง จงใจไม่เอามาแสดง กันเลขเถียงกันเองแบบ 13.22
+                    ยังไม่ได้ทดสอบจริง รอข้อมูลเข้าก่อน
   13.23 2026-09-11  CHANGE กล่อง lot อ่านแล้วขัดกันเอง เลยจัดใหม่เป็น 3 ตัวเลข
                     RE-0069-0752-MU34 ขึ้น "ตัดไปแล้ว 0 จาก 251 · 0% · เหลืออีก 251"
                     แต่บรรทัดถัดมาบอกว่าเครื่องนี้ยิงไป 98 ชิ้นวันเดียวกัน
@@ -701,6 +719,27 @@ tr:hover td{background:rgba(255,255,255,.02)}
 .lf-mc-q{color:#93c5fd;font-weight:700;flex-shrink:0;font-variant-numeric:tabular-nums}
 .lf-mc-ot{color:#fca5a5;font-size:10px;flex-shrink:0}
 .lf-empty{text-align:center;padding:30px 16px;color:#475569;font-size:13px;line-height:2}
+/* v13.24 แถบเวลาตัดจาก Cut Rite */
+.lf-cut{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#0b1220;
+  border:1px solid #1e293b;border-radius:8px;padding:7px 10px;margin-bottom:8px;font-size:11.5px}
+.lf-cut-l{color:#64748b}
+.lf-cut-v{color:#c4b5fd;font-weight:700;font-size:13px;font-variant-numeric:tabular-nums}
+.lf-cut-s{color:#475569;font-size:10.5px;flex:1;min-width:130px}
+.lf-cut-b{background:#1e293b;border:1px solid #334155;color:#cbd5e1;border-radius:20px;
+  padding:4px 11px;font-size:10.5px;cursor:pointer;font-family:inherit;flex-shrink:0;min-height:26px}
+.lf-cut-b:hover{background:#334155;color:#fff}
+.lf-cutbox{border:1px solid #1e293b;border-radius:8px;overflow:hidden;margin-bottom:8px}
+.lf-cut-wait{padding:10px;color:#475569;font-size:11.5px;text-align:center}
+.cb-row{display:flex;align-items:center;gap:9px;padding:6px 10px;border-bottom:1px solid #172033;font-size:11.5px}
+.cb-row:last-child{border-bottom:none}
+.cb-setup{background:#0b1220}
+.cb-nm{flex:1;min-width:0;color:#e2e8f0;line-height:1.5;word-break:break-word}
+.cb-sub{display:block;color:#475569;font-size:10px}
+.cb-bar{width:64px;height:5px;background:#172033;border-radius:3px;overflow:hidden;flex-shrink:0}
+.cb-bar i{display:block;height:100%;background:#7c3aed}
+.cb-t{color:#c4b5fd;font-weight:700;flex-shrink:0;min-width:58px;text-align:right;
+  font-variant-numeric:tabular-nums}
+@media (max-width:768px){ .cb-bar{display:none} }
 ::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:#0f172a}
 ::-webkit-scrollbar-thumb{background:#334155;border-radius:3px}
 
@@ -3821,6 +3860,7 @@ function lfRun(){
     const pct  = st.pct;
     const fin  = st.fin;
     const proj = (p && p.proj_name) || '';
+    const cf   = cutLot[e.lot] || null;   // v13.24 เวลาตัด อาจไม่มีถ้ายังไม่ได้ซิงก์ไฟล์ lot นี้
     const badge = fin ? '<span class="lf-badge done">✓ ตัดจบแล้ว</span>'
                 : tot ? '<span class="lf-badge wip">กำลังทำ ' + pct + '%</span>'
                       : '<span class="lf-badge unk">ไม่รู้ยอดรวม</span>';
@@ -3847,6 +3887,18 @@ function lfRun(){
              ${st.src === 'scan' ? `<span style="color:#475569;font-size:11px">· นับจากที่ยิงจริง AX ค้างที่ ${n(st.ax)}</span>` : ''}</div>` : ''}
         ${edge ? `<span class="lf-warn">⚠️ อาจเริ่มตัดก่อน ${fmtDate(from)} — ข้อมูลที่มีเริ่มตรงขอบช่วงพอดี ลองขยายช่วงวันที่ดู</span>` : ''}
       </div>
+      ${cf ? `<div class="lf-cut">
+        <span class="lf-cut-l">เวลาตัด</span>
+        <b class="lf-cut-v">${cutHms(cf.total_sec)}</b>
+        <span class="lf-cut-s">Cut Rite คำนวณไว้ ไม่ใช่เวลาจับจริง
+          <span style="color:#334155">·</span> ตั้งเครื่อง ${cutHms(cf.setup_sec)}
+          <span style="color:#334155">·</span> ไม้ ${n(cf.groups)} ชนิด
+          <span style="color:#334155">·</span> ${n(cf.boards)} แผ่น${
+          cf.wbase ? ' <span style="color:#334155">·</span> เศษเฉลี่ย ' + (cf.wsum/cf.wbase).toFixed(1) + '%' : ''}${
+          cf.files > 1 ? ' <span style="color:#334155">·</span> รวม ' + cf.files + ' ไฟล์' : ''}</span>
+        <button class="lf-cut-b" data-lot="${esc13(e.lot)}" onclick="lfCutToggle(this)">ดูรายไม้</button>
+      </div>
+      <div class="lf-cutbox" hidden></div>` : ''}
       <div class="lf-mcs">
         ${mcs.map(m=>`<div class="lf-mc">
           <span class="lf-mc-n">${esc13(m.mc)}</span>
@@ -6909,6 +6961,14 @@ function mcByPcName(pc){
 let supaLotRows = [];
 let lotProg = {};
 
+// v13.24 เวลาตัดจาก Cut Rite
+//   cutLot    ราย lot · ดึงมาพร้อมรอบโหลดปกติ ตารางเล็ก 1 แถวต่อไฟล์
+//   cutBoards รายกลุ่มไม้ · ดึงตอนกดดูเท่านั้น เพราะไม่มีใครเปิดดูทุก lot
+//             เก็บไว้ในตัวแปรอย่างเดียว ไม่ลง localStorage
+//             ข้อมูลมาจาก Supabase อยู่แล้ว โหลดใหม่ก็ได้ ไม่ต้องกินที่เครื่อง
+let cutLot    = {};
+let cutBoards = {};
+
 function buildLotRows(recs, fromDate){
   // v13.19 เก็บเวลาแรก-สุดท้าย และแยกยอด OT ไว้ด้วย
   // ของเดิมมีแค่จำนวนชิ้น ตอบได้แค่ "ตัดกี่ชิ้น" ตอบไม่ได้ว่า "ตัดตอนกี่โมง"
@@ -6973,6 +7033,138 @@ async function fetchLotProgress(){
     // ถ้าพังกลางคัน เอาเท่าที่ได้มาใช้ก่อน ดีกว่าทิ้งทั้งก้อนแล้วไม่รู้ยอดเลยสักตัว
     if(got) lotProg = m;
     console.warn('[supa] ดึง lot_progress ไม่ครบ (ได้ ' + got + ' แถว):', e.message);
+  }
+}
+
+/* ── v13.24 เวลาตัดจาก Cut Rite ─────────────────────────────────────────
+   ที่มา: ไฟล์ Pattern summary ที่ Cut Rite ออกให้ทุก lot
+   StarSync-CutPattern.ps1 อ่านแล้วส่งขึ้น cut_file + cut_board
+
+   สิ่งที่ต้องรู้ก่อนเอาเลขไปใช้:
+   · เป็นเวลาที่ Cut Rite "คำนวณ" ตอน optimize จากค่าเครื่องที่ตั้งไว้
+     ไม่ใช่เวลาที่จับจริงหน้างาน · ของจริงจะมากกว่าเสมอเพราะมีเปลี่ยนใบเลื่อย
+     รอไม้ ซ่อม พักเบรก ที่ Cut Rite ไม่รู้
+   · เวลารวม = ผลรวมกลุ่มไม้ + เวลาตั้งเครื่อง
+     Cut Rite แยกเวลาตั้งเครื่องไว้ต่างหาก ไม่ได้อยู่ในไม้ชนิดไหน
+   · lot เดียวอาจมีหลายไฟล์ถ้าถูกแยก optimize ตรงนี้บวกรวมทุกไฟล์ */
+
+function cutHms(sec){
+  const s = Math.max(0, Math.round(Number(sec) || 0));
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60;
+  const p2 = v => String(v).padStart(2, '0');
+  return h ? (h + ':' + p2(m) + ':' + p2(ss)) : (m + ':' + p2(ss));
+}
+
+async function fetchCutFiles(){
+  const cols = 'lot,run_no,file_name,groups,patterns,boards,waste_pct,cut_sec,setup_sec,total_sec';
+  const PAGE = 1000;
+  const m = {};
+  let got = 0;
+  try{
+    // แบ่งหน้าแบบเดียวกับ fetchLotProgress · PostgREST ตั้ง max-rows ไว้ 1000
+    // ขอมากกว่านั้นไม่ขึ้น error แต่ได้มาแค่พันแถวแรก ซึ่งเป็นบั๊กที่ 13.22 เจอมาแล้ว
+    for(let off = 0; off < 100000; off += PAGE){
+      const u = SUPA.url.replace(/\/+$/,'')
+        + '/rest/v1/cut_file?select=' + cols
+        + '&order=lot.asc,file_name.asc&limit=' + PAGE + '&offset=' + off;
+      const res = await fetch(u, { headers:{ apikey:SUPA.key, Authorization:'Bearer '+SUPA.key } });
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      const arr = await res.json();
+      arr.forEach(x => {
+        if(!x.lot) return;
+        const e = m[x.lot] || (m[x.lot] = {
+          files:0, groups:0, patterns:0, boards:0,
+          cut_sec:0, setup_sec:0, total_sec:0, wsum:0, wbase:0
+        });
+        e.files++;
+        e.groups    += x.groups    || 0;
+        e.patterns  += x.patterns  || 0;
+        e.boards    += x.boards    || 0;
+        e.cut_sec   += x.cut_sec   || 0;
+        e.setup_sec += x.setup_sec || 0;
+        e.total_sec += x.total_sec || 0;
+        // เศษไม้เฉลี่ยต้องถ่วงด้วยจำนวนแผ่น ไม่ใช่เอา % มาบวกหารกันตรง ๆ
+        // ไฟล์ที่ตัดแผ่นเดียวจะดึงค่าเฉลี่ยเพี้ยนไปทั้ง lot
+        if(x.waste_pct != null && x.boards){ e.wsum += (+x.waste_pct) * x.boards; e.wbase += x.boards; }
+      });
+      got += arr.length;
+      if(arr.length < PAGE) break;
+    }
+    cutLot = m;
+  }catch(e){
+    // ตารางเสริม ดึงไม่ได้ก็ยังดูยอดชิ้นได้ตามปกติ · เอาเท่าที่ได้มาใช้ก่อน
+    if(got) cutLot = m;
+    console.warn('[supa] ดึง cut_file ไม่ครบ (ได้ ' + got + ' แถว):', e.message);
+  }
+}
+
+async function fetchCutBoards(lot){
+  if(cutBoards[lot]) return cutBoards[lot];
+  const cols = 'seq,board_code,board_desc,thickness,book_no,patterns,boards,waste_pct,total_sec';
+  // ต้องครอบค่าด้วยอัญประกาศคู่ · ชื่อ lot มีวงเล็บกับจุดปนอยู่
+  // เช่น 3.โครงตู้วงกบ_W8060_STOCK_New(1) ซึ่ง PostgREST อ่านเป็นไวยากรณ์ตัวกรอง
+  const val = '"' + String(lot).replace(/"/g, '\\"') + '"';
+  const u = SUPA.url.replace(/\/+$/,'')
+    + '/rest/v1/cut_board?select=' + cols
+    + '&lot=eq.' + encodeURIComponent(val)
+    + '&order=total_sec.desc&limit=500';
+  const res = await fetch(u, { headers:{ apikey:SUPA.key, Authorization:'Bearer '+SUPA.key } });
+  if(!res.ok) throw new Error('HTTP ' + res.status);
+  const arr = await res.json();
+  cutBoards[lot] = arr;
+  return arr;
+}
+
+function renderCutBoards(lot, arr){
+  const e = cutLot[lot];
+  if(!arr || !arr.length){
+    return '<div class="lf-cut-wait">ไม่มีรายละเอียดไม้ของ lot นี้</div>';
+  }
+  let max = 1;
+  arr.forEach(b => { if((b.total_sec || 0) > max) max = b.total_sec; });
+  const rows = arr.map(b => {
+    const w   = Math.max(3, Math.round((b.total_sec || 0) / max * 100));
+    const sub = [];
+    if(b.thickness != null) sub.push(esc13(b.thickness) + ' mm');
+    if(b.boards)            sub.push(n(b.boards) + ' แผ่น');
+    if(b.patterns)          sub.push(n(b.patterns) + ' แพทเทิร์น');
+    if(b.waste_pct != null) sub.push('เศษ ' + esc13(b.waste_pct) + '%');
+    return '<div class="cb-row">'
+      + '<div class="cb-nm">' + esc13(b.board_desc || b.board_code || '—')
+      +   '<span class="cb-sub">' + esc13(sub.join(' · ')) + '</span></div>'
+      + '<div class="cb-bar"><i style="width:' + w + '%"></i></div>'
+      + '<div class="cb-t">' + cutHms(b.total_sec) + '</div>'
+      + '</div>';
+  }).join('');
+  const setup = (e && e.setup_sec)
+    ? '<div class="cb-row cb-setup">'
+      + '<div class="cb-nm">ตั้งเครื่อง + ยกไม้เข้า'
+      +   '<span class="cb-sub">Cut Rite แยกไว้ต่างหาก ไม่ได้อยู่ในไม้ชนิดไหน</span></div>'
+      + '<div class="cb-bar"></div>'
+      + '<div class="cb-t">' + cutHms(e.setup_sec) + '</div></div>'
+    : '';
+  return rows + setup;
+}
+
+// ชื่อ lot ส่งผ่าน data-lot ไม่ยัดลง onclick
+// เพราะชื่อ lot ของจริงมีทั้งวงเล็บ จุด และอัญประกาศปนอยู่ ยัดลง onclick แล้วพัง
+async function lfCutToggle(btn){
+  const wrap = btn.parentNode;
+  const box  = wrap ? wrap.nextElementSibling : null;
+  if(!box || !box.classList.contains('lf-cutbox')) return;
+  if(!box.hidden){ box.hidden = true; btn.textContent = 'ดูรายไม้'; return; }
+  box.hidden = false;
+  btn.textContent = 'ซ่อน';
+  if(box.getAttribute('data-loaded') === '1') return;
+  const lot = btn.getAttribute('data-lot') || '';
+  box.innerHTML = '<div class="lf-cut-wait">กำลังดึงรายละเอียดไม้…</div>';
+  try{
+    const arr = await fetchCutBoards(lot);
+    box.innerHTML = renderCutBoards(lot, arr);
+    box.setAttribute('data-loaded', '1');
+  }catch(err){
+    box.innerHTML = '<div class="lf-cut-wait" style="color:#fca5a5">ดึงไม่ได้: '
+      + esc13(err.message) + '</div>';
   }
 }
 
@@ -7095,6 +7287,7 @@ async function fetchSupabaseData(silent, mode){
     supaProg.steps(4); supaProg.bar(86);
     supaProg.stage('ดึงความคืบหน้าราย lot', 'ตาราง lot_progress · บอกว่า lot ไหนตัดจบแล้ว');
     await fetchLotProgress();    // v13.7 ตารางเล็ก ดึงทุกรอบได้ ไม่หนัก
+    await fetchCutFiles();       // v13.24 เวลาตัดจาก Cut Rite · 1 แถวต่อไฟล์ เล็กพอ ๆ กัน
 
     // ── ขั้น 5: รวมยอดลงการ์ด (sync ล้วน ต้อง yield ให้จอวาดข้อความก่อน) ──
     supaProg.steps(5); supaProg.bar(92);
