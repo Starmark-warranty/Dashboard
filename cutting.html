@@ -5,8 +5,16 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=5.0,user-scalable=yes">
 <title>Cutting Center Dashboard</title>
 <!-- =====================================================================
-  Cutting Center Dashboard   ·   VERSION 13.29
+  Cutting Center Dashboard   ·   VERSION 13.30
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  13.30 2026-09-12  CHANGE ปรับคำตามที่หน้างานใช้จริง
+                    · ตัดคำว่า "เทป" ออก เหลือแต่จำนวนเมตร
+                    · "เที่ยว" เปลี่ยนเป็น "รอบ"
+                    · เอาคำเตือน "หาไฟล์เจาะไม่เจอ" ออก
+                      แผ่นที่ไม่มีไฟล์ .mpr ส่วนใหญ่คือแผ่นที่ไม่ต้องเจาะจริง ๆ
+                      ไม่ใช่ของหาย · เตือนทุกลอตทั้งที่เป็นเรื่องปกติ
+                      จะกลายเป็นเสียงรบกวนจนคนเลิกอ่านคำเตือนไปเลย
+
   13.29 2026-09-12  FEAT เวลาเจาะ CNC · ครบสามงาน ตัด ปิดขอบ เจาะ
                     StarSync-CutPattern v1.3 อ่านไฟล์ .mpr ใน NCData
                     นับรูเจาะกับพื้นที่ช่องเซาะ แล้วส่งขึ้นเป็นจำนวน ไม่ใช่วินาที
@@ -3998,7 +4006,7 @@ function lfRun(){
           <span style="color:#334155">·</span> ${n(cf.boards)} แผ่น${
           cf.wbase ? ' <span style="color:#334155">·</span> เศษเฉลี่ย ' + (cf.wsum/cf.wbase).toFixed(1) + '%' : ''}${
           cf.files > 1 ? ' <span style="color:#334155">·</span> รวม ' + cf.files + ' ไฟล์' : ''}${
-          edg != null ? ' <span style="color:#334155">·</span> เทป ' + n(cf.edge_m) + ' ม.'
+          edg != null ? ' <span style="color:#334155">·</span> ' + n(cf.edge_m) + ' ม.'
             + ' <span style="color:#334155">·</span> ปิดขอบ ' + n(cf.edge_panels) + '/' + n(cf.edge_all_panels) + ' แผ่น'
             + ' <span style="color:#334155">·</span> ' + (EDGE.two ? 'เครื่องสองด้าน' : 'เครื่องทีละด้าน')
             + ' ' + EDGE.feed + ' ม./นาที'
@@ -4006,7 +4014,8 @@ function lfRun(){
           ncs != null ? ' <span style="color:#334155">·</span> เจาะ ' + n((+cf.nc_vhole||0)+(+cf.nc_hhole||0)) + ' รู'
             + (cf.nc_pocket ? ' · ช่องเซาะ ' + n(cf.nc_pocket) : '')
             + ' <span style="color:#334155">·</span> ' + n(cf.nc_panels) + ' แผ่นเข้า CNC'
-            + (cf.nc_missing ? ' <span style="color:#fbbf24">· หาไฟล์เจาะไม่เจอ ' + n(cf.nc_missing) + ' แผ่น เวลาจะต่ำกว่าจริง</span>' : '')
+            /* v13.30 เอาคำเตือน "หาไฟล์เจาะไม่เจอ" ออก · ส่วนใหญ่คือแผ่นที่ไม่ต้องเจาะจริง ๆ
+               เตือนทุกลอตทั้งที่ปกติ จะกลายเป็นเสียงรบกวนจนคนเลิกอ่านคำเตือน */
             + (cf.nc_other ? ' <span style="color:#fbbf24">· คำสั่งที่ยังไม่รู้จัก ' + n(cf.nc_other) + '</span>' : '') : ''}</span>
         <button class="lf-cut-b" data-lot="${esc13(e.lot)}" onclick="lfCutToggle(this)">ดูรายไม้</button>
       </div>
@@ -8112,7 +8121,7 @@ window.onload=()=>{
              onchange="edgeSet('feed', this.value)"><span class="lf-edge-u">ม./นาที</span>
       <span class="lf-edge-l">จับวาง</span>
       <input type="number" id="edgeHand" class="lf-edge-in" min="0" max="300" step="0.5"
-             onchange="edgeSet('hand', this.value)"><span class="lf-edge-u">วิ/เที่ยว</span>
+             onchange="edgeSet('hand', this.value)"><span class="lf-edge-u">วิ/รอบ</span>
     </div>
 
     <!-- v13.29 ค่าเครื่องเจาะ CNC · แยกแถวจากปิดขอบ คนละเครื่อง คนละคนคุม -->
