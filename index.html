@@ -5,8 +5,23 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=5.0,user-scalable=yes">
 <title>Cutting Center Dashboard</title>
 <!-- =====================================================================
-  Cutting Center Dashboard   ·   VERSION 13.24
+  Cutting Center Dashboard   ·   VERSION 13.25
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  13.25 2026-09-12  FIX กด "ดูรายไม้" แล้วขึ้น "ไม่มีรายละเอียดไม้ของ lot นี้"
+                    ทั้งที่ในฐานข้อมูลมีครบ · BO69-0765 มี 8 กลุ่มไม้อยู่จริง
+                    ต้นเหตุ: 13.24 ครอบค่าใน lot=eq. ด้วยอัญประกาศคู่
+                    ตั้งใจกันชื่อ lot ที่มีวงเล็บกับจุด เช่น ...STOCK_New(1)
+                    แต่เข้าใจเอกสาร PostgREST ผิด · วิธีครอบอัญประกาศใช้ได้
+                    เฉพาะกับ in.(...) และชื่อคอลัมน์ ไม่ใช่กับ eq.
+                    eq. เอาทุกอย่างหลังจุดไปตรง ๆ อัญประกาศจึงกลายเป็นส่วนหนึ่ง
+                    ของค่าที่ค้นหา ไปหา lot ชื่อ "BO69-0765" ที่มีเครื่องหมายติดมา
+                    ซึ่งไม่มีอยู่ เลยได้ผลลัพธ์ว่าง · กันบั๊กที่ยังไม่เกิด
+                    แล้วสร้างบั๊กจริงขึ้นมาแทน
+                    · เลิกกรองด้วยชื่อ lot ไปกรองด้วย file_id ซึ่งเป็นตัวเลขล้วน
+                      ไม่มีอะไรต้อง escape เลย ปัญหาแบบนี้เกิดซ้ำไม่ได้อีก
+                    · fetchCutFiles ดึง id มาเก็บไว้ใน cutLot[lot].ids ตั้งแต่แรก
+                      ได้ของแถมคือ lot ที่มีหลายไฟล์จะดึงรายไม้มาครบทุกไฟล์
+                    ทดสอบกับข้อมูลจริงในฐานข้อมูลแล้ว
   13.24 2026-09-12  FEAT เวลาตัดราย lot จากไฟล์ Pattern summary ของ Cut Rite
                     ก่อนหน้านี้หน้านี้ตอบได้แค่ "ตัดไปกี่ชิ้นแล้ว" แต่ตอบไม่ได้ว่า
                     "lot นี้กินเวลาเครื่องเท่าไหร่" กับ "ไม้ตัวไหนกินเวลาที่สุด"
@@ -7056,7 +7071,8 @@ function cutHms(sec){
 }
 
 async function fetchCutFiles(){
-  const cols = 'lot,run_no,file_name,groups,patterns,boards,waste_pct,cut_sec,setup_sec,total_sec';
+  // ต้องดึง id มาด้วย · ใช้เป็นตัวกรองตอนขอรายไม้ แทนการกรองด้วยชื่อ lot
+  const cols = 'id,lot,run_no,file_name,groups,patterns,boards,waste_pct,cut_sec,setup_sec,total_sec';
   const PAGE = 1000;
   const m = {};
   let got = 0;
@@ -7073,9 +7089,10 @@ async function fetchCutFiles(){
       arr.forEach(x => {
         if(!x.lot) return;
         const e = m[x.lot] || (m[x.lot] = {
-          files:0, groups:0, patterns:0, boards:0,
+          ids:[], files:0, groups:0, patterns:0, boards:0,
           cut_sec:0, setup_sec:0, total_sec:0, wsum:0, wbase:0
         });
+        if(x.id != null) e.ids.push(x.id);
         e.files++;
         e.groups    += x.groups    || 0;
         e.patterns  += x.patterns  || 0;
@@ -7100,13 +7117,22 @@ async function fetchCutFiles(){
 
 async function fetchCutBoards(lot){
   if(cutBoards[lot]) return cutBoards[lot];
+  // v13.25 กรองด้วย file_id ไม่ใช่ชื่อ lot
+  //
+  // 13.24 ใช้ lot=eq."ชื่อ" แล้วได้ผลลัพธ์ว่างเสมอ
+  // เอกสาร PostgREST บอกให้ครอบอัญประกาศเมื่อค่ามีอักขระสงวน (, . : ( ))
+  // แต่ตัวอย่างทั้งหมดเป็นของ in.(...) กับชื่อคอลัมน์ ไม่ใช่ eq.
+  // eq. เอาทุกอย่างหลังจุดไปเป็นค่าตรง ๆ อัญประกาศจึงติดไปกับค่าด้วย
+  //
+  // file_id เป็น bigint ล้วน ไม่มีอักขระสงวน ไม่ต้อง escape อะไรเลย
+  // ชื่อ lot จะมีวงเล็บ จุด ลูกน้ำ หรือภาษาไทยก็ไม่กระทบ
+  const e   = cutLot[lot];
+  const ids = (e && e.ids && e.ids.length) ? e.ids : null;
+  if(!ids){ cutBoards[lot] = []; return cutBoards[lot]; }
   const cols = 'seq,board_code,board_desc,thickness,book_no,patterns,boards,waste_pct,total_sec';
-  // ต้องครอบค่าด้วยอัญประกาศคู่ · ชื่อ lot มีวงเล็บกับจุดปนอยู่
-  // เช่น 3.โครงตู้วงกบ_W8060_STOCK_New(1) ซึ่ง PostgREST อ่านเป็นไวยากรณ์ตัวกรอง
-  const val = '"' + String(lot).replace(/"/g, '\\"') + '"';
   const u = SUPA.url.replace(/\/+$/,'')
     + '/rest/v1/cut_board?select=' + cols
-    + '&lot=eq.' + encodeURIComponent(val)
+    + '&file_id=in.(' + ids.join(',') + ')'
     + '&order=total_sec.desc&limit=500';
   const res = await fetch(u, { headers:{ apikey:SUPA.key, Authorization:'Bearer '+SUPA.key } });
   if(!res.ok) throw new Error('HTTP ' + res.status);
