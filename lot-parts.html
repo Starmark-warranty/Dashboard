@@ -5,8 +5,21 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Ax Progress · รายชิ้นในลอต</title>
 <!-- =====================================================================
-  Lot Parts · รายชิ้นในลอต        ·   VERSION 5.11
+  Lot Parts · รายชิ้นในลอต        ·   VERSION 5.12
   CHANGELOG  (ใหม่สุดอยู่บนสุด ห้ามลบของเก่า)
+  5.12 2026-09-12  FEAT เวลาปิดขอบ · ตั้งค่าเครื่องได้จากหน้าจอ
+                   Cut Rite ไม่ได้ให้เวลาปิดขอบมา ชีต Edging summary ว่างทุกไฟล์
+                   StarSync-CutPattern v1.2 คิดจากชีต Part summary แล้วส่งขึ้นเป็น
+                   เมตรกับจำนวนเที่ยว หน้านี้เอามาคูณกับค่าเครื่องตอนแสดงผล
+                   · แถบตั้งค่าอยู่เหนือตาราง ติ๊กแบบเครื่อง กรอกความเร็วกับเวลาจับวาง
+                     เปลี่ยนแล้วเห็นผลทันทีทั้งตารางและหน้าต่าง ไม่ต้องซิงก์ใหม่
+                   · คอลัมน์เวลาตัดขึ้นสองบรรทัด ตัด / ขอบ แล้วตามด้วยเวลาที่เหลือ
+                   · เรียงคอลัมน์นี้ใช้เวลารวม ตัด+ขอบ เพราะเป็นตัวที่ใช้จัดคิวจริง
+                   · ค่าเครื่องเก็บในเครื่องคนดู คีย์ lp_edge ไม่ได้เก็บส่วนกลาง
+                     โรงงานมีเครื่องปิดขอบหลายแบบ ถ้าเก็บส่วนกลางคนหนึ่งเปลี่ยน
+                     แล้วอีกคนจะงงว่าเลขขยับเองทำไม
+                   ยังไม่ได้ทดสอบบนเครื่องจริง
+
   5.11 2026-09-12  FIX  หน้าต่างเวลาตัดยาวทะลุขอบล่างจนอ่านไม่ครบ
                    ลอตที่มีไม้ 11 ชนิด ตารางยาวเกินจอแล้วส่วนล่างถูกตัดหาย
                    เลื่อนลงไปดูไม่ได้ด้วย เพราะตัวที่ควรเลื่อนคือตารางข้างใน
@@ -1257,9 +1270,20 @@ tr.rmgrp .s{font-family:var(--sans);font-weight:400;font-size:11.5px;color:var(-
 .rmbtn.has{border-color:var(--ok);color:var(--ok);background:var(--stbg);font-weight:600}
 .rmbtn .rn{font-family:var(--mono);font-size:11px}
 
+/* v5.12 แถบตั้งค่าเครื่องปิดขอบ */
+.edgebar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:0 0 8px;
+  padding:7px 10px;border:1px solid var(--line);border-radius:8px}
+.ebl{font-size:11px;color:var(--mu2);font-weight:600}
+.ebu{font-size:10.5px;color:var(--mu2)}
+.ebck{display:flex;align-items:center;gap:5px;font-size:11.5px;cursor:pointer;min-height:30px}
+.ebck input{width:15px;height:15px;cursor:pointer}
+.ebin{width:62px;padding:4px 7px;font-size:11.5px;font-family:var(--mono);min-height:30px;
+  border:1px solid var(--line);border-radius:6px}
+
 /* v5.10 ช่องเวลาตัดในตาราง · สามบรรทัดซ้อนกันในช่องเดียว */
 table.dtab td.cutc{text-align:right;white-space:nowrap;line-height:1.35}
 .cutt{display:block;font-family:var(--mono);font-size:13px}
+.cutedge{display:block;font-family:var(--mono);font-size:12px;color:var(--ok2,#0f766e)}
 .cuteta{display:block;font-size:10px;color:var(--warn)}
 .cutsaw{display:block;font-family:var(--mono);font-size:10px;color:var(--mu2)}
 .cutno{color:var(--mu2)}
@@ -1665,6 +1689,40 @@ function cutThai(sec){
   return m + ' นาที';
 }
 
+/* ── v5.12 ค่าเครื่องปิดขอบ ────────────────────────────────────────
+   เก็บในเครื่องคนดู ไม่ได้เก็บส่วนกลาง · โรงงานมีเครื่องปิดขอบหลายแบบ
+   คนคุมแต่ละเครื่องอยากเห็นของเครื่องตัวเอง */
+const EDGE_DEF = { two:false, feed:16, hand:3 };
+let EDGE = { two:false, feed:16, hand:3 };
+
+function edgeLoad(){
+  try{
+    const j = JSON.parse(localStorage.getItem('lp_edge') || '{}');
+    EDGE = { two:!!j.two,
+             feed:(+j.feed > 0)  ? +j.feed : EDGE_DEF.feed,
+             hand:(+j.hand >= 0) ? +j.hand : EDGE_DEF.hand };
+  }catch(e){ EDGE = Object.assign({}, EDGE_DEF); }
+}
+function edgeSet(k, v){
+  if(k === 'two')  EDGE.two = !!v;
+  // กันค่าที่ทำให้หารศูนย์หรือติดลบ · ปล่อยผ่านแล้วเวลาจะเป็น Infinity
+  if(k === 'feed'){ const n = parseFloat(v); EDGE.feed = (n > 0)  ? n : EDGE_DEF.feed; }
+  if(k === 'hand'){ const n = parseFloat(v); EDGE.hand = (n >= 0) ? n : EDGE_DEF.hand; }
+  try{ localStorage.setItem('lp_edge', JSON.stringify(EDGE)); }catch(e){}
+  render();
+  try{ if($('ovCut') && $('ovCut').classList.contains('open')) renderCutBox(); }catch(e){}
+}
+
+/* เวลาปิดขอบของลอต · null เมื่อยังไม่มีข้อมูล จะได้ไม่ขึ้นบรรทัดนั้นเลย
+   เวลา = ระยะที่แผ่นวิ่งผ่านเครื่อง / ความเร็วป้อน + จำนวนเที่ยว x เวลาจับวาง */
+function cutEdgeSec(c){
+  if(!c || !c.edge_panels) return null;
+  const run = EDGE.two ? c.edge_run2_m : c.edge_run1_m;
+  const pas = EDGE.two ? c.edge_pass2  : c.edge_pass1;
+  if(run == null || pas == null) return null;
+  return Math.round(run / EDGE.feed * 60 + pas * EDGE.hand);
+}
+
 /* ชื่อหัวคอลัมน์ · ถอดมาจากนิยามกริดในตัว AxProgress.exe ทั้งหมด */
 const LBL = {
   st_part:'Part', st_pack:'Pack', st_pick:'Pick', st_wh:'Wh',
@@ -1850,7 +1908,9 @@ const db = {
   },
   cutFiles(){
     return this.cutGetAll('cut_file?select=id,lot,run_no,file_name,groups,patterns,boards,' +
-                          'waste_pct,cut_sec,setup_sec,total_sec', 'lot.asc');
+                          'waste_pct,cut_sec,setup_sec,total_sec,' +
+                          'edge_m,edge_panels,edge_all_panels,edge_pass1,edge_run1_m,' +
+                          'edge_pass2,edge_run2_m,edge_guess', 'lot.asc');
   },
   /* กรองด้วย file_id ที่เป็นตัวเลขล้วน ไม่ใช่ชื่อลอต
      ชื่อลอตมีวงเล็บ จุด และภาษาไทยปนอยู่ ซึ่ง PostgREST อ่านเป็นไวยากรณ์ตัวกรอง
@@ -2572,6 +2632,19 @@ function renderDash(){
       ' · กดแถวเพื่อดูเวลาตัดแยกรายไม้ · กดปุ่มท้ายแถวเพื่อดูวัตถุดิบ</span></h4>' +
       (S.cut.err ? '<div class="blk dwarn" style="margin:0 0 8px"><span>⚠</span><span>' +
         esc(S.cut.err) + ' · คอลัมน์เวลาตัดจะขึ้นขีด ที่เหลือใช้ได้ตามปกติ</span></div>' : '') +
+      /* v5.12 ค่าเครื่องปิดขอบ · Cut Rite ไม่ได้ให้เวลาปิดขอบมา ต้องคูณเอง
+         วางเหนือตารางเพราะมีผลกับทุกแถวพร้อมกัน ไม่ใช่ของลอตใดลอตหนึ่ง */
+      '<div class="edgebar">' +
+        '<span class="ebl">เครื่องปิดขอบ</span>' +
+        '<label class="ebck" title="เครื่องที่ติดเทปสองด้านตรงข้ามพร้อมกัน แผ่นวิ่งผ่านเครื่องครึ่งเดียว">' +
+          '<input type="checkbox" data-act="edgetwo"' + (EDGE.two ? ' checked' : '') + '> ปิดสองด้านพร้อมกัน</label>' +
+        '<span class="ebl">ความเร็ว</span>' +
+        '<input type="number" class="ebin" data-act="edgefeed" min="1" max="99" step="0.5" value="' + EDGE.feed + '">' +
+        '<span class="ebu">ม./นาที</span>' +
+        '<span class="ebl">จับวาง</span>' +
+        '<input type="number" class="ebin" data-act="edgehand" min="0" max="300" step="0.5" value="' + EDGE.hand + '">' +
+        '<span class="ebu">วิ/เที่ยว</span>' +
+      '</div>' +
       /* v5.7 หัวตารางกดเรียงได้ทุกคอลัมน์ · กดซ้ำสลับขึ้นลง
          ลูกศรโชว์เฉพาะคอลัมน์ที่เรียงอยู่ ไม่ได้ใส่จาง ๆ ทุกหัว
          ซึ่งจะกลายเป็นลูกศรเก้าตัวเรียงกันจนไม่รู้ว่าอันไหนทำงานอยู่ */
@@ -2649,7 +2722,9 @@ function renderDash(){
             const c = S.cut.map[r.lot];
             if(!c) return '<span class="cutno">—</span>';
             const eta = cutEtaOf(r);
-            return '<b class="cutt">' + esc(cutThai(c.total_sec)) + '</b>' +
+            const edg = cutEdgeSec(c);
+            return '<b class="cutt">ตัด ' + esc(cutThai(c.total_sec)) + '</b>' +
+              (edg != null ? '<span class="cutedge">ขอบ ' + esc(cutThai(edg)) + '</span>' : '') +
               (eta ? '<span class="cuteta">เหลือราว ' + esc(cutThai(eta)) + '</span>' : '') +
               '<span class="cutsaw">.SAW ' + esc(c.runs.join(' · ')) + '</span>';
           })() + '</td>' +
@@ -2759,7 +2834,10 @@ function dSortVal(r, k){
     case 'prog':  { const v = progScore(r); return v < 0 ? null : v; }
     /* v5.10 ลอตที่ไม่มีไฟล์เวลาตัดคืน null ไปอยู่ท้ายสุดเสมอ
        ไม่ใช่ศูนย์ · "ไม่รู้" กับ "ศูนย์วินาที" คนละเรื่องกัน */
-    case 'cut':   { const c = S.cut.map[r.lot]; return c ? c.total_sec : null; }
+    /* v5.12 เรียงด้วยเวลารวม ตัด+ขอบ ไม่ใช่เวลาตัดอย่างเดียว
+       เพราะตัวที่ใช้จัดคิวคือเวลาที่งานกินเครื่องทั้งหมด */
+    case 'cut':   { const c = S.cut.map[r.lot]; if(!c) return null;
+                    const e = cutEdgeSec(c); return c.total_sec + (e || 0); }
     default:      return txt(r.lot);
   }
 }
@@ -2897,7 +2975,10 @@ async function loadCut(){
       const e = m[x.lot] || (m[x.lot] = {
         ids:[], runs:[], names:[], files:0,
         groups:0, patterns:0, boards:0,
-        cut_sec:0, setup_sec:0, total_sec:0, wsum:0, wbase:0
+        cut_sec:0, setup_sec:0, total_sec:0, wsum:0, wbase:0,
+        // v5.12 งานปิดขอบ · บวกรวมทุกไฟล์ของลอตเดียวกันเหมือนงานตัด
+        edge_m:0, edge_panels:0, edge_all_panels:0, edge_guess:0,
+        edge_pass1:0, edge_run1_m:0, edge_pass2:0, edge_run2_m:0
       });
       if(x.id != null)  e.ids.push(x.id);
       if(x.run_no)      e.runs.push(String(x.run_no));
@@ -2915,6 +2996,14 @@ async function loadCut(){
         e.wsum  += Number(x.waste_pct) * Number(x.boards);
         e.wbase += Number(x.boards);
       }
+      e.edge_m          += Number(x.edge_m)          || 0;
+      e.edge_panels     += Number(x.edge_panels)     || 0;
+      e.edge_all_panels += Number(x.edge_all_panels) || 0;
+      e.edge_guess      += Number(x.edge_guess)      || 0;
+      e.edge_pass1      += Number(x.edge_pass1)      || 0;
+      e.edge_run1_m     += Number(x.edge_run1_m)     || 0;
+      e.edge_pass2      += Number(x.edge_pass2)      || 0;
+      e.edge_run2_m     += Number(x.edge_run2_m)     || 0;
     });
     C.map = m; C.loaded = true; C.err = '';
   } catch(e){
@@ -3263,8 +3352,11 @@ function renderCutBox(){
   const cell  = (k, v, col) => '<div><div class="k">' + esc(k) + '</div>' +
     '<div class="v"' + (col ? ' style="color:' + col + '"' : '') + '>' + esc(v) + '</div></div>';
 
+  const edg = cutEdgeSec(c);
   let head = '<div class="cutsum">' +
-    cell('เวลาตัดทั้งลอต', cutThai(c.total_sec)) +
+    cell('เวลาตัด', cutThai(c.total_sec)) +
+    (edg == null ? '' : cell('ปิดขอบ', cutThai(edg), 'var(--ok2,#0f766e)')) +
+    (edg == null ? '' : cell('รวมสองงาน', cutThai(c.total_sec + edg))) +
     (eta ? cell('เหลืออีกราว', cutThai(eta), 'var(--warn)') : '') +
     cell('ตั้งเครื่อง + ยกไม้', cutThai(c.setup_sec)) +
     cell('ไม้', c.groups + ' ชนิด') +
@@ -3272,6 +3364,17 @@ function renderCutBox(){
     (waste == null ? '' : cell('เศษเฉลี่ย', waste.toFixed(1) + '%')) +
     cell('.SAW', c.runs.join(' · ')) +
   '</div>';
+
+  if(edg != null){
+    head += '<div class="cutnote">ปิดขอบ · เทป ' + nf0.format(Math.round(c.edge_m)) + ' ม. · ' +
+      nf0.format(c.edge_panels) + ' จาก ' + nf0.format(c.edge_all_panels) + ' แผ่นต้องเข้าเครื่อง · ' +
+      nf0.format(EDGE.two ? c.edge_pass2 : c.edge_pass1) + ' เที่ยว · คิดด้วยเครื่อง' +
+      (EDGE.two ? 'ปิดสองด้านพร้อมกัน' : 'ปิดทีละด้าน') + ' ' + EDGE.feed + ' ม./นาที จับวาง ' +
+      EDGE.hand + ' วิ/เที่ยว' +
+      (c.edge_guess ? ' <b style="color:var(--warn)">· มี ' + nf0.format(c.edge_guess) +
+        ' แผ่นที่บอกไม่ได้จากขนาดว่าปิดด้านไหน เลยเดาจากรหัสขอบ</b>' : '') +
+      '</div>';
+  }
 
   head += '<div class="cutnote">เวลานี้ Cut Rite คำนวณไว้ตอน optimize ' +
     'ไม่ใช่เวลาที่จับจริงหน้างาน · ของจริงจะมากกว่าเพราะมีเปลี่ยนใบเลื่อย รอไม้ พักเบรก' +
@@ -3823,6 +3926,7 @@ async function boot(){
        !new URLSearchParams(location.search).get('lot')) S.tab = t;
   } catch(e){}
 
+  edgeLoad();          // v5.12 ค่าเครื่องปิดขอบที่จำไว้ในเครื่องคนดู
   loadCfg();
   if(!S.url || !S.key){ render(); return; }
 
@@ -4114,6 +4218,9 @@ document.addEventListener('click', ev => {
     openCutBox(t.dataset.lot); return;
   }
   if(act === 'cutclose'){ $('ovCut').classList.remove('open'); return; }
+  /* v5.12 ค่าเครื่องปิดขอบ · ช่องตัวเลขใช้ change ไม่ใช่ click
+     ตัวจัดการนี้ผูกกับ click อย่างเดียว ช่องกรอกจึงต้องผูกแยกด้านล่าง */
+  if(act === 'edgetwo'){ edgeSet('two', t.checked); return; }
 
   if(act === 'drop'){ openPicker(); return; }
   if(act === 'pkclose'){ closePicker(); return; }
@@ -4177,6 +4284,13 @@ document.addEventListener('click', ev => {
    หน่วงก่อนวาดใหม่ แล้วคืนโฟกัสกับตำแหน่งเคอร์เซอร์ให้หลังวาดเสร็จ
    ไม่งั้นช่องที่กำลังพิมพ์อยู่จะโดนลบทิ้งทุกตัวอักษร */
 document.addEventListener('change', ev => {
+  /* v5.12 ช่องกรอกค่าเครื่องปิดขอบ · ใช้ change ไม่ใช่ input
+     ถ้าใช้ input จะวาดใหม่ทุกตัวอักษรที่พิมพ์ แล้วเคอร์เซอร์จะกระเด็นออกจากช่อง
+     เป็นอาการเดียวกับที่ v5.5 เจอกับช่องกรองรายคอลัมน์ */
+  const eact = ev.target.dataset && ev.target.dataset.act;
+  if(eact === 'edgefeed'){ edgeSet('feed', ev.target.value); return; }
+  if(eact === 'edgehand'){ edgeSet('hand', ev.target.value); return; }
+
   /* v4.0 ช่องเลือกของแท็บภาพรวม · เปลี่ยนปีหรือสายผลิตแล้วเดือนที่กรองค้างอยู่
      อาจไม่มีอยู่จริงในชุดใหม่ ล้างทิ้งด้วย ไม่งั้นจอจะว่างโดยไม่รู้สาเหตุ */
   /* v5.5 ลูกศรของช่องกรองรายคอลัมน์ · เลือกแล้ววาดใหม่ทันที ไม่ต้องหน่วง
